@@ -1,5 +1,7 @@
+#[cfg(feature = "sim")]
 mod sim;
 
+#[cfg(feature = "sim")]
 pub use sim::{builtin_benchmark_report, builtin_comparison_report};
 
 const PROBO_INTENSITY_MEDIUM: u8 = 1;

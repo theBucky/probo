@@ -8,5 +8,6 @@ iterations="${1:-100000}"
 cargo run \
   --manifest-path "$root_dir/runtime/Cargo.toml" \
   --release \
+  --features sim \
   --bin probo_bench \
   -- "$iterations"
