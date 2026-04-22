@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let eventTapController = EventTapController()
   private let statusMenuController = StatusMenuController()
 
-  private var configuration = AppConfiguration(isEnabled: true, intensity: .slow)
+  private var configuration = AppConfiguration.defaultValue
   private var tapStatus = EventTapController.Status(isInstalled: false, isEnabled: false)
   private var accessibilityTrusted = false
   private var lastMenuState: StatusMenuState?
@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     configuration = configurationStore.load()
-    eventTapController.intensity = configuration.intensity
+    eventTapController.apply(configuration: configuration)
 
     eventTapController.onStatusChange = { [weak self] status in
       guard let self else { return }
@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
     statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
+    statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
     statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
     statusMenuController.onGrantAccessibilityAccess = { [weak self] in
       self?.requestAccessibilityAccess()
@@ -66,7 +67,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     guard configuration.intensity != intensity else { return }
     configuration.intensity = intensity
     configurationStore.save(configuration)
-    eventTapController.intensity = intensity
+    eventTapController.apply(configuration: configuration)
+    renderStatusMenu()
+  }
+
+  private func toggleLookUp() {
+    configuration.isLookUpEnabled.toggle()
+    configurationStore.save(configuration)
+    eventTapController.apply(configuration: configuration)
     renderStatusMenu()
   }
 

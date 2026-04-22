@@ -3,6 +3,9 @@
 @MainActor
 final class EventTapController {
   private static let synthMarker: Int64 = 0x50_524F_424F
+  private static let lookUpButtonNumber: Int64 = 3
+  private static let lookUpKeyCode: CGKeyCode = 2
+  private static let lookUpFlags: CGEventFlags = [.maskCommand, .maskControl]
 
   struct Status: Equatable, Sendable {
     var isInstalled: Bool
@@ -14,8 +17,14 @@ final class EventTapController {
   private var runLoopSource: CFRunLoopSource?
   private var isEnabled = false
 
-  var intensity: ScrollIntensity = .slow
+  var intensity: ScrollIntensity = AppConfiguration.defaultValue.intensity
+  var isLookUpEnabled = AppConfiguration.defaultValue.isLookUpEnabled
   var onStatusChange: ((Status) -> Void)?
+
+  func apply(configuration: AppConfiguration) {
+    intensity = configuration.intensity
+    isLookUpEnabled = configuration.isLookUpEnabled
+  }
 
   func setEnabled(_ enabled: Bool) {
     isEnabled = enabled
@@ -34,7 +43,10 @@ final class EventTapController {
       return
     }
 
-    let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
+    let mask =
+      CGEventMask(1 << CGEventType.scrollWheel.rawValue)
+      | CGEventMask(1 << CGEventType.otherMouseDown.rawValue)
+      | CGEventMask(1 << CGEventType.otherMouseUp.rawValue)
     let callback: CGEventTapCallBack = { _, type, event, userInfo in
       guard let userInfo else { return Unmanaged.passUnretained(event) }
       let controller = Unmanaged<EventTapController>.fromOpaque(userInfo).takeUnretainedValue()
@@ -86,7 +98,13 @@ final class EventTapController {
       return pass
     }
 
-    guard type == .scrollWheel, isEnabled else { return pass }
+    guard isEnabled else { return pass }
+
+    if type == .otherMouseDown || type == .otherMouseUp {
+      return handleOtherMouse(type: type, event: event) ? nil : pass
+    }
+
+    guard type == .scrollWheel else { return pass }
 
     if event.getIntegerValueField(.eventSourceUserData) == Self.synthMarker {
       return pass
@@ -128,6 +146,32 @@ final class EventTapController {
 
     replacement.post(tap: .cgSessionEventTap)
     return nil
+  }
+
+  private func handleOtherMouse(type: CGEventType, event: CGEvent) -> Bool {
+    guard isLookUpEnabled else { return false }
+    guard event.getIntegerValueField(.mouseEventButtonNumber) == Self.lookUpButtonNumber else {
+      return false
+    }
+
+    if type == .otherMouseDown {
+      postLookUpShortcut()
+    }
+
+    return true
+  }
+
+  private func postLookUpShortcut() {
+    guard let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: Self.lookUpKeyCode, keyDown: true),
+      let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: Self.lookUpKeyCode, keyDown: false)
+    else {
+      return
+    }
+
+    keyDown.flags = Self.lookUpFlags
+    keyUp.flags = Self.lookUpFlags
+    keyDown.post(tap: .cgSessionEventTap)
+    keyUp.post(tap: .cgSessionEventTap)
   }
 
   private func notifyStatus() {

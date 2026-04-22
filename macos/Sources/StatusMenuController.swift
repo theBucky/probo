@@ -25,6 +25,7 @@ private struct SymbolSpec: Equatable {
 final class StatusMenuController: NSObject {
   var onToggleEnabled: (() -> Void)?
   var onSelectIntensity: ((ScrollIntensity) -> Void)?
+  var onToggleLookUp: (() -> Void)?
   var onToggleStartAtLogin: (() -> Void)?
   var onGrantAccessibilityAccess: (() -> Void)?
   var onQuit: (() -> Void)?
@@ -36,9 +37,12 @@ final class StatusMenuController: NSObject {
   private let enabledItem = NSMenuItem(
     title: "enabled", action: #selector(toggleEnabled), keyEquivalent: "")
   private let intensityItem = NSMenuItem(title: "intensity", action: nil, keyEquivalent: "")
+  private let miscItem = NSMenuItem(title: "misc", action: nil, keyEquivalent: "")
   private let slowItem = NSMenuItem(title: "slow", action: #selector(selectSlow), keyEquivalent: "")
   private let mediumItem = NSMenuItem(
     title: "medium", action: #selector(selectMedium), keyEquivalent: "")
+  private let lookUpItem = NSMenuItem(
+    title: "look up on button 4", action: #selector(toggleLookUp), keyEquivalent: "")
   private let startAtLoginItem = NSMenuItem(
     title: "start at login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
   private let grantAccessibilityItem = NSMenuItem(
@@ -52,7 +56,8 @@ final class StatusMenuController: NSObject {
     super.init()
 
     for item in [
-      enabledItem, slowItem, mediumItem, startAtLoginItem, grantAccessibilityItem, quitItem,
+      enabledItem, slowItem, mediumItem, lookUpItem, startAtLoginItem, grantAccessibilityItem,
+      quitItem,
     ] {
       item.target = self
     }
@@ -62,8 +67,13 @@ final class StatusMenuController: NSObject {
     intensityMenu.addItem(mediumItem)
     intensityItem.submenu = intensityMenu
 
+    let miscMenu = NSMenu(title: "misc")
+    miscMenu.addItem(lookUpItem)
+    miscItem.submenu = miscMenu
+
     menu.addItem(enabledItem)
     menu.addItem(intensityItem)
+    menu.addItem(miscItem)
     menu.addItem(startAtLoginItem)
     menu.addItem(.separator())
     menu.addItem(grantAccessibilityItem)
@@ -89,6 +99,7 @@ final class StatusMenuController: NSObject {
     enabledItem.state = state.configuration.isEnabled ? .on : .off
     slowItem.state = state.configuration.intensity == .slow ? .on : .off
     mediumItem.state = state.configuration.intensity == .medium ? .on : .off
+    lookUpItem.state = state.configuration.isLookUpEnabled ? .on : .off
     startAtLoginItem.state = state.startAtLoginEnabled ? .on : .off
     grantAccessibilityItem.isHidden = state.accessibilityTrusted
 
@@ -116,6 +127,7 @@ final class StatusMenuController: NSObject {
   @objc private func toggleEnabled() { onToggleEnabled?() }
   @objc private func selectSlow() { onSelectIntensity?(.slow) }
   @objc private func selectMedium() { onSelectIntensity?(.medium) }
+  @objc private func toggleLookUp() { onToggleLookUp?() }
   @objc private func toggleStartAtLogin() { onToggleStartAtLogin?() }
   @objc private func grantAccessibilityAccess() { onGrantAccessibilityAccess?() }
   @objc private func quit() { onQuit?() }
