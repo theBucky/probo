@@ -33,22 +33,23 @@ final class StatusMenuController: NSObject {
   private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
   private let menu = NSMenu()
   private let iconView = PassThroughImageView()
+  private let accessibilityGroupSeparator = NSMenuItem.separator()
 
-  private let enabledItem = NSMenuItem(
-    title: "enabled", action: #selector(toggleEnabled), keyEquivalent: "")
-  private let intensityItem = NSMenuItem(title: "intensity", action: nil, keyEquivalent: "")
-  private let miscItem = NSMenuItem(title: "misc", action: nil, keyEquivalent: "")
-  private let slowItem = NSMenuItem(title: "slow", action: #selector(selectSlow), keyEquivalent: "")
+  private let enableItem = NSMenuItem(
+    title: "Enable", action: #selector(toggleEnabled), keyEquivalent: "")
+  private let intensityItem = NSMenuItem(title: "Intensity", action: nil, keyEquivalent: "")
+  private let miscItem = NSMenuItem(title: "Misc", action: nil, keyEquivalent: "")
+  private let slowItem = NSMenuItem(title: "Slow", action: #selector(selectSlow), keyEquivalent: "")
   private let mediumItem = NSMenuItem(
-    title: "medium", action: #selector(selectMedium), keyEquivalent: "")
+    title: "Medium", action: #selector(selectMedium), keyEquivalent: "")
   private let lookUpItem = NSMenuItem(
-    title: "look up on button 4", action: #selector(toggleLookUp), keyEquivalent: "")
+    title: "Look Up on Button 4", action: #selector(toggleLookUp), keyEquivalent: "")
   private let startAtLoginItem = NSMenuItem(
-    title: "start at login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
+    title: "Start at Login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
   private let grantAccessibilityItem = NSMenuItem(
-    title: "grant accessibility access", action: #selector(grantAccessibilityAccess),
+    title: "Grant Accessibility Access", action: #selector(grantAccessibilityAccess),
     keyEquivalent: "")
-  private let quitItem = NSMenuItem(title: "quit", action: #selector(quit), keyEquivalent: "q")
+  private let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
 
   private var currentSpec: SymbolSpec?
 
@@ -56,27 +57,30 @@ final class StatusMenuController: NSObject {
     super.init()
 
     for item in [
-      enabledItem, slowItem, mediumItem, lookUpItem, startAtLoginItem, grantAccessibilityItem,
+      enableItem, slowItem, mediumItem, lookUpItem, startAtLoginItem, grantAccessibilityItem,
       quitItem,
     ] {
       item.target = self
     }
 
-    let intensityMenu = NSMenu(title: "intensity")
+    let intensityMenu = NSMenu(title: "Intensity")
     intensityMenu.addItem(slowItem)
     intensityMenu.addItem(mediumItem)
     intensityItem.submenu = intensityMenu
 
-    let miscMenu = NSMenu(title: "misc")
+    let miscMenu = NSMenu(title: "Misc")
     miscMenu.addItem(lookUpItem)
     miscItem.submenu = miscMenu
 
-    menu.addItem(enabledItem)
+    menu.addItem(enableItem)
+    menu.addItem(.separator())
     menu.addItem(intensityItem)
     menu.addItem(miscItem)
-    menu.addItem(startAtLoginItem)
     menu.addItem(.separator())
+    menu.addItem(startAtLoginItem)
+    menu.addItem(accessibilityGroupSeparator)
     menu.addItem(grantAccessibilityItem)
+    menu.addItem(.separator())
     menu.addItem(quitItem)
 
     statusItem.menu = menu
@@ -96,11 +100,12 @@ final class StatusMenuController: NSObject {
   }
 
   func render(_ state: StatusMenuState) {
-    enabledItem.state = state.configuration.isEnabled ? .on : .off
+    enableItem.state = state.configuration.isEnabled ? .on : .off
     slowItem.state = state.configuration.intensity == .slow ? .on : .off
     mediumItem.state = state.configuration.intensity == .medium ? .on : .off
     lookUpItem.state = state.configuration.isLookUpEnabled ? .on : .off
     startAtLoginItem.state = state.startAtLoginEnabled ? .on : .off
+    accessibilityGroupSeparator.isHidden = state.accessibilityTrusted
     grantAccessibilityItem.isHidden = state.accessibilityTrusted
 
     applySymbol(symbolSpec(for: state))
