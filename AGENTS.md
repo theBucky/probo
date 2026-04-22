@@ -9,7 +9,6 @@ Menubar macOS app that remaps mouse wheel ticks to fixed line steps. Swift/AppKi
 - FFI header: [probo_runtime.h](scr/runtime/include/probo_runtime.h)
 - Swift bridge: [RuntimeBridge.swift](scr/macos/Sources/RuntimeBridge.swift)
 - Build/run/bench scripts: [scr/build.sh](scr/build.sh), [scr/run.sh](scr/run.sh), [scr/bench.sh](scr/bench.sh), [scr/compare.sh](scr/compare.sh)
-- Product direction: [docs/high-level-plan.md](docs/high-level-plan.md), [docs/algorithm.md](docs/algorithm.md)
 
 ## Validate
 
