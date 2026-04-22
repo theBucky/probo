@@ -12,7 +12,7 @@ app_resources_dir="$app_contents_dir/Resources"
 runtime_dir="$root_dir/scr/runtime"
 swift_dir="$root_dir/scr/macos"
 sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
-swift_target="$(uname -m)-apple-macos13.0"
+swift_target="$(uname -m)-apple-macos26.0"
 rust_lib_dir="$rust_target_dir/release"
 swift_sources=("$swift_dir"/Sources/*.swift)
 signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
@@ -30,6 +30,8 @@ cargo build \
 xcrun swiftc \
   -sdk "$sdk_path" \
   -target "$swift_target" \
+  -swift-version 6 \
+  -O \
   -import-objc-header "$runtime_dir/include/probo_runtime.h" \
   -L "$rust_lib_dir" \
   -lprobo_runtime \
