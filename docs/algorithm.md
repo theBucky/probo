@@ -89,7 +89,7 @@ properties:
 
 ### parameters
 - `step_px_slow = 24`
-- `step_px_medium = 54`
+- `step_px_medium = 72`
 
 these are starting points, not locked values.
 

@@ -6,7 +6,7 @@ const PROBO_INTENSITY_SLOW: u8 = 0;
 const PROBO_INTENSITY_MEDIUM: u8 = 1;
 
 const STEP_PX_SLOW: i32 = 24;
-const STEP_PX_MEDIUM: i32 = 54;
+const STEP_PX_MEDIUM: i32 = 72;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
