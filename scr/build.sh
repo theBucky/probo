@@ -15,6 +15,9 @@ sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
 swift_target="$(uname -m)-apple-macos13.0"
 rust_lib_dir="$rust_target_dir/release"
 swift_sources=("$swift_dir"/Sources/*.swift)
+signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
+
+PROBO_CODESIGN_DEFAULT_IDENTITY="$signing_identity" "$root_dir/scr/setup-local-codesign.sh" >/dev/null
 
 rm -rf "$app_dir"
 mkdir -p "$app_binary_dir" "$app_resources_dir"
@@ -37,5 +40,14 @@ xcrun swiftc \
   -o "$app_binary_dir/Probo"
 
 cp "$swift_dir/Resources/Info.plist" "$app_contents_dir/Info.plist"
+
+codesign \
+  --force \
+  --options runtime \
+  --sign "$signing_identity" \
+  --timestamp=none \
+  "$app_dir"
+codesign --verify --deep --strict "$app_dir"
+echo "signed $app_dir with $signing_identity"
 
 echo "built $app_dir"
