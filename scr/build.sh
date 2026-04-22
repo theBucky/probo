@@ -1,0 +1,41 @@
+#!/bin/zsh
+
+set -euo pipefail
+
+root_dir="$(cd "$(dirname "$0")/.." && pwd)"
+build_dir="$root_dir/build"
+rust_target_dir="$build_dir/rust"
+app_dir="$build_dir/Probo.app"
+app_contents_dir="$app_dir/Contents"
+app_binary_dir="$app_contents_dir/MacOS"
+app_resources_dir="$app_contents_dir/Resources"
+runtime_dir="$root_dir/scr/runtime"
+swift_dir="$root_dir/scr/macos"
+sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
+swift_target="$(uname -m)-apple-macos13.0"
+rust_lib_dir="$rust_target_dir/release"
+swift_sources=("$swift_dir"/Sources/*.swift)
+
+rm -rf "$app_dir"
+mkdir -p "$app_binary_dir" "$app_resources_dir"
+
+cargo build \
+  --manifest-path "$runtime_dir/Cargo.toml" \
+  --release \
+  --target-dir "$rust_target_dir"
+
+xcrun swiftc \
+  -sdk "$sdk_path" \
+  -target "$swift_target" \
+  -import-objc-header "$runtime_dir/include/probo_runtime.h" \
+  -L "$rust_lib_dir" \
+  -lprobo_runtime \
+  -framework AppKit \
+  -framework ApplicationServices \
+  -framework ServiceManagement \
+  "${swift_sources[@]}" \
+  -o "$app_binary_dir/Probo"
+
+cp "$swift_dir/Resources/Info.plist" "$app_contents_dir/Info.plist"
+
+echo "built $app_dir"
