@@ -1,9 +1,8 @@
-import ApplicationServices
-import Foundation
+@preconcurrency import ApplicationServices
 
 enum AccessibilityPermission {
     static func isTrusted(prompt: Bool) -> Bool {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: prompt] as CFDictionary
-        return AXIsProcessTrustedWithOptions(options)
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        return AXIsProcessTrustedWithOptions([key: prompt] as CFDictionary)
     }
 }

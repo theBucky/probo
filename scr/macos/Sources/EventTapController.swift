@@ -1,10 +1,10 @@
-import ApplicationServices
-import Foundation
+@preconcurrency import ApplicationServices
 
+@MainActor
 final class EventTapController {
     private static let synthMarker: Int64 = 0x50524F424F
 
-    struct Status: Equatable {
+    struct Status: Equatable, Sendable {
         var isInstalled: Bool
         var isEnabled: Bool
     }
@@ -36,12 +36,11 @@ final class EventTapController {
 
         let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
         let callback: CGEventTapCallBack = { _, type, event, userInfo in
-            guard let userInfo else {
-                return Unmanaged.passUnretained(event)
-            }
-
+            guard let userInfo else { return Unmanaged.passUnretained(event) }
             let controller = Unmanaged<EventTapController>.fromOpaque(userInfo).takeUnretainedValue()
-            return controller.handle(type: type, event: event)
+            return MainActor.assumeIsolated {
+                controller.handle(type: type, event: event)
+            }
         }
 
         guard let tap = CGEvent.tapCreate(
@@ -85,9 +84,7 @@ final class EventTapController {
             return pass
         }
 
-        guard type == .scrollWheel, isEnabled else {
-            return pass
-        }
+        guard type == .scrollWheel, isEnabled else { return pass }
 
         if event.getIntegerValueField(.eventSourceUserData) == Self.synthMarker {
             return pass

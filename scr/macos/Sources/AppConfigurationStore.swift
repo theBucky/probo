@@ -17,10 +17,10 @@ final class AppConfigurationStore {
     }
 
     func load() -> AppConfiguration {
-        let isEnabled = defaults.bool(forKey: Key.isEnabled)
-        let rawIntensity = defaults.integer(forKey: Key.intensity)
-        let intensity = ScrollIntensity(rawValue: rawIntensity) ?? .slow
-        return AppConfiguration(isEnabled: isEnabled, intensity: intensity)
+        AppConfiguration(
+            isEnabled: defaults.bool(forKey: Key.isEnabled),
+            intensity: ScrollIntensity(rawValue: defaults.integer(forKey: Key.intensity)) ?? .slow
+        )
     }
 
     func save(_ configuration: AppConfiguration) {

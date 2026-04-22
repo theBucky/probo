@@ -1,5 +1,4 @@
 import AppKit
-import Foundation
 
 struct StatusMenuState: Equatable {
     var configuration: AppConfiguration
@@ -8,6 +7,7 @@ struct StatusMenuState: Equatable {
     var tapStatus: EventTapController.Status
 }
 
+@MainActor
 final class StatusMenuController: NSObject {
     var onToggleEnabled: (() -> Void)?
     var onSelectIntensity: ((ScrollIntensity) -> Void)?
@@ -29,8 +29,9 @@ final class StatusMenuController: NSObject {
     override init() {
         super.init()
 
-        [enabledItem, slowItem, mediumItem, startAtLoginItem, grantAccessibilityItem, quitItem]
-            .forEach { $0.target = self }
+        for item in [enabledItem, slowItem, mediumItem, startAtLoginItem, grantAccessibilityItem, quitItem] {
+            item.target = self
+        }
 
         let intensityMenu = NSMenu(title: "intensity")
         intensityMenu.addItem(slowItem)
@@ -55,36 +56,19 @@ final class StatusMenuController: NSObject {
         startAtLoginItem.state = state.startAtLoginEnabled ? .on : .off
         grantAccessibilityItem.isHidden = state.accessibilityTrusted
 
-        if !state.accessibilityTrusted {
-            statusItem.button?.title = "probo!"
-        } else if state.configuration.isEnabled && state.tapStatus.isEnabled {
-            statusItem.button?.title = "probo"
-        } else {
-            statusItem.button?.title = "probo off"
-        }
+        statusItem.button?.title = titleForState(state)
     }
 
-    @objc private func toggleEnabled() {
-        onToggleEnabled?()
+    private func titleForState(_ state: StatusMenuState) -> String {
+        if !state.accessibilityTrusted { return "probo!" }
+        if state.configuration.isEnabled && state.tapStatus.isEnabled { return "probo" }
+        return "probo off"
     }
 
-    @objc private func selectSlow() {
-        onSelectIntensity?(.slow)
-    }
-
-    @objc private func selectMedium() {
-        onSelectIntensity?(.medium)
-    }
-
-    @objc private func toggleStartAtLogin() {
-        onToggleStartAtLogin?()
-    }
-
-    @objc private func grantAccessibilityAccess() {
-        onGrantAccessibilityAccess?()
-    }
-
-    @objc private func quit() {
-        onQuit?()
-    }
+    @objc private func toggleEnabled() { onToggleEnabled?() }
+    @objc private func selectSlow() { onSelectIntensity?(.slow) }
+    @objc private func selectMedium() { onSelectIntensity?(.medium) }
+    @objc private func toggleStartAtLogin() { onToggleStartAtLogin?() }
+    @objc private func grantAccessibilityAccess() { onGrantAccessibilityAccess?() }
+    @objc private func quit() { onQuit?() }
 }

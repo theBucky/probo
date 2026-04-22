@@ -1,5 +1,4 @@
 import ApplicationServices
-import Foundation
 
 final class ScrollEventSynthesizer {
     private let marker: Int64

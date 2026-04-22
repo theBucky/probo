@@ -1,23 +1,20 @@
-import Foundation
 import ServiceManagement
 
 final class LaunchAtLoginManager {
+    private let service = SMAppService.mainApp
+
     var isEnabled: Bool {
-        switch SMAppService.mainApp.status {
-        case .enabled, .requiresApproval:
-            return true
-        case .notFound, .notRegistered:
-            return false
-        @unknown default:
-            return false
+        switch service.status {
+        case .enabled, .requiresApproval: true
+        default: false
         }
     }
 
     func setEnabled(_ enabled: Bool) throws {
         if enabled {
-            try SMAppService.mainApp.register()
+            try service.register()
         } else {
-            try SMAppService.mainApp.unregister()
+            try service.unregister()
         }
     }
 }

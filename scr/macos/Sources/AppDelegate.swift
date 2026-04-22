@@ -1,62 +1,67 @@
 import AppKit
-import Foundation
 
+@main
+enum ProboApp {
+    @MainActor
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.setActivationPolicy(.accessory)
+        app.delegate = delegate
+        app.run()
+    }
+}
+
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let configurationStore = AppConfigurationStore()
     private let launchAtLoginManager = LaunchAtLoginManager()
-    private lazy var eventTapController = EventTapController()
+    private let eventTapController = EventTapController()
     private let statusMenuController = StatusMenuController()
 
     private var configuration = AppConfiguration(isEnabled: true, intensity: .slow)
     private var tapStatus = EventTapController.Status(isInstalled: false, isEnabled: false)
+    private var accessibilityTrusted = false
     private var lastMenuState: StatusMenuState?
-    private var permissionTimer: Timer?
+    private var permissionMonitor: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configuration = configurationStore.load()
         eventTapController.intensity = configuration.intensity
 
         eventTapController.onStatusChange = { [weak self] status in
-            self?.tapStatus = status
-            self?.renderStatusMenu()
+            guard let self else { return }
+            tapStatus = status
+            renderStatusMenu()
         }
 
-        statusMenuController.onToggleEnabled = { [weak self] in
-            self?.toggleEnabled()
-        }
-        statusMenuController.onSelectIntensity = { [weak self] intensity in
-            self?.selectIntensity(intensity)
-        }
-        statusMenuController.onToggleStartAtLogin = { [weak self] in
-            self?.toggleStartAtLogin()
-        }
-        statusMenuController.onGrantAccessibilityAccess = { [weak self] in
-            self?.requestAccessibilityAccess()
-        }
-        statusMenuController.onQuit = {
-            NSApplication.shared.terminate(nil)
-        }
+        statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
+        statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
+        statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
+        statusMenuController.onGrantAccessibilityAccess = { [weak self] in self?.requestAccessibilityAccess() }
+        statusMenuController.onQuit = { NSApplication.shared.terminate(nil) }
 
-        refreshRuntime(promptForAccessibility: configuration.isEnabled)
+        accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: configuration.isEnabled)
+        refreshRuntime()
         startPermissionMonitor()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        permissionTimer?.invalidate()
+        permissionMonitor?.cancel()
         eventTapController.teardown()
     }
 
     private func toggleEnabled() {
         configuration.isEnabled.toggle()
         configurationStore.save(configuration)
-        refreshRuntime(promptForAccessibility: configuration.isEnabled)
+        if configuration.isEnabled {
+            accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
+        }
+        refreshRuntime()
     }
 
     private func selectIntensity(_ intensity: ScrollIntensity) {
-        guard configuration.intensity != intensity else {
-            return
-        }
-
+        guard configuration.intensity != intensity else { return }
         configuration.intensity = intensity
         configurationStore.save(configuration)
         eventTapController.intensity = intensity
@@ -64,18 +69,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func toggleStartAtLogin() {
-        let nextValue = !launchAtLoginManager.isEnabled
-        try? launchAtLoginManager.setEnabled(nextValue)
+        try? launchAtLoginManager.setEnabled(!launchAtLoginManager.isEnabled)
         renderStatusMenu()
     }
 
     private func requestAccessibilityAccess() {
-        _ = AccessibilityPermission.isTrusted(prompt: true)
-        refreshRuntime(promptForAccessibility: false)
+        accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
+        refreshRuntime()
     }
 
-    private func refreshRuntime(promptForAccessibility: Bool) {
-        let accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: promptForAccessibility)
+    private func refreshRuntime() {
         eventTapController.setEnabled(configuration.isEnabled && accessibilityTrusted)
     }
 
@@ -83,31 +86,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let state = StatusMenuState(
             configuration: configuration,
             startAtLoginEnabled: launchAtLoginManager.isEnabled,
-            accessibilityTrusted: AccessibilityPermission.isTrusted(prompt: false),
+            accessibilityTrusted: accessibilityTrusted,
             tapStatus: tapStatus
         )
-
-        guard lastMenuState != state else {
-            return
-        }
-
+        guard lastMenuState != state else { return }
         lastMenuState = state
         statusMenuController.render(state)
     }
 
     private func startPermissionMonitor() {
-        permissionTimer?.invalidate()
-        permissionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] timer in
-            guard let self else {
-                timer.invalidate()
-                return
-            }
-
-            let accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
-            if accessibilityTrusted && self.configuration.isEnabled && !self.tapStatus.isEnabled {
-                self.refreshRuntime(promptForAccessibility: false)
-            } else {
-                self.renderStatusMenu()
+        permissionMonitor?.cancel()
+        permissionMonitor = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard let self else { return }
+                accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
+                if accessibilityTrusted, configuration.isEnabled, !tapStatus.isEnabled {
+                    refreshRuntime()
+                } else {
+                    renderStatusMenu()
+                }
             }
         }
     }

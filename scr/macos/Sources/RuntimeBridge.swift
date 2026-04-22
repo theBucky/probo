@@ -1,5 +1,3 @@
-import Foundation
-
 enum RuntimeBridge {
     static func rewrite(
         deltaAxis1: Int32,
@@ -16,10 +14,7 @@ enum RuntimeBridge {
             has_phase: hasPhase ? 1 : 0
         ))
 
-        guard output.rewrite != 0 else {
-            return nil
-        }
-
+        guard output.rewrite != 0 else { return nil }
         return (output.out_lines_x, output.out_lines_y)
     }
 }
