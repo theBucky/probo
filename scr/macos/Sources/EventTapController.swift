@@ -14,6 +14,7 @@ final class EventTapController {
     private var runLoopSource: CFRunLoopSource?
     private var isEnabled = false
 
+    var intensity: ScrollIntensity = .slow
     var onStatusChange: ((Status) -> Void)?
 
     func setEnabled(_ enabled: Bool) {
@@ -75,46 +76,49 @@ final class EventTapController {
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        let pass = Unmanaged.passUnretained(event)
+
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let eventTap, isEnabled {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
             }
-            return Unmanaged.passUnretained(event)
+            return pass
         }
 
-        guard type == .scrollWheel else {
-            return Unmanaged.passUnretained(event)
-        }
-
-        guard isEnabled else {
-            return Unmanaged.passUnretained(event)
+        guard type == .scrollWheel, isEnabled else {
+            return pass
         }
 
         if event.getIntegerValueField(.eventSourceUserData) == Self.synthMarker {
-            return Unmanaged.passUnretained(event)
+            return pass
         }
 
-        guard let deltaAxis1 = readInt32(event, field: .scrollWheelEventDeltaAxis1),
-              let deltaAxis2 = readInt32(event, field: .scrollWheelEventDeltaAxis2),
-              let output = RuntimeBridge.rewrite(
+        let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
+        let hasPhase = !isContinuous && (
+            event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0 ||
+            event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
+        )
+
+        let deltaAxis1 = Int32(truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
+        let deltaAxis2 = Int32(truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
+
+        guard let output = RuntimeBridge.rewrite(
             deltaAxis1: deltaAxis1,
             deltaAxis2: deltaAxis2,
-            isContinuous: event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0,
-            hasPhase: event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0 ||
-                event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
+            intensity: intensity,
+            isContinuous: isContinuous,
+            hasPhase: hasPhase
         ) else {
-            return Unmanaged.passUnretained(event)
+            return pass
         }
 
-        // v1 stays on immediate repost because benchmarks show lower cpu cost
-        // and zero synthetic frame delay, which matches the latency-first plan.
         guard let replacement = synth.makeReplacement(
             location: event.location,
             flags: event.flags,
-            dx: output.dx,
-            dy: output.dy
+            linesX: output.linesX,
+            linesY: output.linesY
         ) else {
-            return Unmanaged.passUnretained(event)
+            return pass
         }
 
         replacement.post(tap: .cgSessionEventTap)
@@ -123,14 +127,5 @@ final class EventTapController {
 
     private func notifyStatus() {
         onStatusChange?(Status(isInstalled: eventTap != nil, isEnabled: isEnabled && eventTap != nil))
-    }
-
-    private func readInt32(_ event: CGEvent, field: CGEventField) -> Int32? {
-        let value = event.getIntegerValueField(field)
-        guard value >= Int64(Int32.min), value <= Int64(Int32.max) else {
-            return nil
-        }
-
-        return Int32(value)
     }
 }

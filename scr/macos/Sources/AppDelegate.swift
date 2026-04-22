@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configuration = configurationStore.load()
-        RuntimeBridge.setIntensity(configuration.intensity)
+        eventTapController.intensity = configuration.intensity
 
         eventTapController.onStatusChange = { [weak self] status in
             self?.tapStatus = status
@@ -59,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         configuration.intensity = intensity
         configurationStore.save(configuration)
-        RuntimeBridge.setIntensity(intensity)
+        eventTapController.intensity = intensity
         renderStatusMenu()
     }
 

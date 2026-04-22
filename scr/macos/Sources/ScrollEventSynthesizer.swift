@@ -9,14 +9,14 @@ final class ScrollEventSynthesizer {
         self.marker = marker
     }
 
-    func makeReplacement(location: CGPoint, flags: CGEventFlags, dx: Int32, dy: Int32) -> CGEvent? {
-        let wheelCount: UInt32 = dx == 0 ? 1 : 2
+    func makeReplacement(location: CGPoint, flags: CGEventFlags, linesX: Int32, linesY: Int32) -> CGEvent? {
+        let wheelCount: UInt32 = linesX == 0 ? 1 : 2
         guard let replacement = CGEvent(
             scrollWheelEvent2Source: source,
-            units: .pixel,
+            units: .line,
             wheelCount: wheelCount,
-            wheel1: dy,
-            wheel2: dx,
+            wheel1: linesY,
+            wheel2: linesX,
             wheel3: 0
         ) else {
             return nil
