@@ -30,7 +30,7 @@ preferred shape:
 - launches as agent app with menubar item
 - asks for accessibility permission
 - installs global scroll event tap
-- rewrites wheel input into better pixel-based scroll output
+- rewrites wheel input into fixed-line scroll output
 
 chosen tech split:
 - swift/appkit shell for app lifecycle, menubar, permissions, launch at login
@@ -69,7 +69,7 @@ refs also shows what to avoid in v1:
 - [x] keep tap callback minimal and non-blocking
 
 ### processing core
-- [x] map each detent to a fixed pixel step
+- [x] map each detent to a fixed line step
 - [x] keep behavior uniform across isolated ticks and bursts
 - [x] avoid long-lived swipe counters and momentum state in baseline mode
 - [x] keep hot path inside rust
@@ -77,7 +77,7 @@ refs also shows what to avoid in v1:
 - [ ] validate final values across core app surfaces
 
 ### output pipeline
-- [x] emit pixel-based continuous scroll events
+- [x] emit line-based scroll events
 - [x] no gesture-phase output in baseline mode
 - [x] keep immediate direct repost as the only v1 output path
 - [x] never add smoothing layers that cost crispness
@@ -87,7 +87,7 @@ refs also shows what to avoid in v1:
 baseline mode should treat wheel input as discrete impulses, not pseudo-touch.
 
 first algorithm sketch:
-- single tick gets fixed base pixel distance
+- single tick gets fixed base line distance
 - consecutive ticks keep the same per-tick distance
 - direction flip takes effect immediately
 - no tail animation after user stops

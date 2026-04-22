@@ -72,37 +72,39 @@ state sketch:
 - last direction
 
 ### 3. fixed-step mapping
-- convert one wheel tick into one fixed pixel delta
+- convert one wheel tick into one fixed line delta
 - output depends only on direction, axis, and selected intensity
 - input speed never changes per-tick travel
 
 formula shape:
-- `pixels = sign * step_px`
+- `lines = sign * step_lines`
 
 properties:
 - deterministic
 - constant
 - easy to reason about
-- closest to target windows-like wheel feel
+- row-aware apps (terminal) and pixel-aware apps (browser) stay in sync
 
 ## proposed v1 mapping
 
 ### parameters
-- `step_px_slow = 24`
-- `step_px_medium = 72`
+- `step_lines_slow = 2`
+- `step_lines_medium = 4`
 
 these are starting points, not locked values.
 
 ### meaning
-- every vertical tick emits exactly `step_px_*` vertical pixels
-- every horizontal tick emits exactly `step_px_*` horizontal pixels
+- every vertical tick emits exactly `step_lines_*` vertical lines
+- every horizontal tick emits exactly `step_lines_*` horizontal lines
 - rapid bursts produce repeated equal-size steps
+- macos fills `PointDelta*` and `FixedPtDelta*` fields from the line delta
+- line events unify terminal rows and gui pixel travel under one unit
 
 ## output strategy
 
 ### default v1 path
 - suppress original event
-- synthesize one pixel-based continuous scroll event immediately
+- synthesize one line-based scroll event immediately
 - post on same logical handling path with minimal delay
 
 why:
@@ -110,10 +112,12 @@ why:
 - lowest latency
 - no interpolation layer
 - easiest route to crisp 120hz feel
+- line classification yields consistent feel across row-based and pixel-based apps
 - retained after runtime benchmark comparison against frame-aligned coalescing
 
 ### emitted event shape
-- use continuous pixel scroll event
+- use line-unit scroll event (`CGScrollEventUnitLine`)
+- `kCGScrollWheelEventIsContinuous` stays 0 to keep discrete wheel semantics
 - set only fields required for natural app behavior
 - avoid gesture phase fields
 - avoid momentum phase fields
@@ -197,29 +201,28 @@ minimal c abi sketch exported by rust:
 
 ```c
 typedef struct {
-  uint64_t timestamp_ns;
   int32_t delta_axis1;
   int32_t delta_axis2;
+  uint8_t intensity;
   uint8_t is_continuous;
   uint8_t has_phase;
-} wheel_input_t;
+} probo_wheel_input_t;
 
 typedef struct {
   uint8_t rewrite;
-  int32_t out_dx;
-  int32_t out_dy;
-} wheel_output_t;
+  int32_t out_lines_x;
+  int32_t out_lines_y;
+} probo_wheel_output_t;
 
-wheel_output_t probo_process_wheel(wheel_input_t input);
-void probo_reset_scroll_state(void);
+probo_wheel_output_t probo_process_wheel(probo_wheel_input_t input);
 ```
 
 ## tuning plan
 
 ### first tuning loop
 - verify direct single-tick latency
-- tune `step_px_slow`
-- tune `step_px_medium`
+- tune `step_lines_slow`
+- tune `step_lines_medium`
 - verify equal travel across isolated and rapid wheel use
 - verify no hidden acceleration appears
 
