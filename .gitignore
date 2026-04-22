@@ -1,4 +1,4 @@
 build/
 refs/
-scr/runtime/target/
+runtime/target/
 .DS_Store

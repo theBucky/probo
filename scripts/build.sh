@@ -9,15 +9,15 @@ app_dir="$build_dir/Probo.app"
 app_contents_dir="$app_dir/Contents"
 app_binary_dir="$app_contents_dir/MacOS"
 app_resources_dir="$app_contents_dir/Resources"
-runtime_dir="$root_dir/scr/runtime"
-swift_dir="$root_dir/scr/macos"
+runtime_dir="$root_dir/runtime"
+swift_dir="$root_dir/macos"
 sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
 swift_target="$(uname -m)-apple-macos26.0"
 rust_lib_dir="$rust_target_dir/release"
 swift_sources=("$swift_dir"/Sources/*.swift)
 signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
 
-PROBO_CODESIGN_DEFAULT_IDENTITY="$signing_identity" "$root_dir/scr/setup-local-codesign.sh" >/dev/null
+PROBO_CODESIGN_DEFAULT_IDENTITY="$signing_identity" "$root_dir/scripts/setup-local-codesign.sh" >/dev/null
 
 rm -rf "$app_dir"
 mkdir -p "$app_binary_dir" "$app_resources_dir"
