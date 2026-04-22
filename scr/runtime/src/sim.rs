@@ -95,26 +95,30 @@ struct BenchmarkAggregate {
 }
 
 pub fn builtin_comparison_report(intensity: u8, frame_ns: u64) -> String {
-    let reports = builtin_scenarios()
-        .into_iter()
-        .map(|(name, inputs)| run_scenario(name, &inputs, intensity, frame_ns))
+    let reports = BUILTIN_SCENARIOS
+        .iter()
+        .map(|(name, inputs)| run_scenario(name, inputs, intensity, frame_ns))
         .collect::<Vec<_>>();
 
     render_reports(&reports, frame_ns)
 }
 
 pub fn builtin_benchmark_report(intensity: u8, frame_ns: u64, iterations: u32) -> String {
-    let scenarios = builtin_scenarios();
-    let workload_events = scenarios
+    let workload_events = BUILTIN_SCENARIOS
         .iter()
         .map(|(_, inputs)| inputs.len() as u64)
         .sum::<u64>()
         * u64::from(iterations);
 
-    let hot_path = benchmark_hot_path(&scenarios, intensity, iterations);
-    let immediate = benchmark_mode(&scenarios, intensity, SimOutputMode::Immediate, iterations);
+    let hot_path = benchmark_hot_path(BUILTIN_SCENARIOS, intensity, iterations);
+    let immediate = benchmark_mode(
+        BUILTIN_SCENARIOS,
+        intensity,
+        SimOutputMode::Immediate,
+        iterations,
+    );
     let frame_aligned = benchmark_mode(
-        &scenarios,
+        BUILTIN_SCENARIOS,
         intensity,
         SimOutputMode::FrameAligned { frame_ns },
         iterations,
@@ -148,73 +152,9 @@ pub fn builtin_benchmark_report(intensity: u8, frame_ns: u64, iterations: u32) -
     .join("\n")
 }
 
-fn builtin_scenarios() -> Vec<(&'static str, Vec<SimInput>)> {
-    vec![
-        ("single_tick", vec![sim_tick(0, 1, 0)]),
-        (
-            "burst_4x8ms",
-            vec![
-                sim_tick(0, 1, 0),
-                sim_tick(8_000_000, 1, 0),
-                sim_tick(16_000_000, 1, 0),
-                sim_tick(24_000_000, 1, 0),
-            ],
-        ),
-        (
-            "dense_8x2ms",
-            vec![
-                sim_tick(0, 1, 0),
-                sim_tick(2_000_000, 1, 0),
-                sim_tick(4_000_000, 1, 0),
-                sim_tick(6_000_000, 1, 0),
-                sim_tick(8_000_000, 1, 0),
-                sim_tick(10_000_000, 1, 0),
-                sim_tick(12_000_000, 1, 0),
-                sim_tick(14_000_000, 1, 0),
-            ],
-        ),
-        (
-            "direction_flip",
-            vec![
-                sim_tick(0, 1, 0),
-                sim_tick(8_000_000, 1, 0),
-                sim_tick(16_000_000, -1, 0),
-                sim_tick(24_000_000, -1, 0),
-            ],
-        ),
-        (
-            "horizontal_3x6ms",
-            vec![
-                sim_tick(0, 0, 1),
-                sim_tick(6_000_000, 0, 1),
-                sim_tick(12_000_000, 0, 1),
-            ],
-        ),
-        (
-            "mixed_passthrough",
-            vec![
-                sim_tick(0, 1, 0),
-                SimInput {
-                    timestamp_ns: 5_000_000,
-                    delta_axis1: 1,
-                    delta_axis2: 1,
-                    is_continuous: false,
-                    has_phase: false,
-                },
-                SimInput {
-                    timestamp_ns: 10_000_000,
-                    delta_axis1: 1,
-                    delta_axis2: 0,
-                    is_continuous: true,
-                    has_phase: false,
-                },
-                sim_tick(15_000_000, 1, 0),
-            ],
-        ),
-    ]
-}
+type Scenario = (&'static str, &'static [SimInput]);
 
-fn sim_tick(timestamp_ns: u64, delta_axis1: i32, delta_axis2: i32) -> SimInput {
+const fn sim_tick(timestamp_ns: u64, delta_axis1: i32, delta_axis2: i32) -> SimInput {
     SimInput {
         timestamp_ns,
         delta_axis1,
@@ -223,6 +163,70 @@ fn sim_tick(timestamp_ns: u64, delta_axis1: i32, delta_axis2: i32) -> SimInput {
         has_phase: false,
     }
 }
+
+static BUILTIN_SCENARIOS: &[Scenario] = &[
+    ("single_tick", &[sim_tick(0, 1, 0)]),
+    (
+        "burst_4x8ms",
+        &[
+            sim_tick(0, 1, 0),
+            sim_tick(8_000_000, 1, 0),
+            sim_tick(16_000_000, 1, 0),
+            sim_tick(24_000_000, 1, 0),
+        ],
+    ),
+    (
+        "dense_8x2ms",
+        &[
+            sim_tick(0, 1, 0),
+            sim_tick(2_000_000, 1, 0),
+            sim_tick(4_000_000, 1, 0),
+            sim_tick(6_000_000, 1, 0),
+            sim_tick(8_000_000, 1, 0),
+            sim_tick(10_000_000, 1, 0),
+            sim_tick(12_000_000, 1, 0),
+            sim_tick(14_000_000, 1, 0),
+        ],
+    ),
+    (
+        "direction_flip",
+        &[
+            sim_tick(0, 1, 0),
+            sim_tick(8_000_000, 1, 0),
+            sim_tick(16_000_000, -1, 0),
+            sim_tick(24_000_000, -1, 0),
+        ],
+    ),
+    (
+        "horizontal_3x6ms",
+        &[
+            sim_tick(0, 0, 1),
+            sim_tick(6_000_000, 0, 1),
+            sim_tick(12_000_000, 0, 1),
+        ],
+    ),
+    (
+        "mixed_passthrough",
+        &[
+            sim_tick(0, 1, 0),
+            SimInput {
+                timestamp_ns: 5_000_000,
+                delta_axis1: 1,
+                delta_axis2: 1,
+                is_continuous: false,
+                has_phase: false,
+            },
+            SimInput {
+                timestamp_ns: 10_000_000,
+                delta_axis1: 1,
+                delta_axis2: 0,
+                is_continuous: true,
+                has_phase: false,
+            },
+            sim_tick(15_000_000, 1, 0),
+        ],
+    ),
+];
 
 fn ffi_input(input: SimInput, intensity: u8) -> probo_wheel_input_t {
     probo_wheel_input_t {
@@ -268,13 +272,13 @@ fn simulate(
     for input in inputs {
         runtime.seen += 1;
 
-        if let SimOutputMode::FrameAligned { frame_ns } = mode {
-            while next_frame_ns < input.timestamp_ns {
-                if pending.count > 0 {
-                    flush_pending(&mut dispatch, &mut pending, next_frame_ns);
-                }
-                next_frame_ns += frame_ns;
+        if let SimOutputMode::FrameAligned { frame_ns } = mode
+            && next_frame_ns < input.timestamp_ns
+        {
+            if pending.count > 0 {
+                flush_pending(&mut dispatch, &mut pending, next_frame_ns);
             }
+            next_frame_ns = input.timestamp_ns.next_multiple_of(frame_ns);
         }
 
         let Some(output) = simulate_process(*input, intensity, &mut last_direction, &mut runtime)
@@ -295,7 +299,7 @@ fn simulate(
             }
             SimOutputMode::FrameAligned { frame_ns } => {
                 pending.add(output, input.timestamp_ns);
-                while next_frame_ns <= input.timestamp_ns {
+                if next_frame_ns <= input.timestamp_ns {
                     flush_pending(&mut dispatch, &mut pending, next_frame_ns);
                     next_frame_ns += frame_ns;
                 }
@@ -345,7 +349,8 @@ struct PendingBatch {
     sum_x: i64,
     sum_y: i64,
     first_input_ns: u64,
-    input_timestamp_sum_ns: u128,
+    // sum of (timestamp_ns - first_input_ns); rebased to keep the per-input accumulator in u64.
+    offset_sum_ns: u64,
 }
 
 impl PendingBatch {
@@ -357,7 +362,7 @@ impl PendingBatch {
         self.count += 1;
         self.sum_x += i64::from(output.lines_x);
         self.sum_y += i64::from(output.lines_y);
-        self.input_timestamp_sum_ns += u128::from(timestamp_ns);
+        self.offset_sum_ns += timestamp_ns - self.first_input_ns;
     }
 }
 
@@ -367,16 +372,18 @@ fn flush_pending(dispatch: &mut SimDispatchStats, pending: &mut PendingBatch, em
     }
 
     let batch_size = pending.count;
+    let first_input_ns = pending.first_input_ns;
     record_emit(
         dispatch,
         batch_size,
         saturating_i32(pending.sum_x),
         saturating_i32(pending.sum_y),
-        pending.first_input_ns,
+        first_input_ns,
         emit_ns,
     );
-    let count = u128::from(batch_size);
-    dispatch.total_latency_ns += count * u128::from(emit_ns) - pending.input_timestamp_sum_ns;
+    // promote to u128 at flush so large frame_ns * batch_size cannot overflow.
+    let span = u128::from(emit_ns - first_input_ns);
+    dispatch.total_latency_ns += u128::from(batch_size) * span - u128::from(pending.offset_sum_ns);
 
     *pending = PendingBatch::default();
 }
@@ -393,15 +400,16 @@ fn record_emit(
     dispatch.emitted_inputs += batch_size;
     dispatch.coalesced_inputs += batch_size.saturating_sub(1);
     dispatch.peak_batch_size = dispatch.peak_batch_size.max(batch_size);
-    dispatch.max_latency_ns = dispatch
-        .max_latency_ns
-        .max(emit_ns.saturating_sub(first_input_ns));
+    dispatch.max_latency_ns = dispatch.max_latency_ns.max(emit_ns - first_input_ns);
     dispatch.total_abs_x += u64::from(lines_x.unsigned_abs());
     dispatch.total_abs_y += u64::from(lines_y.unsigned_abs());
 }
 
 fn render_reports(reports: &[ScenarioReport], frame_ns: u64) -> String {
-    let mut lines = vec![format!("frame_aligned_period_ms={:.3}", ns_to_ms(frame_ns as f64))];
+    let mut lines = vec![format!(
+        "frame_aligned_period_ms={:.3}",
+        ns_to_ms(frame_ns as f64)
+    )];
 
     for report in reports {
         lines.push(String::new());
@@ -440,16 +448,12 @@ fn render_dispatch_stats(stats: &SimDispatchStats) -> String {
     )
 }
 
-fn benchmark_hot_path(
-    scenarios: &[(&'static str, Vec<SimInput>)],
-    intensity: u8,
-    iterations: u32,
-) -> BenchmarkCpuStats {
+fn benchmark_hot_path(scenarios: &[Scenario], intensity: u8, iterations: u32) -> BenchmarkCpuStats {
     let start = Instant::now();
     let mut events_processed = 0_u64;
 
     for _ in 0..iterations {
-        for (_, inputs) in scenarios {
+        for &(_, inputs) in scenarios {
             for input in inputs {
                 black_box(probo_process_wheel(ffi_input(*input, intensity)));
                 events_processed += 1;
@@ -464,7 +468,7 @@ fn benchmark_hot_path(
 }
 
 fn benchmark_mode(
-    scenarios: &[(&'static str, Vec<SimInput>)],
+    scenarios: &[Scenario],
     intensity: u8,
     mode: SimOutputMode,
     iterations: u32,
@@ -474,7 +478,7 @@ fn benchmark_mode(
     let mut events_processed = 0_u64;
 
     for _ in 0..iterations {
-        for (_, inputs) in scenarios {
+        for &(_, inputs) in scenarios {
             let (runtime, dispatch) = simulate(inputs, intensity, mode);
             aggregate.runtime += &runtime;
             aggregate.dispatch += &dispatch;
