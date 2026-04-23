@@ -1,0 +1,46 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-latest
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: runtime
+      - name: verify arm64 runner
+        run: test "$(uname -m)" = arm64
+      - name: build arm64 app
+        run: scripts/build.sh
+      - name: package
+        working-directory: build
+        run: ditto -c -k --keepParent Probo.app Probo-arm64.zip
+      - name: publish rolling latest
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest build/Probo-arm64.zip \
+            --title "latest" \
+            --notes "rolling release from ${SHA}" \
+            --target "${SHA}"
