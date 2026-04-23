@@ -8,6 +8,7 @@ pub use sim::{builtin_benchmark_report, builtin_comparison_report};
 const PROBO_INTENSITY_SLOW: u8 = 0;
 const PROBO_INTENSITY_MEDIUM: u8 = 1;
 
+const STEP_LINES_PRECISION: i32 = 1;
 const STEP_LINES_SLOW: i32 = 2;
 const STEP_LINES_MEDIUM: i32 = 4;
 
@@ -63,11 +64,13 @@ pub(crate) fn process_core(input: probo_wheel_input_t) -> Option<CoreOutput> {
 }
 
 fn step_lines_for(intensity: u8, is_precision: u8) -> i32 {
-    let base = match intensity {
+    if is_precision != 0 {
+        return STEP_LINES_PRECISION;
+    }
+    match intensity {
         PROBO_INTENSITY_MEDIUM => STEP_LINES_MEDIUM,
         _ => STEP_LINES_SLOW,
-    };
-    base >> i32::from(is_precision != 0)
+    }
 }
 
 fn mapped_output(delta_axis1: i32, delta_axis2: i32, step_lines: i32) -> CoreOutput {
