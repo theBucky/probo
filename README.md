@@ -16,7 +16,7 @@ Requires macOS 26 and a Rust toolchain. Local builds codesign with a self-minted
 
 ```sh
 # build, sign, relaunch Probo.app
-bash scripts/run.sh
+bash scripts/local/run.sh
 ```
 
 The app lives in `build/Probo.app`. Grant Accessibility permission on first launch (System Settings, Privacy and Security, Accessibility).
@@ -77,11 +77,12 @@ No SwiftPM, no Xcode project. Shell scripts drive everything.
 
 | script | purpose |
 | --- | --- |
-| `scripts/build.sh` | rebuild Rust lib, link Swift, codesign bundle |
-| `scripts/run.sh` | build then relaunch `Probo.app` |
-| `scripts/bench.sh` | hot-path cost, optional iteration count |
-| `scripts/compare.sh` | immediate vs frame-aligned output |
-| `scripts/setup-local-codesign.sh` | mint local signing identity |
+| `scripts/build.sh` | rebuild Rust lib, link Swift, codesign bundle (shared with CI) |
+| `scripts/local/run.sh` | build then relaunch `Probo.app` |
+| `scripts/local/bench.sh` | hot-path cost, optional iteration count |
+| `scripts/local/compare.sh` | immediate vs frame-aligned output |
+| `scripts/local/setup-codesign.sh` | mint local signing identity |
+| `scripts/ci/mint-identity.sh` | emit p12 + passphrase for CI release-signing secrets |
 
 Override the signing identity with `PROBO_CODESIGN_IDENTITY`.
 

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-root_dir="$(cd "$(dirname "$0")/.." && pwd)"
+root_dir="$(cd "$(dirname "$0")/../.." && pwd)"
 signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
 app_executable="$root_dir/build/Probo.app/Contents/MacOS/Probo"
 

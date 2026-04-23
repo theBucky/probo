@@ -23,12 +23,12 @@ Rust `staticlib` at [runtime/](runtime).
 
 At [scripts/](scripts), shell-only, no build system.
 
-- [build.sh](scripts/build.sh): rebuild Rust lib, link Swift, codesign bundle
-- [run.sh](scripts/run.sh): build then relaunch `Probo.app`
-- [bench.sh](scripts/bench.sh): hot-path cost, optional iteration count
-- [compare.sh](scripts/compare.sh): immediate vs frame-aligned output
-- [setup-local-codesign.sh](scripts/setup-local-codesign.sh): mint local signing identity
-- [mint-ci-identity.sh](scripts/mint-ci-identity.sh): emit p12 + passphrase for CI secrets
+- [build.sh](scripts/build.sh): rebuild Rust lib, link Swift, codesign bundle (shared with CI)
+- [local/run.sh](scripts/local/run.sh): build then relaunch `Probo.app`
+- [local/bench.sh](scripts/local/bench.sh): hot-path cost, optional iteration count
+- [local/compare.sh](scripts/local/compare.sh): immediate vs frame-aligned output
+- [local/setup-codesign.sh](scripts/local/setup-codesign.sh): mint local signing identity
+- [ci/mint-identity.sh](scripts/ci/mint-identity.sh): emit p12 + passphrase for CI secrets
 
 ## Validate
 
@@ -45,5 +45,5 @@ At [scripts/](scripts), shell-only, no build system.
 
 ## Local
 
-- codesign identity minted by [setup-local-codesign.sh](scripts/setup-local-codesign.sh); override with `PROBO_CODESIGN_IDENTITY`
+- codesign identity minted by [local/setup-codesign.sh](scripts/local/setup-codesign.sh); override with `PROBO_CODESIGN_IDENTITY`
 - [refs/](refs) is read-only inspiration; never edit or vendor from it
