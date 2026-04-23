@@ -10,7 +10,7 @@ const PROBO_INTENSITY_MEDIUM: u8 = 1;
 
 const STEP_LINES_PRECISION: i32 = 1;
 const STEP_LINES_SLOW: i32 = 2;
-const STEP_LINES_MEDIUM: i32 = 4;
+const STEP_LINES_MEDIUM: i32 = 3;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
