@@ -27,6 +27,8 @@ Click the menubar icon.
 
 - **Enable**: toggles the event tap
 - **Intensity**: `Slow` (2 lines per notch) or `Medium` (4 lines per notch)
+- **Misc > Look Up on Button 4**: forwards the forward side button to the system Look Up shortcut
+- **Misc > Precision Scroll on Option**: holding Option halves the step while scrolling
 - **Launch at Login**: registers via `SMAppService`
 
 Settings persist in `UserDefaults`.
