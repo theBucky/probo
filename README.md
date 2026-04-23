@@ -43,7 +43,9 @@ Swift/AppKit shell over a Rust `staticlib` core, bridged via a C FFI header.
 | core | `runtime/src/lib.rs` | `probo_process_wheel` hot path |
 | bridge | `runtime/include/probo_runtime.h` | shared C FFI contract |
 
-The tap callback forwards raw `CGEvent` fields to Rust, receives a rewrite decision, and synthesizes a replacement scroll event when asked. Swift stays allocation-free on the hot path.
+The tap callback forwards raw `CGEvent` fields to Rust, receives a rewrite decision, and synthesizes a replacement scroll event when asked.
+
+Swift stays allocation-free on the hot path.
 
 ## Develop
 
@@ -57,8 +59,6 @@ No SwiftPM, no Xcode project. Shell scripts drive everything.
 | `scripts/local/compare.sh` | immediate vs frame-aligned output |
 | `scripts/local/setup-codesign.sh` | mint local signing identity |
 | `scripts/ci/mint-identity.sh` | emit p12 + passphrase for CI release-signing secrets |
-
-Validate Rust with `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --release --manifest-path runtime/Cargo.toml`. Validate Swift and FFI with `scripts/build.sh`.
 
 ## Release
 
