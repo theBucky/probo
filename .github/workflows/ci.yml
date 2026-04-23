@@ -37,4 +37,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: runtime
-      - run: scripts/build.sh
+      - env:
+          PROBO_CODESIGN_IDENTITY: "-"
+        run: scripts/build.sh

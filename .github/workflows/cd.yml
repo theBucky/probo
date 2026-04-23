@@ -31,6 +31,8 @@ jobs:
       - name: verify arm64 runner
         run: test "$(uname -m)" = arm64
       - name: build arm64 app
+        env:
+          PROBO_CODESIGN_IDENTITY: "-"
         run: scripts/build.sh
       - name: package
         working-directory: build
