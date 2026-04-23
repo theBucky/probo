@@ -44,10 +44,9 @@ final class StatusMenuController: NSObject {
   private let mediumItem = NSMenuItem(
     title: "Medium", action: #selector(selectMedium), keyEquivalent: "")
   private let lookUpItem = NSMenuItem(
-    title: "Look Up on Button 4", action: #selector(toggleLookUp), keyEquivalent: "")
+    title: "Look Up", action: #selector(toggleLookUp), keyEquivalent: "")
   private let precisionScrollItem = NSMenuItem(
-    title: "Precision Scroll on Option", action: #selector(togglePrecisionScroll),
-    keyEquivalent: "")
+    title: "Precise Scrolling", action: #selector(togglePrecisionScroll), keyEquivalent: "")
   private let startAtLoginItem = NSMenuItem(
     title: "Start at Login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
   private let grantAccessibilityItem = NSMenuItem(
@@ -68,12 +67,13 @@ final class StatusMenuController: NSObject {
     }
 
     slowItem.attributedTitle = Self.makeAttributedTitle(
-      title: slowItem.title, subtitle: "Just slow.")
+      title: slowItem.title, subtitle: "Just slow")
     mediumItem.attributedTitle = Self.makeAttributedTitle(
-      title: mediumItem.title, subtitle: "Balanced steps, Windows-like feel.")
-    lookUpItem.attributedTitle = Self.makeAttributedTitle(title: lookUpItem.title)
+      title: mediumItem.title, subtitle: "Balanced steps, Windows-like feel")
+    lookUpItem.attributedTitle = Self.makeAttributedTitle(
+      title: lookUpItem.title, subtitle: "Trigger Look Up with mouse button 4")
     precisionScrollItem.attributedTitle = Self.makeAttributedTitle(
-      title: precisionScrollItem.title)
+      title: precisionScrollItem.title, subtitle: "Hold \u{2325} for slow, precise scrolling")
 
     let intensityMenu = NSMenu(title: "Intensity")
     intensityMenu.addItem(slowItem)
@@ -143,9 +143,7 @@ final class StatusMenuController: NSObject {
     return .off
   }
 
-  private static func makeAttributedTitle(title: String, subtitle: String? = nil)
-    -> NSAttributedString
-  {
+  private static func makeAttributedTitle(title: String, subtitle: String) -> NSAttributedString {
     let paragraph = NSMutableParagraphStyle()
     paragraph.lineSpacing = 2
     paragraph.firstLineHeadIndent = 6
@@ -156,16 +154,14 @@ final class StatusMenuController: NSObject {
         .font: NSFont.menuFont(ofSize: 0),
         .paragraphStyle: paragraph,
       ])
-    if let subtitle {
-      result.append(
-        NSAttributedString(
-          string: "\n" + subtitle,
-          attributes: [
-            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: paragraph,
-          ]))
-    }
+    result.append(
+      NSAttributedString(
+        string: "\n" + subtitle,
+        attributes: [
+          .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+          .foregroundColor: NSColor.secondaryLabelColor,
+          .paragraphStyle: paragraph,
+        ]))
     return result
   }
 
