@@ -28,6 +28,7 @@ At [scripts/](scripts), shell-only, no build system.
 - [bench.sh](scripts/bench.sh): hot-path cost, optional iteration count
 - [compare.sh](scripts/compare.sh): immediate vs frame-aligned output
 - [setup-local-codesign.sh](scripts/setup-local-codesign.sh): mint local signing identity
+- [mint-ci-identity.sh](scripts/mint-ci-identity.sh): emit p12 + passphrase for CI secrets
 
 ## Validate
 
