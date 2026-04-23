@@ -48,7 +48,10 @@ pub extern "C" fn probo_process_wheel(input: probo_wheel_input_t) -> probo_wheel
 }
 
 pub(crate) fn process_core(input: probo_wheel_input_t) -> Option<CoreOutput> {
-    if should_passthrough(input) {
+    if input.is_continuous != 0 || input.has_phase != 0 {
+        return None;
+    }
+    if (input.delta_axis1 != 0) == (input.delta_axis2 != 0) {
         return None;
     }
 
@@ -57,12 +60,6 @@ pub(crate) fn process_core(input: probo_wheel_input_t) -> Option<CoreOutput> {
         input.delta_axis2,
         step_lines_for(input.intensity, input.is_precision),
     ))
-}
-
-fn should_passthrough(input: probo_wheel_input_t) -> bool {
-    input.is_continuous != 0
-        || input.has_phase != 0
-        || (input.delta_axis1 != 0) == (input.delta_axis2 != 0)
 }
 
 fn step_lines_for(intensity: u8, is_precision: u8) -> i32 {
