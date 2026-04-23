@@ -4,12 +4,12 @@ Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each disc
 
 ## Features
 
-- fixed `N`-line step per notch, identical across apps
-- rewrites discrete wheel events only; passes continuous, phased, diagonal, and zero-delta events through
+- Fixed `N`-line step per notch, identical across apps
+- Rewrites discrete wheel events only; passes continuous, phased, diagonal, and zero-delta events through
 - Option-hold precision scroll (1 line per notch)
-- forward side button (button 4) mapped to macOS Look Up
-- launch at login via `SMAppService`
-- no smoothing, momentum, acceleration, gesture-phase output, or per-app rules
+- Forward side button (button 4) mapped to macOS Look Up
+- Launch at login via `SMAppService`
+- No smoothing, momentum, acceleration, gesture-phase output, or per-app rules
 
 ## Requirements
 
@@ -37,11 +37,11 @@ The bundle lands in `build/Probo.app` and relaunches. Override the signing ident
 
 Swift/AppKit shell over a Rust `staticlib` core, bridged via a C FFI header.
 
-| layer | path | role |
+| Layer | Path | Role |
 | --- | --- | --- |
-| shell | `macos/Sources` | menubar UI, event tap, scroll synth, config store |
-| core | `runtime/src/lib.rs` | `probo_process_wheel` hot path |
-| bridge | `runtime/include/probo_runtime.h` | shared C FFI contract |
+| Shell | `macos/Sources` | Menubar UI, event tap, scroll synth, config store |
+| Core | `runtime/src/lib.rs` | `probo_process_wheel` hot path |
+| Bridge | `runtime/include/probo_runtime.h` | Shared C FFI contract |
 
 The tap callback forwards raw `CGEvent` fields to Rust, receives a rewrite decision, and synthesizes a replacement scroll event when asked.
 
@@ -51,14 +51,14 @@ Swift stays allocation-free on the hot path.
 
 No SwiftPM, no Xcode project. Shell scripts drive everything.
 
-| script | purpose |
+| Script | Purpose |
 | --- | --- |
-| `scripts/build.sh` | rebuild Rust lib, link Swift, codesign bundle (shared with CI) |
-| `scripts/local/run.sh` | build then relaunch `Probo.app` |
-| `scripts/local/bench.sh [iterations]` | hot-path cost |
-| `scripts/local/compare.sh` | immediate vs frame-aligned output |
-| `scripts/local/setup-codesign.sh` | mint local signing identity |
-| `scripts/ci/mint-identity.sh` | emit p12 + passphrase for CI release-signing secrets |
+| `scripts/build.sh` | Rebuild Rust lib, link Swift, codesign bundle (shared with CI) |
+| `scripts/local/run.sh` | Build then relaunch `Probo.app` |
+| `scripts/local/bench.sh [iterations]` | Hot-path cost |
+| `scripts/local/compare.sh` | Immediate vs frame-aligned output |
+| `scripts/local/setup-codesign.sh` | Mint local signing identity |
+| `scripts/ci/mint-identity.sh` | Emit p12 + passphrase for CI release-signing secrets |
 
 ## Release
 
