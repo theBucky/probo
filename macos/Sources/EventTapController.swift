@@ -1,4 +1,13 @@
 @preconcurrency import ApplicationServices
+import Carbon.HIToolbox
+import IOKit.hidsystem
+
+// .maskAlternate alone leaves device-side bits set, so consumers reading raw flags still see option.
+private extension CGEventFlags {
+  static let leftOption = CGEventFlags(rawValue: UInt64(NX_DEVICELALTKEYMASK))
+  static let rightOption = CGEventFlags(rawValue: UInt64(NX_DEVICERALTKEYMASK))
+  static let allOption: CGEventFlags = [.maskAlternate, .leftOption, .rightOption]
+}
 
 @MainActor
 final class EventTapController {
@@ -118,8 +127,9 @@ final class EventTapController {
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     let deltaAxis2 = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
+    let originalFlags = event.flags
     let isPrecision =
-      configuration.isPrecisionScrollEnabled && event.flags.contains(.maskAlternate)
+      configuration.isPrecisionScrollEnabled && originalFlags.contains(.maskAlternate)
 
     guard
       let output = RuntimeBridge.rewrite(
@@ -134,10 +144,13 @@ final class EventTapController {
       return pass
     }
 
+    let replacementFlags =
+      isPrecision ? originalFlags.subtracting(.allOption) : originalFlags
+
     guard
       let replacement = synth.makeReplacement(
         location: event.location,
-        flags: event.flags,
+        flags: replacementFlags,
         linesX: output.linesX,
         linesY: output.linesY
       )
@@ -145,7 +158,17 @@ final class EventTapController {
       return pass
     }
 
-    replacement.post(tap: .cgSessionEventTap)
+    if isPrecision {
+      let optionKey: CGKeyCode =
+        originalFlags.contains(.rightOption) ? CGKeyCode(kVK_RightOption) : CGKeyCode(kVK_Option)
+      synth.makeFlagsChanged(flags: replacementFlags, keyCode: optionKey)?
+        .post(tap: .cgSessionEventTap)
+      replacement.post(tap: .cgSessionEventTap)
+      synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)?
+        .post(tap: .cgSessionEventTap)
+    } else {
+      replacement.post(tap: .cgSessionEventTap)
+    }
     return nil
   }
 

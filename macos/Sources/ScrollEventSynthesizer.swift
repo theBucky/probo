@@ -1,5 +1,8 @@
 import ApplicationServices
 
+@_silgen_name("CGEventSetType")
+private func _CGEventSetType(_ event: CGEvent, _ type: CGEventType)
+
 final class ScrollEventSynthesizer {
   private let marker: Int64
   private let source = CGEventSource(stateID: .hidSystemState)
@@ -29,5 +32,14 @@ final class ScrollEventSynthesizer {
     replacement.flags = flags
     replacement.setIntegerValueField(.eventSourceUserData, value: marker)
     return replacement
+  }
+
+  func makeFlagsChanged(flags: CGEventFlags, keyCode: CGKeyCode) -> CGEvent? {
+    guard let event = CGEvent(source: source) else { return nil }
+    _CGEventSetType(event, .flagsChanged)
+    event.flags = flags
+    event.setIntegerValueField(.keyboardEventKeycode, value: Int64(keyCode))
+    event.setIntegerValueField(.eventSourceUserData, value: marker)
+    return event
   }
 }
