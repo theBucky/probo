@@ -4,7 +4,8 @@ enum RuntimeBridge {
     deltaAxis2: Int32,
     intensity: ScrollIntensity,
     isContinuous: Bool,
-    hasPhase: Bool
+    hasPhase: Bool,
+    isPrecision: Bool
   ) -> (linesX: Int32, linesY: Int32)? {
     let output = probo_process_wheel(
       probo_wheel_input_t(
@@ -12,7 +13,8 @@ enum RuntimeBridge {
         delta_axis2: deltaAxis2,
         intensity: intensity.runtimeValue,
         is_continuous: isContinuous ? 1 : 0,
-        has_phase: hasPhase ? 1 : 0
+        has_phase: hasPhase ? 1 : 0,
+        is_precision: isPrecision ? 1 : 0
       ))
 
     guard output.rewrite != 0 else { return nil }

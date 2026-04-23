@@ -235,6 +235,7 @@ fn ffi_input(input: SimInput, intensity: u8) -> probo_wheel_input_t {
         intensity,
         is_continuous: u8::from(input.is_continuous),
         has_phase: u8::from(input.has_phase),
+        is_precision: 0,
     }
 }
 

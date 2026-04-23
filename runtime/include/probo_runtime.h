@@ -14,6 +14,7 @@ typedef struct {
   uint8_t intensity;
   uint8_t is_continuous;
   uint8_t has_phase;
+  uint8_t is_precision;
 } probo_wheel_input_t;
 
 typedef struct {

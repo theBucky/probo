@@ -17,13 +17,11 @@ final class EventTapController {
   private var runLoopSource: CFRunLoopSource?
   private var isEnabled = false
 
-  var intensity: ScrollIntensity = AppConfiguration.defaultValue.intensity
-  var isLookUpEnabled = AppConfiguration.defaultValue.isLookUpEnabled
+  private var configuration: AppConfiguration = .defaultValue
   var onStatusChange: ((Status) -> Void)?
 
   func apply(configuration: AppConfiguration) {
-    intensity = configuration.intensity
-    isLookUpEnabled = configuration.isLookUpEnabled
+    self.configuration = configuration
   }
 
   func setEnabled(_ enabled: Bool) {
@@ -120,14 +118,17 @@ final class EventTapController {
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     let deltaAxis2 = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
+    let isPrecision =
+      configuration.isPrecisionScrollEnabled && event.flags.contains(.maskAlternate)
 
     guard
       let output = RuntimeBridge.rewrite(
         deltaAxis1: deltaAxis1,
         deltaAxis2: deltaAxis2,
-        intensity: intensity,
+        intensity: configuration.intensity,
         isContinuous: isContinuous,
-        hasPhase: hasPhase
+        hasPhase: hasPhase,
+        isPrecision: isPrecision
       )
     else {
       return pass
@@ -149,7 +150,7 @@ final class EventTapController {
   }
 
   private func handleOtherMouse(type: CGEventType, event: CGEvent) -> Bool {
-    guard isLookUpEnabled else { return false }
+    guard configuration.isLookUpEnabled else { return false }
     guard event.getIntegerValueField(.mouseEventButtonNumber) == Self.lookUpButtonNumber else {
       return false
     }

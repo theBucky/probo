@@ -17,6 +17,7 @@ pub struct probo_wheel_input_t {
     pub intensity: u8,
     pub is_continuous: u8,
     pub has_phase: u8,
+    pub is_precision: u8,
 }
 
 #[repr(C)]
@@ -52,7 +53,7 @@ pub(crate) fn process_core(input: probo_wheel_input_t) -> Option<CoreOutput> {
     Some(mapped_output(
         input.delta_axis1,
         input.delta_axis2,
-        step_lines_for(input.intensity),
+        step_lines_for(input.intensity, input.is_precision),
     ))
 }
 
@@ -62,11 +63,12 @@ fn should_passthrough(input: probo_wheel_input_t) -> bool {
         || (input.delta_axis1 != 0) == (input.delta_axis2 != 0)
 }
 
-fn step_lines_for(intensity: u8) -> i32 {
-    match intensity {
+fn step_lines_for(intensity: u8, is_precision: u8) -> i32 {
+    let base = match intensity {
         PROBO_INTENSITY_MEDIUM => STEP_LINES_MEDIUM,
         _ => STEP_LINES_SLOW,
-    }
+    };
+    base >> i32::from(is_precision != 0)
 }
 
 fn mapped_output(delta_axis1: i32, delta_axis2: i32, step_lines: i32) -> CoreOutput {

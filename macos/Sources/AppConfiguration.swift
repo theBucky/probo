@@ -6,9 +6,15 @@ enum ScrollIntensity: Int, CaseIterable, Sendable {
 }
 
 struct AppConfiguration: Equatable, Sendable {
-  static let defaultValue = Self(isEnabled: true, intensity: .slow, isLookUpEnabled: true)
+  static let defaultValue = Self(
+    isEnabled: true,
+    intensity: .slow,
+    isLookUpEnabled: true,
+    isPrecisionScrollEnabled: false
+  )
 
   var isEnabled: Bool
   var intensity: ScrollIntensity
   var isLookUpEnabled: Bool
+  var isPrecisionScrollEnabled: Bool
 }

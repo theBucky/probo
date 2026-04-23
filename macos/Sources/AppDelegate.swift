@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
     statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
     statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
+    statusMenuController.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
     statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
     statusMenuController.onGrantAccessibilityAccess = { [weak self] in
       self?.requestAccessibilityAccess()
@@ -73,6 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func toggleLookUp() {
     configuration.isLookUpEnabled.toggle()
+    configurationStore.save(configuration)
+    eventTapController.apply(configuration: configuration)
+    renderStatusMenu()
+  }
+
+  private func togglePrecisionScroll() {
+    configuration.isPrecisionScrollEnabled.toggle()
     configurationStore.save(configuration)
     eventTapController.apply(configuration: configuration)
     renderStatusMenu()
