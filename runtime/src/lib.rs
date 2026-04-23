@@ -57,13 +57,9 @@ pub(crate) fn process_core(input: probo_wheel_input_t) -> Option<CoreOutput> {
 }
 
 fn should_passthrough(input: probo_wheel_input_t) -> bool {
-    let has_axis1 = input.delta_axis1 != 0;
-    let has_axis2 = input.delta_axis2 != 0;
-
     input.is_continuous != 0
         || input.has_phase != 0
-        || (has_axis1 && has_axis2)
-        || (!has_axis1 && !has_axis2)
+        || (input.delta_axis1 != 0) == (input.delta_axis2 != 0)
 }
 
 fn step_lines_for(intensity: u8) -> i32 {
@@ -74,14 +70,9 @@ fn step_lines_for(intensity: u8) -> i32 {
 }
 
 fn mapped_output(delta_axis1: i32, delta_axis2: i32, step_lines: i32) -> CoreOutput {
-    let (sign_x, sign_y) = if delta_axis1 != 0 {
-        (0, delta_axis1.signum())
-    } else {
-        (delta_axis2.signum(), 0)
-    };
-
+    // passthrough guarantees exactly one axis is nonzero; the other signum is 0.
     CoreOutput {
-        lines_x: sign_x * step_lines,
-        lines_y: sign_y * step_lines,
+        lines_x: delta_axis2.signum() * step_lines,
+        lines_y: delta_axis1.signum() * step_lines,
     }
 }
