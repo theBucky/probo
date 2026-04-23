@@ -5,7 +5,11 @@ private func _CGEventSetType(_ event: CGEvent, _ type: CGEventType)
 
 final class ScrollEventSynthesizer {
   private let marker: Int64
-  private let source = CGEventSource(stateID: .hidSystemState)
+  private let source: CGEventSource? = {
+    let source = CGEventSource(stateID: .hidSystemState)
+    source?.pixelsPerLine = 16.0
+    return source
+  }()
 
   init(marker: Int64) {
     self.marker = marker
