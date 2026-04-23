@@ -67,6 +67,14 @@ final class StatusMenuController: NSObject {
       item.target = self
     }
 
+    slowItem.attributedTitle = Self.makeAttributedTitle(
+      title: slowItem.title, subtitle: "Just slow.")
+    mediumItem.attributedTitle = Self.makeAttributedTitle(
+      title: mediumItem.title, subtitle: "Balanced steps, Windows-like feel.")
+    lookUpItem.attributedTitle = Self.makeAttributedTitle(title: lookUpItem.title)
+    precisionScrollItem.attributedTitle = Self.makeAttributedTitle(
+      title: precisionScrollItem.title)
+
     let intensityMenu = NSMenu(title: "Intensity")
     intensityMenu.addItem(slowItem)
     intensityMenu.addItem(mediumItem)
@@ -133,6 +141,32 @@ final class StatusMenuController: NSObject {
     if !state.accessibilityTrusted { return .needsAccess }
     if state.configuration.isEnabled && state.tapStatus.isEnabled { return .on }
     return .off
+  }
+
+  private static func makeAttributedTitle(title: String, subtitle: String? = nil)
+    -> NSAttributedString
+  {
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.lineSpacing = 2
+    paragraph.firstLineHeadIndent = 6
+    paragraph.headIndent = 6
+    let result = NSMutableAttributedString(
+      string: title,
+      attributes: [
+        .font: NSFont.menuFont(ofSize: 0),
+        .paragraphStyle: paragraph,
+      ])
+    if let subtitle {
+      result.append(
+        NSAttributedString(
+          string: "\n" + subtitle,
+          attributes: [
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: paragraph,
+          ]))
+    }
+    return result
   }
 
   @objc private func toggleEnabled() { onToggleEnabled?() }
