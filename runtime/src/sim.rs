@@ -2,7 +2,12 @@ use std::hint::black_box;
 use std::ops::AddAssign;
 use std::time::Instant;
 
-use crate::{probo_process_wheel, probo_wheel_input_t, process_core};
+use crate::{
+    PROBO_INTENSITY_MEDIUM, PROBO_INTENSITY_SLOW, probo_process_wheel, probo_wheel_input_t,
+    process_core,
+};
+
+const HOT_TRIALS: usize = 5;
 
 #[derive(Clone, Copy)]
 struct SimInput {
@@ -94,6 +99,58 @@ struct BenchmarkAggregate {
     dispatch: SimDispatchStats,
 }
 
+struct TrialStats {
+    min: f64,
+    median: f64,
+    max: f64,
+}
+
+struct HotCase {
+    label: &'static str,
+    workload: &'static [SimInput],
+    intensity: u8,
+    is_precision: u8,
+}
+
+const HOT_CASES: &[HotCase] = &[
+    HotCase {
+        label: "hot_rewrite     intensity=slow   precision=0",
+        workload: REWRITE_WORKLOAD,
+        intensity: PROBO_INTENSITY_SLOW,
+        is_precision: 0,
+    },
+    HotCase {
+        label: "hot_rewrite     intensity=slow   precision=1",
+        workload: REWRITE_WORKLOAD,
+        intensity: PROBO_INTENSITY_SLOW,
+        is_precision: 1,
+    },
+    HotCase {
+        label: "hot_rewrite     intensity=medium precision=0",
+        workload: REWRITE_WORKLOAD,
+        intensity: PROBO_INTENSITY_MEDIUM,
+        is_precision: 0,
+    },
+    HotCase {
+        label: "hot_rewrite     intensity=medium precision=1",
+        workload: REWRITE_WORKLOAD,
+        intensity: PROBO_INTENSITY_MEDIUM,
+        is_precision: 1,
+    },
+    HotCase {
+        label: "hot_passthrough fast  (continuous/phased)   ",
+        workload: PASSTHROUGH_FAST_WORKLOAD,
+        intensity: PROBO_INTENSITY_SLOW,
+        is_precision: 0,
+    },
+    HotCase {
+        label: "hot_passthrough axes  (diagonal/zero)       ",
+        workload: PASSTHROUGH_AXES_WORKLOAD,
+        intensity: PROBO_INTENSITY_SLOW,
+        is_precision: 0,
+    },
+];
+
 pub fn builtin_comparison_report(intensity: u8, frame_ns: u64) -> String {
     let reports = BUILTIN_SCENARIOS
         .iter()
@@ -110,7 +167,6 @@ pub fn builtin_benchmark_report(intensity: u8, frame_ns: u64, iterations: u32) -
         .sum::<u64>()
         * u64::from(iterations);
 
-    let hot_path = benchmark_hot_path(BUILTIN_SCENARIOS, intensity, iterations);
     let immediate = benchmark_mode(
         BUILTIN_SCENARIOS,
         intensity,
@@ -124,32 +180,44 @@ pub fn builtin_benchmark_report(intensity: u8, frame_ns: u64, iterations: u32) -
         iterations,
     );
 
-    [
-        format!(
-            "config iterations={} frame_aligned_period_ms={:.3} workload_events={}",
-            iterations,
-            ns_to_ms(frame_ns as f64),
-            workload_events
-        ),
-        format!(
-            "hot_path elapsed_ms={:.3} ns_per_event={:.2}",
-            ns_to_ms(hot_path.elapsed_ns as f64),
-            hot_path.elapsed_ns as f64 / hot_path.events_processed as f64
-        ),
-        format!(
-            "immediate cpu elapsed_ms={:.3} ns_per_event={:.2} {}",
-            ns_to_ms(immediate.1.elapsed_ns as f64),
-            immediate.1.elapsed_ns as f64 / immediate.1.events_processed as f64,
-            render_benchmark_aggregate(&immediate.0)
-        ),
-        format!(
-            "frame_aligned cpu elapsed_ms={:.3} ns_per_event={:.2} {}",
-            ns_to_ms(frame_aligned.1.elapsed_ns as f64),
-            frame_aligned.1.elapsed_ns as f64 / frame_aligned.1.events_processed as f64,
-            render_benchmark_aggregate(&frame_aligned.0)
-        ),
-    ]
-    .join("\n")
+    let mut lines = vec![format!(
+        "config iterations={} trials={} frame_aligned_period_ms={:.3} workload_events={}",
+        iterations,
+        HOT_TRIALS,
+        ns_to_ms(frame_ns as f64),
+        workload_events
+    )];
+
+    for case in HOT_CASES {
+        let stats = hot_trial_stats(case.workload, case.intensity, case.is_precision, iterations);
+        lines.push(format!(
+            "{} ns_per_event {}",
+            case.label,
+            render_trial_stats(&stats)
+        ));
+    }
+
+    lines.push(format!(
+        "immediate cpu elapsed_ms={:.3} ns_per_event={:.2} {}",
+        ns_to_ms(immediate.1.elapsed_ns as f64),
+        immediate.1.elapsed_ns as f64 / immediate.1.events_processed as f64,
+        render_benchmark_aggregate(&immediate.0)
+    ));
+    lines.push(format!(
+        "frame_aligned cpu elapsed_ms={:.3} ns_per_event={:.2} {}",
+        ns_to_ms(frame_aligned.1.elapsed_ns as f64),
+        frame_aligned.1.elapsed_ns as f64 / frame_aligned.1.events_processed as f64,
+        render_benchmark_aggregate(&frame_aligned.0)
+    ));
+
+    lines.join("\n")
+}
+
+fn render_trial_stats(stats: &TrialStats) -> String {
+    format!(
+        "min={:.3} median={:.3} max={:.3}",
+        stats.min, stats.median, stats.max
+    )
 }
 
 type Scenario = (&'static str, &'static [SimInput]);
@@ -163,6 +231,26 @@ const fn sim_tick(timestamp_ns: u64, delta_axis1: i32, delta_axis2: i32) -> SimI
         has_phase: false,
     }
 }
+
+static REWRITE_WORKLOAD: &[SimInput] = &[
+    sim_tick(0, 1, 0),
+    sim_tick(0, -1, 0),
+    sim_tick(0, 0, 1),
+    sim_tick(0, 0, -1),
+];
+
+static PASSTHROUGH_FAST_WORKLOAD: &[SimInput] = &[
+    SimInput {
+        is_continuous: true,
+        ..sim_tick(0, 1, 0)
+    },
+    SimInput {
+        has_phase: true,
+        ..sim_tick(0, 1, 0)
+    },
+];
+
+static PASSTHROUGH_AXES_WORKLOAD: &[SimInput] = &[sim_tick(0, 1, 1), sim_tick(0, 0, 0)];
 
 static BUILTIN_SCENARIOS: &[Scenario] = &[
     ("single_tick", &[sim_tick(0, 1, 0)]),
@@ -228,14 +316,14 @@ static BUILTIN_SCENARIOS: &[Scenario] = &[
     ),
 ];
 
-fn ffi_input(input: SimInput, intensity: u8) -> probo_wheel_input_t {
+fn ffi_input(input: SimInput, intensity: u8, is_precision: u8) -> probo_wheel_input_t {
     probo_wheel_input_t {
         delta_axis1: input.delta_axis1,
         delta_axis2: input.delta_axis2,
         intensity,
         is_continuous: u8::from(input.is_continuous),
         has_phase: u8::from(input.has_phase),
-        is_precision: 0,
+        is_precision,
     }
 }
 
@@ -321,7 +409,7 @@ fn simulate_process(
     last_direction: &mut i32,
     runtime: &mut SimRuntimeStats,
 ) -> Option<SimOutput> {
-    let Some(output) = process_core(ffi_input(input, intensity)) else {
+    let Some(output) = process_core(ffi_input(input, intensity, 0)) else {
         runtime.passthrough += 1;
         return None;
     };
@@ -449,22 +537,34 @@ fn render_dispatch_stats(stats: &SimDispatchStats) -> String {
     )
 }
 
-fn benchmark_hot_path(scenarios: &[Scenario], intensity: u8, iterations: u32) -> BenchmarkCpuStats {
-    let start = Instant::now();
-    let mut events_processed = 0_u64;
+fn hot_trial_stats(
+    workload: &[SimInput],
+    intensity: u8,
+    is_precision: u8,
+    iterations: u32,
+) -> TrialStats {
+    let ffi: Vec<probo_wheel_input_t> = workload
+        .iter()
+        .map(|input| ffi_input(*input, intensity, is_precision))
+        .collect();
+    let event_count = u64::from(iterations) * ffi.len() as u64;
 
-    for _ in 0..iterations {
-        for &(_, inputs) in scenarios {
-            for input in inputs {
-                black_box(probo_process_wheel(ffi_input(*input, intensity)));
-                events_processed += 1;
+    let mut samples: [f64; HOT_TRIALS] = std::array::from_fn(|_| {
+        let opaque = black_box(ffi.as_slice());
+        let start = Instant::now();
+        for _ in 0..iterations {
+            for input in opaque {
+                black_box(probo_process_wheel(black_box(*input)));
             }
         }
-    }
+        start.elapsed().as_nanos() as f64 / event_count as f64
+    });
+    samples.sort_unstable_by(f64::total_cmp);
 
-    BenchmarkCpuStats {
-        elapsed_ns: start.elapsed().as_nanos(),
-        events_processed,
+    TrialStats {
+        min: samples[0],
+        median: samples[HOT_TRIALS / 2],
+        max: samples[HOT_TRIALS - 1],
     }
 }
 

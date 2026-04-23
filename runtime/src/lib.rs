@@ -4,6 +4,8 @@ mod sim;
 #[cfg(feature = "sim")]
 pub use sim::{builtin_benchmark_report, builtin_comparison_report};
 
+#[cfg(feature = "sim")]
+const PROBO_INTENSITY_SLOW: u8 = 0;
 const PROBO_INTENSITY_MEDIUM: u8 = 1;
 
 const STEP_LINES_SLOW: i32 = 2;
