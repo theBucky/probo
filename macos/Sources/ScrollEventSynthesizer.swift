@@ -36,6 +36,8 @@ final class ScrollEventSynthesizer {
 
     replacement.location = location
     replacement.flags = flags
+    // synthesized events default ScrollCount to 0; real HID notches send 1.
+    replacement.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
     replacement.setIntegerValueField(.eventSourceUserData, value: marker)
     return replacement
   }
