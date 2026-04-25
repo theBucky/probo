@@ -15,55 +15,6 @@ final class ScrollEventSynthesizer {
     self.marker = marker
   }
 
-  func postReplacement(
-    location: CGPoint,
-    flags: CGEventFlags,
-    linesX: Int32,
-    linesY: Int32,
-    stepMode: ScrollStepMode
-  ) -> Bool {
-    if stepMode == .classic {
-      guard
-        let replacement = makeReplacement(
-          location: location,
-          flags: flags,
-          linesX: linesX,
-          linesY: linesY
-        )
-      else {
-        return false
-      }
-      replacement.post(tap: .cgSessionEventTap)
-      return true
-    }
-
-    let unitX = linesX.signum()
-    let unitY = linesY.signum()
-    let count = max(linesX.magnitude, linesY.magnitude)
-    precondition(count > 0 && count <= 3)
-
-    func makeUnitReplacement() -> CGEvent? {
-      makeReplacement(location: location, flags: flags, linesX: unitX, linesY: unitY)
-    }
-
-    let first = makeUnitReplacement()
-    let second = count > 1 ? makeUnitReplacement() : nil
-    let third = count > 2 ? makeUnitReplacement() : nil
-
-    guard
-      let first,
-      count == 1 || second != nil,
-      count < 3 || third != nil
-    else {
-      return false
-    }
-
-    first.post(tap: .cgSessionEventTap)
-    second?.post(tap: .cgSessionEventTap)
-    third?.post(tap: .cgSessionEventTap)
-    return true
-  }
-
   func makeReplacement(location: CGPoint, flags: CGEventFlags, linesX: Int32, linesY: Int32)
     -> CGEvent?
   {

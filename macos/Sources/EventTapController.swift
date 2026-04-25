@@ -167,16 +167,32 @@ final class EventTapController {
       synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)?
         .post(tap: .cgSessionEventTap)
     } else {
-      guard
-        synth.postReplacement(
-          location: event.location,
-          flags: replacementFlags,
-          linesX: output.linesX,
-          linesY: output.linesY,
-          stepMode: configuration.stepMode
-        )
-      else {
-        return pass
+      let stepX: Int32
+      let stepY: Int32
+      let count: UInt32
+      switch configuration.stepMode {
+      case .classic:
+        stepX = output.linesX
+        stepY = output.linesY
+        count = 1
+      case .highFrequency:
+        stepX = output.linesX.signum()
+        stepY = output.linesY.signum()
+        count = max(output.linesX.magnitude, output.linesY.magnitude)
+      }
+
+      for _ in 0..<count {
+        guard
+          let replacement = synth.makeReplacement(
+            location: event.location,
+            flags: replacementFlags,
+            linesX: stepX,
+            linesY: stepY
+          )
+        else {
+          return pass
+        }
+        replacement.post(tap: .cgSessionEventTap)
       }
     }
     return nil
