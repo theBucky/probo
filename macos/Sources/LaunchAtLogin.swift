@@ -1,6 +1,6 @@
 import ServiceManagement
 
-final class LaunchAtLoginManager {
+final class LaunchAtLogin {
   private let service = SMAppService.mainApp
 
   var isEnabled: Bool {

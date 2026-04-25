@@ -1,8 +1,6 @@
 enum ScrollIntensity: Int, CaseIterable, Sendable {
   case slow = 0
   case medium = 1
-
-  var runtimeValue: UInt8 { UInt8(rawValue) }
 }
 
 enum ScrollStepMode: Int, Sendable {

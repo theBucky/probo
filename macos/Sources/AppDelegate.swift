@@ -15,7 +15,7 @@ enum ProboApp {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let configurationStore = AppConfigurationStore()
-  private let launchAtLoginManager = LaunchAtLoginManager()
+  private let launchAtLogin = LaunchAtLogin()
   private let eventTapController = EventTapController()
   private let statusMenuController = StatusMenuController()
 
@@ -28,23 +28,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     configuration = configurationStore.load()
     eventTapController.apply(configuration: configuration)
-
+    wireMenuActions()
     eventTapController.onStatusChange = { [weak self] status in
       guard let self else { return }
       tapStatus = status
       renderStatusMenu()
     }
-
-    statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
-    statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
-    statusMenuController.onSelectStepMode = { [weak self] in self?.selectStepMode($0) }
-    statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
-    statusMenuController.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
-    statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
-    statusMenuController.onGrantAccessibilityAccess = { [weak self] in
-      self?.requestAccessibilityAccess()
-    }
-    statusMenuController.onQuit = { NSApplication.shared.terminate(nil) }
 
     accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: configuration.isEnabled)
     refreshRuntime()
@@ -56,9 +45,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     eventTapController.teardown()
   }
 
-  private func toggleEnabled() {
-    configuration.isEnabled.toggle()
+  private func wireMenuActions() {
+    statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
+    statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
+    statusMenuController.onSelectStepMode = { [weak self] in self?.selectStepMode($0) }
+    statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
+    statusMenuController.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
+    statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
+    statusMenuController.onGrantAccessibilityAccess = { [weak self] in
+      self?.requestAccessibilityAccess()
+    }
+    statusMenuController.onQuit = { NSApplication.shared.terminate(nil) }
+  }
+
+  private func mutate(_ change: (inout AppConfiguration) -> Void) {
+    change(&configuration)
     configurationStore.save(configuration)
+    eventTapController.apply(configuration: configuration)
+    renderStatusMenu()
+  }
+
+  private func toggleEnabled() {
+    mutate { $0.isEnabled.toggle() }
     if configuration.isEnabled {
       accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
     }
@@ -67,36 +75,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func selectIntensity(_ intensity: ScrollIntensity) {
     guard configuration.intensity != intensity else { return }
-    configuration.intensity = intensity
-    configurationStore.save(configuration)
-    eventTapController.apply(configuration: configuration)
-    renderStatusMenu()
+    mutate { $0.intensity = intensity }
   }
 
   private func selectStepMode(_ stepMode: ScrollStepMode) {
     guard configuration.stepMode != stepMode else { return }
-    configuration.stepMode = stepMode
-    configurationStore.save(configuration)
-    eventTapController.apply(configuration: configuration)
-    renderStatusMenu()
+    mutate { $0.stepMode = stepMode }
   }
 
   private func toggleLookUp() {
-    configuration.isLookUpEnabled.toggle()
-    configurationStore.save(configuration)
-    eventTapController.apply(configuration: configuration)
-    renderStatusMenu()
+    mutate { $0.isLookUpEnabled.toggle() }
   }
 
   private func togglePrecisionScroll() {
-    configuration.isPrecisionScrollEnabled.toggle()
-    configurationStore.save(configuration)
-    eventTapController.apply(configuration: configuration)
-    renderStatusMenu()
+    mutate { $0.isPrecisionScrollEnabled.toggle() }
   }
 
   private func toggleStartAtLogin() {
-    try? launchAtLoginManager.setEnabled(!launchAtLoginManager.isEnabled)
+    try? launchAtLogin.setEnabled(!launchAtLogin.isEnabled)
     renderStatusMenu()
   }
 
@@ -112,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func renderStatusMenu() {
     let state = StatusMenuState(
       configuration: configuration,
-      startAtLoginEnabled: launchAtLoginManager.isEnabled,
+      startAtLoginEnabled: launchAtLogin.isEnabled,
       accessibilityTrusted: accessibilityTrusted,
       tapStatus: tapStatus
     )
@@ -122,7 +118,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func startPermissionMonitor() {
-    permissionMonitor?.cancel()
     permissionMonitor = Task { [weak self] in
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(2))
@@ -130,9 +125,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
         if accessibilityTrusted, configuration.isEnabled, !tapStatus.isEnabled {
           refreshRuntime()
-        } else {
-          renderStatusMenu()
         }
+        renderStatusMenu()
       }
     }
   }

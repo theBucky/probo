@@ -11,14 +11,24 @@ private final class PassThroughImageView: NSImageView {
   override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
-private struct SymbolSpec: Equatable {
-  let name: String
-  let description: String
+private enum StatusSymbol: Equatable {
+  case on, off, needsAccess
 
-  static let on = SymbolSpec(name: "computermouse.fill", description: "probo on")
-  static let off = SymbolSpec(name: "computermouse", description: "probo off")
-  static let needsAccess = SymbolSpec(
-    name: "exclamationmark.triangle.fill", description: "probo needs accessibility access")
+  var name: String {
+    switch self {
+    case .on: "computermouse.fill"
+    case .off: "computermouse"
+    case .needsAccess: "exclamationmark.triangle.fill"
+    }
+  }
+
+  var accessibilityDescription: String {
+    switch self {
+    case .on: "probo on"
+    case .off: "probo off"
+    case .needsAccess: "probo needs accessibility access"
+    }
+  }
 }
 
 @MainActor
@@ -60,7 +70,7 @@ final class StatusMenuController: NSObject {
     keyEquivalent: "")
   private let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
 
-  private var currentSpec: SymbolSpec?
+  private var currentSymbol: StatusSymbol?
 
   override init() {
     super.init()
@@ -140,22 +150,24 @@ final class StatusMenuController: NSObject {
     accessibilityGroupSeparator.isHidden = state.accessibilityTrusted
     grantAccessibilityItem.isHidden = state.accessibilityTrusted
 
-    applySymbol(symbolSpec(for: state))
+    applySymbol(symbol(for: state))
   }
 
-  private func applySymbol(_ spec: SymbolSpec) {
-    guard currentSpec != spec else { return }
-    let image = NSImage(systemSymbolName: spec.name, accessibilityDescription: spec.description)!
+  private func applySymbol(_ symbol: StatusSymbol) {
+    guard currentSymbol != symbol else { return }
+    let image = NSImage(
+      systemSymbolName: symbol.name,
+      accessibilityDescription: symbol.accessibilityDescription)!
     image.isTemplate = true
-    if currentSpec == nil {
+    if currentSymbol == nil {
       iconView.image = image
     } else {
       iconView.setSymbolImage(image, contentTransition: .replace.magic(fallback: .downUp))
     }
-    currentSpec = spec
+    currentSymbol = symbol
   }
 
-  private func symbolSpec(for state: StatusMenuState) -> SymbolSpec {
+  private func symbol(for state: StatusMenuState) -> StatusSymbol {
     if !state.accessibilityTrusted { return .needsAccess }
     if state.configuration.isEnabled && state.tapStatus.isEnabled { return .on }
     return .off

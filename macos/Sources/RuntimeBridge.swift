@@ -1,3 +1,7 @@
+private extension ScrollIntensity {
+  var runtimeValue: UInt8 { UInt8(rawValue) }
+}
+
 enum RuntimeBridge {
   static func rewrite(
     deltaAxis1: Int32,

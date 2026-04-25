@@ -1,5 +1,7 @@
 import ApplicationServices
 
+// CGEventSetType is not exposed in the Swift overlay; @_silgen_name lets us
+// promote a freshly created event to .flagsChanged for the precision-scroll pulse.
 @_silgen_name("CGEventSetType")
 private func _CGEventSetType(_ event: CGEvent, _ type: CGEventType)
 
