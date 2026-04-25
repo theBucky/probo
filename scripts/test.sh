@@ -4,7 +4,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "$0")/.." && pwd)"
 build_dir="$root_dir/build/tests"
-swift_dir="$root_dir/macos"
+swift_dir="$root_dir/probo"
 sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
 swift_target="$(uname -m)-apple-macos26.0"
 swift_sources=(

@@ -39,12 +39,12 @@ Swift/AppKit app with a native Swift scroll rewrite core.
 
 | Layer | Path | Role |
 | --- | --- | --- |
-| App | `macos/Sources/App` | App lifecycle and controller wiring |
-| Core | `macos/Sources/Core` | Pure scroll rewrite hot path |
-| Events | `macos/Sources/Events` | Event tap and scroll event synthesis |
-| Configuration | `macos/Sources/Configuration` | App settings model and persistence |
-| System | `macos/Sources/System` | Accessibility and launch-at-login glue |
-| UI | `macos/Sources/UI` | Menubar UI |
+| App | `probo/Sources/App` | App lifecycle and controller wiring |
+| Core | `probo/Sources/Core` | Pure scroll rewrite hot path |
+| Events | `probo/Sources/Events` | Event tap and scroll event synthesis |
+| Configuration | `probo/Sources/Configuration` | App settings model and persistence |
+| System | `probo/Sources/System` | Accessibility and launch-at-login glue |
+| UI | `probo/Sources/UI` | Menubar UI |
 
 The tap callback reads raw `CGEvent` fields, asks the Swift core for a rewrite decision, and synthesizes a replacement scroll event when asked.
 
