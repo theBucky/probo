@@ -12,11 +12,13 @@ menubar macOS app remapping mouse-wheel ticks to fixed line steps. swift/appkit 
 - [probo/Sources/UI/](probo/Sources/UI): status menu
 - [probo/Resources/Info.plist](probo/Resources/Info.plist): bundle plist
 - [scripts/build.sh](scripts/build.sh): single source of truth for swift build and codesign; CI calls the same script
+- [scripts/lsp.sh](scripts/lsp.sh): emits `compile_commands.json` for SourceKit-LSP
 - [scripts/local/](scripts/local) and [scripts/ci/](scripts/ci): `run.sh` and codesign mint helpers
 
 ## Validate
 
 - format: `swift-format format -i -r probo/Sources probo/Tests`
+- lsp: `scripts/lsp.sh`
 - test: `scripts/test.sh`
 - build: `scripts/build.sh`
 

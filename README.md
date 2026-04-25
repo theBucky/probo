@@ -58,9 +58,12 @@ No SwiftPM, no Xcode project. Shell scripts drive everything.
 | --- | --- |
 | `scripts/test.sh` | Build and run BDD-style Swift tests for core behavior and system boundaries |
 | `scripts/build.sh` | Build Swift app and codesign bundle (shared with CI) |
+| `scripts/lsp.sh` | Generate `compile_commands.json` for SourceKit-LSP |
 | `scripts/local/run.sh` | Build then relaunch `Probo.app` |
 | `scripts/local/setup-codesign.sh` | Mint local signing identity |
 | `scripts/ci/mint-identity.sh` | Emit p12 + passphrase for CI release-signing secrets |
+
+Run `scripts/lsp.sh` after source layout or compiler flag changes so IDE diagnostics use the same SDK, target, frameworks, and source sets as the shell build.
 
 ## Release
 
