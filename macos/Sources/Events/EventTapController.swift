@@ -3,10 +3,10 @@ import Carbon.HIToolbox
 import IOKit.hidsystem
 
 // .maskAlternate alone leaves device-side bits set, so consumers reading raw flags still see option.
-private extension CGEventFlags {
-  static let leftOption = CGEventFlags(rawValue: UInt64(NX_DEVICELALTKEYMASK))
-  static let rightOption = CGEventFlags(rawValue: UInt64(NX_DEVICERALTKEYMASK))
-  static let allOption: CGEventFlags = [.maskAlternate, .leftOption, .rightOption]
+extension CGEventFlags {
+  fileprivate static let leftOption = CGEventFlags(rawValue: UInt64(NX_DEVICELALTKEYMASK))
+  fileprivate static let rightOption = CGEventFlags(rawValue: UInt64(NX_DEVICERALTKEYMASK))
+  fileprivate static let allOption: CGEventFlags = [.maskAlternate, .leftOption, .rightOption]
 }
 
 // Look Up shortcut (Cmd+Ctrl+D) bound to mouse button 4.

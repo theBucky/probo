@@ -16,7 +16,9 @@ menubar macOS app remapping mouse-wheel ticks to fixed line steps. swift/appkit 
 
 ## Validate
 
-- swift: `scripts/build.sh`
+- format: `swift-format format -i -r macos/Sources macos/Tests`
+- test: `scripts/test.sh`
+- build: `scripts/build.sh`
 
 ## Invariants
 

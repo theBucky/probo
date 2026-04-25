@@ -15,6 +15,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
+      - run: scripts/test.sh
       - env:
           PROBO_CODESIGN_IDENTITY: "-"
         run: scripts/build.sh

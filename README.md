@@ -56,6 +56,7 @@ No SwiftPM, no Xcode project. Shell scripts drive everything.
 
 | Script | Purpose |
 | --- | --- |
+| `scripts/test.sh` | Build and run BDD-style Swift tests for core behavior and system boundaries |
 | `scripts/build.sh` | Build Swift app and codesign bundle (shared with CI) |
 | `scripts/local/run.sh` | Build then relaunch `Probo.app` |
 | `scripts/local/setup-codesign.sh` | Mint local signing identity |
