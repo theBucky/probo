@@ -187,29 +187,13 @@ final class EventTapController {
   private func postSteps(
     location: CGPoint, flags: CGEventFlags, output: (linesX: Int32, linesY: Int32)
   ) -> Bool {
-    let stepX: Int32
-    let stepY: Int32
-    let count: UInt32
-    switch configuration.stepMode {
-    case .classic:
-      stepX = output.linesX
-      stepY = output.linesY
-      count = 1
-    case .highFrequency:
-      stepX = output.linesX.signum()
-      stepY = output.linesY.signum()
-      count = max(output.linesX.magnitude, output.linesY.magnitude)
-    }
-
-    for i in 0..<count {
-      guard
-        let replacement = synth.makeReplacement(
-          location: location, flags: flags, linesX: stepX, linesY: stepY
-        )
-      else { return i > 0 }
-      replacement.post(tap: .cgSessionEventTap)
-    }
-    return count > 0
+    guard
+      let replacement = synth.makeReplacement(
+        location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
+      )
+    else { return false }
+    replacement.post(tap: .cgSessionEventTap)
+    return true
   }
 
   private func handleOtherMouse(type: CGEventType, event: CGEvent) -> Bool {

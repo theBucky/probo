@@ -35,7 +35,6 @@ private enum StatusSymbol: Equatable {
 final class StatusMenuController: NSObject {
   var onToggleEnabled: (() -> Void)?
   var onSelectIntensity: ((ScrollIntensity) -> Void)?
-  var onSelectStepMode: ((ScrollStepMode) -> Void)?
   var onToggleLookUp: (() -> Void)?
   var onTogglePrecisionScroll: (() -> Void)?
   var onToggleStartAtLogin: (() -> Void)?
@@ -50,15 +49,10 @@ final class StatusMenuController: NSObject {
   private let enableItem = NSMenuItem(
     title: "Enable", action: #selector(toggleEnabled), keyEquivalent: "")
   private let intensityItem = NSMenuItem(title: "Intensity", action: nil, keyEquivalent: "")
-  private let stepModeItem = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
   private let miscItem = NSMenuItem(title: "Misc", action: nil, keyEquivalent: "")
   private let slowItem = NSMenuItem(title: "Slow", action: #selector(selectSlow), keyEquivalent: "")
   private let mediumItem = NSMenuItem(
     title: "Medium", action: #selector(selectMedium), keyEquivalent: "")
-  private let classicStepItem = NSMenuItem(
-    title: "Native", action: #selector(selectClassicStep), keyEquivalent: "")
-  private let highFrequencyStepItem = NSMenuItem(
-    title: "High Performance", action: #selector(selectHighFrequencyStep), keyEquivalent: "")
   private let lookUpItem = NSMenuItem(
     title: "Look Up", action: #selector(toggleLookUp), keyEquivalent: "")
   private let precisionScrollItem = NSMenuItem(
@@ -76,7 +70,7 @@ final class StatusMenuController: NSObject {
     super.init()
 
     for item in [
-      enableItem, slowItem, mediumItem, classicStepItem, highFrequencyStepItem, lookUpItem,
+      enableItem, slowItem, mediumItem, lookUpItem,
       precisionScrollItem, startAtLoginItem, grantAccessibilityItem, quitItem,
     ] {
       item.target = self
@@ -86,10 +80,6 @@ final class StatusMenuController: NSObject {
       title: slowItem.title, subtitle: "Just slow")
     mediumItem.attributedTitle = Self.makeAttributedTitle(
       title: mediumItem.title, subtitle: "Balanced steps, Windows-like feel")
-    classicStepItem.attributedTitle = Self.makeAttributedTitle(
-      title: classicStepItem.title, subtitle: "One native line event per wheel tick")
-    highFrequencyStepItem.attributedTitle = Self.makeAttributedTitle(
-      title: highFrequencyStepItem.title, subtitle: "Higher-frequency unit line events")
     lookUpItem.attributedTitle = Self.makeAttributedTitle(
       title: lookUpItem.title, subtitle: "Trigger Look Up with mouse button 4")
     precisionScrollItem.attributedTitle = Self.makeAttributedTitle(
@@ -100,11 +90,6 @@ final class StatusMenuController: NSObject {
     intensityMenu.addItem(mediumItem)
     intensityItem.submenu = intensityMenu
 
-    let stepModeMenu = NSMenu(title: "Mode")
-    stepModeMenu.addItem(classicStepItem)
-    stepModeMenu.addItem(highFrequencyStepItem)
-    stepModeItem.submenu = stepModeMenu
-
     let miscMenu = NSMenu(title: "Misc")
     miscMenu.addItem(lookUpItem)
     miscMenu.addItem(precisionScrollItem)
@@ -113,7 +98,6 @@ final class StatusMenuController: NSObject {
     menu.addItem(enableItem)
     menu.addItem(.separator())
     menu.addItem(intensityItem)
-    menu.addItem(stepModeItem)
     menu.addItem(miscItem)
     menu.addItem(.separator())
     menu.addItem(startAtLoginItem)
@@ -142,8 +126,6 @@ final class StatusMenuController: NSObject {
     enableItem.state = state.configuration.isEnabled ? .on : .off
     slowItem.state = state.configuration.intensity == .slow ? .on : .off
     mediumItem.state = state.configuration.intensity == .medium ? .on : .off
-    classicStepItem.state = state.configuration.stepMode == .classic ? .on : .off
-    highFrequencyStepItem.state = state.configuration.stepMode == .highFrequency ? .on : .off
     lookUpItem.state = state.configuration.isLookUpEnabled ? .on : .off
     precisionScrollItem.state = state.configuration.isPrecisionScrollEnabled ? .on : .off
     startAtLoginItem.state = state.startAtLoginEnabled ? .on : .off
@@ -198,8 +180,6 @@ final class StatusMenuController: NSObject {
   @objc private func toggleEnabled() { onToggleEnabled?() }
   @objc private func selectSlow() { onSelectIntensity?(.slow) }
   @objc private func selectMedium() { onSelectIntensity?(.medium) }
-  @objc private func selectClassicStep() { onSelectStepMode?(.classic) }
-  @objc private func selectHighFrequencyStep() { onSelectStepMode?(.highFrequency) }
   @objc private func toggleLookUp() { onToggleLookUp?() }
   @objc private func togglePrecisionScroll() { onTogglePrecisionScroll?() }
   @objc private func toggleStartAtLogin() { onToggleStartAtLogin?() }

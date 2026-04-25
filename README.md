@@ -1,12 +1,10 @@
 # Probo
 
-Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each discrete tick keeps a consistent total line count and can be split into unit line events for a higher-frequency, Windows-like feel. Trackpads, momentum, and gesture phases stay untouched.
+Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each notch becomes one discrete line `CGEvent`, so apps see a deterministic tick. Trackpads, momentum, and gesture phases stay untouched.
 
 ## Features
 
 - Fixed `N`-line step per notch, identical across apps
-- `High Performance` mode splits each notch into unit line events without smoothing or acceleration
-- `Native` mode emits one native line event per notch
 - Rewrites discrete wheel events only; passes continuous, phased, diagonal, and zero-delta events through
 - Option-hold precision scroll (1 line per notch)
 - Forward side button (button 4) mapped to macOS Look Up

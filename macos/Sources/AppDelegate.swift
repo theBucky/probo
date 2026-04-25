@@ -48,7 +48,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func wireMenuActions() {
     statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
     statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
-    statusMenuController.onSelectStepMode = { [weak self] in self?.selectStepMode($0) }
     statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
     statusMenuController.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
     statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
@@ -76,11 +75,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func selectIntensity(_ intensity: ScrollIntensity) {
     guard configuration.intensity != intensity else { return }
     mutate { $0.intensity = intensity }
-  }
-
-  private func selectStepMode(_ stepMode: ScrollStepMode) {
-    guard configuration.stepMode != stepMode else { return }
-    mutate { $0.stepMode = stepMode }
   }
 
   private func toggleLookUp() {
