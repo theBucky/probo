@@ -131,10 +131,15 @@ final class EventTapController {
     }
 
     let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
+    if isContinuous {
+      return false
+    }
     let hasPhase =
-      !isContinuous
-      && (event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
-        || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0)
+      event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
+      || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
+    if hasPhase {
+      return false
+    }
     let deltaAxis1 = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     let deltaAxis2 = Int32(
@@ -144,14 +149,15 @@ final class EventTapController {
       configuration.isPrecisionScrollEnabled && originalFlags.contains(.maskAlternate)
 
     guard
-      let output = RuntimeBridge.rewrite(
-        deltaAxis1: deltaAxis1,
-        deltaAxis2: deltaAxis2,
-        intensity: configuration.intensity,
-        isContinuous: isContinuous,
-        hasPhase: hasPhase,
-        isPrecision: isPrecision
-      )
+      let output = ScrollRewriteCore.rewrite(
+        ScrollRewriteInput(
+          deltaAxis1: deltaAxis1,
+          deltaAxis2: deltaAxis2,
+          intensity: configuration.intensity,
+          isContinuous: isContinuous,
+          hasPhase: hasPhase,
+          isPrecision: isPrecision
+        ))
     else {
       return false
     }
@@ -163,7 +169,7 @@ final class EventTapController {
   }
 
   private func postPrecision(
-    location: CGPoint, originalFlags: CGEventFlags, output: (linesX: Int32, linesY: Int32)
+    location: CGPoint, originalFlags: CGEventFlags, output: ScrollRewriteOutput
   ) -> Bool {
     let flags = originalFlags.subtracting(.allOption)
     guard
@@ -185,7 +191,7 @@ final class EventTapController {
   }
 
   private func postSteps(
-    location: CGPoint, flags: CGEventFlags, output: (linesX: Int32, linesY: Int32)
+    location: CGPoint, flags: CGEventFlags, output: ScrollRewriteOutput
   ) -> Bool {
     guard
       let replacement = synth.makeReplacement(

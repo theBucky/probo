@@ -10,33 +10,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  rust:
-    name: rust
-    runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: runtime
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: runtime
-      - run: cargo fmt --check
-      - run: cargo clippy --all-targets --all-features -- -D warnings
-      - run: cargo test --release --all-features
-
   swift:
     name: swift
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: runtime
       - env:
           PROBO_CODESIGN_IDENTITY: "-"
         run: scripts/build.sh
