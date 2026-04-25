@@ -64,6 +64,9 @@ final class EventTapController {
     if let runLoopSource {
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     }
+    if let eventTap {
+      CFMachPortInvalidate(eventTap)
+    }
     runLoopSource = nil
     eventTap = nil
     isEnabled = false
