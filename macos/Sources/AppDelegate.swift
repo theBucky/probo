@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
     statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
+    statusMenuController.onSelectStepMode = { [weak self] in self?.selectStepMode($0) }
     statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
     statusMenuController.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
     statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
@@ -67,6 +68,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func selectIntensity(_ intensity: ScrollIntensity) {
     guard configuration.intensity != intensity else { return }
     configuration.intensity = intensity
+    configurationStore.save(configuration)
+    eventTapController.apply(configuration: configuration)
+    renderStatusMenu()
+  }
+
+  private func selectStepMode(_ stepMode: ScrollStepMode) {
+    guard configuration.stepMode != stepMode else { return }
+    configuration.stepMode = stepMode
     configurationStore.save(configuration)
     eventTapController.apply(configuration: configuration)
     renderStatusMenu()

@@ -147,18 +147,18 @@ final class EventTapController {
     let replacementFlags =
       isPrecision ? originalFlags.subtracting(.allOption) : originalFlags
 
-    guard
-      let replacement = synth.makeReplacement(
-        location: event.location,
-        flags: replacementFlags,
-        linesX: output.linesX,
-        linesY: output.linesY
-      )
-    else {
-      return pass
-    }
-
     if isPrecision {
+      guard
+        let replacement = synth.makeReplacement(
+          location: event.location,
+          flags: replacementFlags,
+          linesX: output.linesX,
+          linesY: output.linesY
+        )
+      else {
+        return pass
+      }
+
       let optionKey: CGKeyCode =
         originalFlags.contains(.rightOption) ? CGKeyCode(kVK_RightOption) : CGKeyCode(kVK_Option)
       synth.makeFlagsChanged(flags: replacementFlags, keyCode: optionKey)?
@@ -167,7 +167,17 @@ final class EventTapController {
       synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)?
         .post(tap: .cgSessionEventTap)
     } else {
-      replacement.post(tap: .cgSessionEventTap)
+      guard
+        synth.postReplacement(
+          location: event.location,
+          flags: replacementFlags,
+          linesX: output.linesX,
+          linesY: output.linesY,
+          stepMode: configuration.stepMode
+        )
+      else {
+        return pass
+      }
     }
     return nil
   }
