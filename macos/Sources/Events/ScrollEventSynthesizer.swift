@@ -1,10 +1,5 @@
 import ApplicationServices
 
-// CGEventSetType is not exposed in the Swift overlay; @_silgen_name lets us
-// promote a freshly created event to .flagsChanged for the precision-scroll pulse.
-@_silgen_name("CGEventSetType")
-private func _CGEventSetType(_ event: CGEvent, _ type: CGEventType)
-
 final class ScrollEventSynthesizer {
   private let marker: Int64
   private let source: CGEventSource? = {
@@ -44,7 +39,7 @@ final class ScrollEventSynthesizer {
 
   func makeFlagsChanged(flags: CGEventFlags, keyCode: CGKeyCode) -> CGEvent? {
     guard let event = CGEvent(source: source) else { return nil }
-    _CGEventSetType(event, .flagsChanged)
+    event.type = .flagsChanged
     event.flags = flags
     event.setIntegerValueField(.keyboardEventKeycode, value: Int64(keyCode))
     event.setIntegerValueField(.eventSourceUserData, value: marker)

@@ -172,21 +172,21 @@ final class EventTapController {
     location: CGPoint, originalFlags: CGEventFlags, output: ScrollRewriteOutput
   ) -> Bool {
     let flags = originalFlags.subtracting(.allOption)
+    let optionKey: CGKeyCode =
+      originalFlags.contains(.rightOption) ? CGKeyCode(kVK_RightOption) : CGKeyCode(kVK_Option)
     guard
       let replacement = synth.makeReplacement(
         location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
-      )
+      ),
+      let releaseOption = synth.makeFlagsChanged(flags: flags, keyCode: optionKey),
+      let restoreOption = synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)
     else {
       return false
     }
 
-    let optionKey: CGKeyCode =
-      originalFlags.contains(.rightOption) ? CGKeyCode(kVK_RightOption) : CGKeyCode(kVK_Option)
-    synth.makeFlagsChanged(flags: flags, keyCode: optionKey)?
-      .post(tap: .cgSessionEventTap)
+    releaseOption.post(tap: .cgSessionEventTap)
     replacement.post(tap: .cgSessionEventTap)
-    synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)?
-      .post(tap: .cgSessionEventTap)
+    restoreOption.post(tap: .cgSessionEventTap)
     return true
   }
 

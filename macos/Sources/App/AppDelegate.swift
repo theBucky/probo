@@ -1,4 +1,5 @@
 import AppKit
+import os
 
 @main
 enum ProboApp {
@@ -86,7 +87,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func toggleStartAtLogin() {
-    try? launchAtLogin.setEnabled(!launchAtLogin.isEnabled)
+    do {
+      try launchAtLogin.setEnabled(!launchAtLogin.isEnabled)
+    } catch {
+      Logger(subsystem: "com.probo.app", category: "AppDelegate")
+        .error("failed to update launch at login: \(error.localizedDescription)")
+    }
     renderStatusMenu()
   }
 
