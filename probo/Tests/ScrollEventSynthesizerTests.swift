@@ -3,11 +3,11 @@ import Foundation
 
 let scrollEventSynthesizerTests: [TestCase] = [
   TestCase(
-    behavior: "given replacement scroll lines when synthesizing then it marks a line event"
+    behavior: "given replacement scroll lines when synthesizing then it emits marked line deltas"
   ) {
     let marker: Int64 = 0x50_524F_424F
     let synthesizer = ScrollEventSynthesizer(marker: marker)
-    let event = try expectNotNil(
+    let vertical = try expectNotNil(
       synthesizer.makeReplacement(
         location: CGPoint(x: 12, y: 34),
         flags: [.maskShift],
@@ -16,38 +16,7 @@ let scrollEventSynthesizerTests: [TestCase] = [
       ),
       "replacement scroll should be created"
     )
-
-    try expectEqual(event.type, .scrollWheel, "replacement should be a scroll event")
-    try expectEqual(event.location, CGPoint(x: 12, y: 34), "replacement should preserve location")
-    try expect(event.flags.contains(.maskShift), "replacement should preserve flags")
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis1),
-      -2,
-      "replacement should emit vertical line delta"
-    )
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis2),
-      0,
-      "replacement should keep horizontal delta empty"
-    )
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventScrollCount),
-      1,
-      "replacement should look like one discrete HID notch"
-    )
-    try expectEqual(
-      event.getIntegerValueField(.eventSourceUserData),
-      marker,
-      "replacement should carry synth marker"
-    )
-  },
-
-  TestCase(
-    behavior: "given horizontal replacement lines when synthesizing then it emits wheel two"
-  ) {
-    let marker: Int64 = 0x50_524F_424F
-    let synthesizer = ScrollEventSynthesizer(marker: marker)
-    let event = try expectNotNil(
+    let horizontal = try expectNotNil(
       synthesizer.makeReplacement(
         location: .zero,
         flags: [],
@@ -57,15 +26,42 @@ let scrollEventSynthesizerTests: [TestCase] = [
       "horizontal replacement should be created"
     )
 
+    try expectEqual(vertical.type, .scrollWheel, "replacement should be a scroll event")
     try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis1),
+      vertical.location,
+      CGPoint(x: 12, y: 34),
+      "replacement should preserve location"
+    )
+    try expect(vertical.flags.contains(.maskShift), "replacement should preserve flags")
+    try expectEqual(
+      vertical.getIntegerValueField(.scrollWheelEventDeltaAxis1),
+      -2,
+      "replacement should emit vertical line delta"
+    )
+    try expectEqual(
+      vertical.getIntegerValueField(.scrollWheelEventDeltaAxis2),
+      0,
+      "replacement should keep horizontal delta empty"
+    )
+    try expectEqual(
+      horizontal.getIntegerValueField(.scrollWheelEventDeltaAxis1),
       0,
       "horizontal replacement should keep vertical delta empty"
     )
     try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis2),
+      horizontal.getIntegerValueField(.scrollWheelEventDeltaAxis2),
       3,
       "horizontal replacement should emit horizontal line delta"
+    )
+    try expectEqual(
+      vertical.getIntegerValueField(.scrollWheelEventScrollCount),
+      1,
+      "replacement should look like one discrete HID notch"
+    )
+    try expectEqual(
+      vertical.getIntegerValueField(.eventSourceUserData),
+      marker,
+      "replacement should carry synth marker"
     )
   },
 
