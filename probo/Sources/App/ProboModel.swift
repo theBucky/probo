@@ -1,19 +1,17 @@
 import Darwin
+import Foundation
 import Observation
 import os
 
 @MainActor
 @Observable
 final class ProboModel {
-  private static let enabledPermissionMonitorInterval: Duration = .seconds(2)
-  private static let idlePermissionMonitorInterval: Duration = .seconds(15)
-
   private let configurationStore = AppConfigurationStore()
   private let launchAtLogin = LaunchAtLogin()
   private let eventTapController = EventTapController()
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
 
-  private var permissionMonitor: Task<Void, Never>?
+  private var accessibilityObservation: Task<Void, Never>?
 
   private(set) var configuration = AppConfiguration.defaultValue
   private(set) var tapStatus = EventTapController.Status(isInstalled: false, isEnabled: false)
@@ -36,7 +34,7 @@ final class ProboModel {
 
     accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: configuration.isEnabled)
     refreshRuntime()
-    startPermissionMonitor()
+    observeAccessibility()
   }
 
   func setEnabled(_ isEnabled: Bool) {
@@ -45,7 +43,6 @@ final class ProboModel {
       accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
     }
     refreshRuntime()
-    startPermissionMonitor()
   }
 
   func setIntensity(_ intensity: ScrollIntensity) {
@@ -74,6 +71,12 @@ final class ProboModel {
     }
   }
 
+  func refreshLaunchAtLogin() {
+    let enabled = launchAtLogin.isEnabled
+    guard startAtLoginEnabled != enabled else { return }
+    startAtLoginEnabled = enabled
+  }
+
   func requestAccessibilityAccess() {
     accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
     refreshRuntime()
@@ -96,37 +99,26 @@ final class ProboModel {
     eventTapController.setEnabled(configuration.isEnabled && accessibilityTrusted)
   }
 
-  private func stop() {
-    permissionMonitor?.cancel()
-    eventTapController.teardown()
-  }
-
-  private func startPermissionMonitor() {
-    permissionMonitor?.cancel()
-    permissionMonitor = Task { [weak self] in
-      while !Task.isCancelled {
+  private func observeAccessibility() {
+    let stream = DistributedNotificationCenter.default()
+      .notifications(named: AccessibilityPermission.trustChangedNotification)
+    accessibilityObservation = Task { [weak self] in
+      for await _ in stream {
         guard let self else { return }
-        try? await Task.sleep(for: permissionMonitorInterval())
-        guard !Task.isCancelled else { return }
-        refreshSystemState()
+        refreshAccessibility()
       }
     }
   }
 
-  private func permissionMonitorInterval() -> Duration {
-    if configuration.isEnabled {
-      return Self.enabledPermissionMonitorInterval
-    }
-    return Self.idlePermissionMonitorInterval
+  private func stop() {
+    accessibilityObservation?.cancel()
+    eventTapController.teardown()
   }
 
-  private func refreshSystemState() {
+  private func refreshAccessibility() {
     let trusted = AccessibilityPermission.isTrusted(prompt: false)
-    let loginEnabled = launchAtLogin.isEnabled
-    if accessibilityTrusted != trusted { accessibilityTrusted = trusted }
-    if startAtLoginEnabled != loginEnabled { startAtLoginEnabled = loginEnabled }
-    if accessibilityTrusted, configuration.isEnabled, !tapStatus.isEnabled {
-      refreshRuntime()
-    }
+    guard accessibilityTrusted != trusted else { return }
+    accessibilityTrusted = trusted
+    refreshRuntime()
   }
 }
