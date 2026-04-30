@@ -4,10 +4,11 @@ Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each notc
 
 ## Features
 
-- Fixed `N`-line step per notch, identical across apps
+- Selectable line step per notch, identical across apps (slow = 2, medium = 3)
 - Rewrites discrete wheel events only; passes continuous, phased, diagonal, and zero-delta events through
 - Option-hold precision scroll (1 line per notch)
-- Forward side button (button 4) mapped to macOS Look Up
+- Natural (trackpad-style) scroll direction toggle, on by default
+- Mouse button 4 mapped to macOS Look Up
 - Launch at login via `SMAppService`
 - No smoothing, momentum, acceleration, gesture-phase output, or per-app rules
 
@@ -21,7 +22,7 @@ Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each notc
 
 Download the latest signed build from [Releases](https://github.com/theBucky/probo/releases/latest), unzip, drag `Probo.app` into `/Applications`, and launch.
 
-First launch prompts for Accessibility (`System Settings > Privacy & Security > Accessibility`). Grant access, then click the menubar icon to toggle `Enable`.
+First launch prompts for Accessibility (`System Settings > Privacy & Security > Accessibility`). Grant access, then open the menubar icon to toggle `Enabled` or open `Settings` to tune scrolling and input behavior.
 
 ### Build from source
 
@@ -35,7 +36,7 @@ The bundle lands in `build/Probo.app` and relaunches. Override the signing ident
 
 ## Architecture
 
-Swift/AppKit app with a native Swift scroll rewrite core.
+SwiftUI shell over a native Swift scroll rewrite core.
 
 | Layer | Path | Role |
 | --- | --- | --- |
@@ -44,11 +45,11 @@ Swift/AppKit app with a native Swift scroll rewrite core.
 | Events | `probo/Sources/Events` | Event tap and scroll event synthesis |
 | Configuration | `probo/Sources/Configuration` | App settings model and persistence |
 | System | `probo/Sources/System` | Accessibility and launch-at-login glue |
-| UI | `probo/Sources/UI` | Menubar UI |
+| UI | `probo/Sources/UI` | Menubar and settings views |
 
 The tap callback reads raw `CGEvent` fields, asks the Swift core for a rewrite decision, and synthesizes a replacement scroll event when asked.
 
-The hot path stays allocation-free and keeps policy logic out of AppKit glue.
+The hot path stays allocation-free and keeps policy logic out of the SwiftUI layer.
 
 ## Develop
 
