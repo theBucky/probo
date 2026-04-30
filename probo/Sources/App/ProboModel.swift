@@ -5,6 +5,9 @@ import os
 @MainActor
 @Observable
 final class ProboModel {
+  private static let enabledPermissionMonitorInterval: Duration = .seconds(2)
+  private static let idlePermissionMonitorInterval: Duration = .seconds(15)
+
   private let configurationStore = AppConfigurationStore()
   private let launchAtLogin = LaunchAtLogin()
   private let eventTapController = EventTapController()
@@ -42,6 +45,7 @@ final class ProboModel {
       accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
     }
     refreshRuntime()
+    startPermissionMonitor()
   }
 
   func setIntensity(_ intensity: ScrollIntensity) {
@@ -101,16 +105,28 @@ final class ProboModel {
     permissionMonitor?.cancel()
     permissionMonitor = Task { [weak self] in
       while !Task.isCancelled {
-        try? await Task.sleep(for: .seconds(2))
         guard let self else { return }
-        let trusted = AccessibilityPermission.isTrusted(prompt: false)
-        let loginEnabled = launchAtLogin.isEnabled
-        if accessibilityTrusted != trusted { accessibilityTrusted = trusted }
-        if startAtLoginEnabled != loginEnabled { startAtLoginEnabled = loginEnabled }
-        if accessibilityTrusted, configuration.isEnabled, !tapStatus.isEnabled {
-          refreshRuntime()
-        }
+        try? await Task.sleep(for: permissionMonitorInterval())
+        guard !Task.isCancelled else { return }
+        refreshSystemState()
       }
+    }
+  }
+
+  private func permissionMonitorInterval() -> Duration {
+    if configuration.isEnabled {
+      return Self.enabledPermissionMonitorInterval
+    }
+    return Self.idlePermissionMonitorInterval
+  }
+
+  private func refreshSystemState() {
+    let trusted = AccessibilityPermission.isTrusted(prompt: false)
+    let loginEnabled = launchAtLogin.isEnabled
+    if accessibilityTrusted != trusted { accessibilityTrusted = trusted }
+    if startAtLoginEnabled != loginEnabled { startAtLoginEnabled = loginEnabled }
+    if accessibilityTrusted, configuration.isEnabled, !tapStatus.isEnabled {
+      refreshRuntime()
     }
   }
 }
