@@ -4,7 +4,7 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps. Swift/SwiftUI
 
 ## Stack
 
-- Latest Swift and SwiftUI. Avoid old API, old syntax, and AppKit.
+- Latest Swift and SwiftUI only. No old API, syntax, and AppKit.
 - `swiftc` flags in [build.sh](scripts/build.sh) are the only Swift gate; target `macos26.0`, `-swift-version 6 -O`
 
 ## Layout
