@@ -1,64 +1,79 @@
 let scrollRewriteCoreTests: [TestCase] = [
-  TestCase(behavior: "given discrete wheel notches when rewriting then it emits signed line steps")
+  TestCase(behavior: "given a slow vertical notch when rewriting then it emits two vertical lines")
   {
     try expectRewrite(
       scrollInput(deltaAxis1: 1),
       ScrollRewriteOutput(linesX: 0, linesY: 2),
       "slow vertical notch should emit two vertical lines"
     )
-    try expectRewrite(
-      scrollInput(deltaAxis1: -7, intensity: .medium),
-      ScrollRewriteOutput(linesX: 0, linesY: -3),
-      "medium reverse vertical notch should emit three signed lines"
-    )
-    try expectRewrite(
-      scrollInput(deltaAxis2: -9, intensity: .medium),
-      ScrollRewriteOutput(linesX: -3, linesY: 0),
-      "medium horizontal notch should emit three signed horizontal lines"
-    )
-  },
-
-  TestCase(behavior: "given precision mode when rewriting then it emits one signed line") {
-    let output = try expectNotNil(
-      ScrollRewriteCore.rewrite(
-        scrollInput(deltaAxis1: -1, intensity: .medium, isPrecision: true)),
-      "precision notch should rewrite"
-    )
-
-    try expectEqual(output.linesY, -1, "precision mode should override intensity")
   },
 
   TestCase(
-    behavior: "given trackpad-style scrolling is disabled when rewriting then it reverses direction"
+    behavior: "given a medium horizontal notch when rewriting then it emits three horizontal lines"
+  ) {
+    try expectRewrite(
+      scrollInput(deltaAxis2: -9, intensity: .medium),
+      ScrollRewriteOutput(linesX: -3, linesY: 0),
+      "medium horizontal notch should emit three horizontal lines"
+    )
+  },
+
+  TestCase(
+    behavior: "given precision mode when rewriting then it emits one line regardless of intensity"
+  ) {
+    try expectRewrite(
+      scrollInput(deltaAxis1: -1, intensity: .slow, isPrecision: true),
+      ScrollRewriteOutput(linesX: 0, linesY: -1),
+      "precision mode should ignore slow intensity"
+    )
+    try expectRewrite(
+      scrollInput(deltaAxis1: -1, intensity: .medium, isPrecision: true),
+      ScrollRewriteOutput(linesX: 0, linesY: -1),
+      "precision mode should ignore medium intensity"
+    )
+  },
+
+  TestCase(
+    behavior:
+      "given trackpad-style scrolling is disabled when rewriting then it reverses line direction"
   ) {
     try expectRewrite(
       scrollInput(deltaAxis1: 1, isTrackpadStyleScrollingEnabled: false),
       ScrollRewriteOutput(linesX: 0, linesY: -2),
-      "vertical notch should reverse when trackpad-style scrolling is disabled"
+      "vertical direction should reverse"
     )
     try expectRewrite(
       scrollInput(deltaAxis2: -9, intensity: .medium, isTrackpadStyleScrollingEnabled: false),
       ScrollRewriteOutput(linesX: 3, linesY: 0),
-      "horizontal notch should reverse when trackpad-style scrolling is disabled"
+      "horizontal direction should reverse"
     )
   },
 
-  TestCase(behavior: "given unsupported wheel events when rewriting then it drops them") {
+  TestCase(behavior: "given continuous scrolling when rewriting then it drops the event") {
     try expectNil(
       ScrollRewriteCore.rewrite(scrollInput(deltaAxis1: 1, isContinuous: true)),
-      "continuous scroll should pass through"
+      "continuous scroll should not rewrite"
     )
+  },
+
+  TestCase(behavior: "given phased scrolling when rewriting then it drops the event") {
     try expectNil(
       ScrollRewriteCore.rewrite(scrollInput(deltaAxis1: 1, hasPhase: true)),
-      "phased scroll should pass through"
+      "phased scroll should not rewrite"
     )
+  },
+
+  TestCase(behavior: "given diagonal scrolling when rewriting then it drops the event") {
     try expectNil(
       ScrollRewriteCore.rewrite(scrollInput(deltaAxis1: 1, deltaAxis2: 1)),
-      "diagonal scroll should pass through"
+      "diagonal scroll should not rewrite"
     )
+  },
+
+  TestCase(behavior: "given zero delta when rewriting then it drops the event") {
     try expectNil(
       ScrollRewriteCore.rewrite(scrollInput()),
-      "zero-delta scroll should pass through"
+      "zero-delta scroll should not rewrite"
     )
   },
 ]

@@ -2,7 +2,7 @@ import Foundation
 
 let appConfigurationStoreTests: [TestCase] = [
   TestCase(
-    behavior: "given an empty defaults suite when loading then it returns registered defaults"
+    behavior: "given no saved configuration when loading then it returns the default configuration"
   ) {
     try withIsolatedDefaults { defaults in
       let store = AppConfigurationStore(defaults: defaults)
@@ -10,13 +10,13 @@ let appConfigurationStoreTests: [TestCase] = [
       try expectEqual(
         store.load(),
         .defaultValue,
-        "empty defaults suite should load app defaults"
+        "empty defaults suite should load the default configuration"
       )
     }
   },
 
   TestCase(
-    behavior: "given a saved configuration when loading then it round-trips every field"
+    behavior: "given a saved configuration when loading then it returns the saved configuration"
   ) {
     try withIsolatedDefaults { defaults in
       let store = AppConfigurationStore(defaults: defaults)
@@ -39,7 +39,8 @@ let appConfigurationStoreTests: [TestCase] = [
   },
 
   TestCase(
-    behavior: "given an unknown intensity raw value when loading then it falls back to default"
+    behavior:
+      "given an unknown stored intensity when loading then it falls back to the default intensity"
   ) {
     try withIsolatedDefaults { defaults in
       defaults.set(99, forKey: "intensity")
@@ -48,7 +49,7 @@ let appConfigurationStoreTests: [TestCase] = [
       try expectEqual(
         store.load().intensity,
         AppConfiguration.defaultValue.intensity,
-        "invalid stored intensity should fall back to default"
+        "invalid stored intensity should fall back to the default intensity"
       )
     }
   },
