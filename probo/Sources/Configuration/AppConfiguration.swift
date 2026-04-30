@@ -16,7 +16,7 @@ struct AppConfiguration: Equatable, Sendable {
     intensity: .slow,
     isLookUpEnabled: true,
     isPrecisionScrollEnabled: false,
-    isTrackpadStyleScrollingEnabled: true
+    isTrackpadStyleScrollingEnabled: false
   )
 
   var isEnabled: Bool
