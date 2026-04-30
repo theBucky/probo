@@ -1,9 +1,7 @@
-import AppKit
 import SwiftUI
 
 struct ProboMenuView: View {
   @Bindable var model: ProboModel
-  @Environment(\.openSettings) private var openSettings
 
   var body: some View {
     Toggle("Enabled", isOn: enabled)
@@ -16,9 +14,8 @@ struct ProboMenuView: View {
 
     Divider()
 
-    Button("Settings...") {
-      openSettings()
-      NSApplication.shared.activate(ignoringOtherApps: true)
+    SettingsLink {
+      Text("Settings...")
     }
     .keyboardShortcut(",", modifiers: .command)
 

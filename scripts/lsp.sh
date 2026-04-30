@@ -105,7 +105,7 @@ entries_written=0
   printf "[\n"
 
   current_sources=("${app_sources[@]}")
-  current_frameworks=(AppKit ApplicationServices ServiceManagement SwiftUI)
+  current_frameworks=(ApplicationServices ServiceManagement SwiftUI)
   for source in "${app_sources[@]}"; do
     write_entry "$source" "Probo"
   done

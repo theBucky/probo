@@ -1,31 +1,4 @@
 @preconcurrency import ApplicationServices
-import Carbon.HIToolbox
-import IOKit.hidsystem
-
-// .maskAlternate alone leaves device-side bits set, so consumers reading raw flags still see option.
-extension CGEventFlags {
-  fileprivate static let leftOption = CGEventFlags(rawValue: UInt64(NX_DEVICELALTKEYMASK))
-  fileprivate static let rightOption = CGEventFlags(rawValue: UInt64(NX_DEVICERALTKEYMASK))
-  fileprivate static let allOption: CGEventFlags = [.maskAlternate, .leftOption, .rightOption]
-}
-
-// Look Up shortcut (Cmd+Ctrl+D) bound to mouse button 4.
-private enum LookUpGesture {
-  static let buttonNumber: Int64 = 3  // CGEvent button numbers are zero-indexed; mouse button 4
-  static let keyCode = CGKeyCode(kVK_ANSI_D)
-  static let flags: CGEventFlags = [.maskCommand, .maskControl]
-
-  static func post() {
-    guard
-      let down = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true),
-      let up = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false)
-    else { return }
-    down.flags = flags
-    up.flags = flags
-    down.post(tap: .cgSessionEventTap)
-    up.post(tap: .cgSessionEventTap)
-  }
-}
 
 @MainActor
 final class EventTapController {
@@ -37,12 +10,13 @@ final class EventTapController {
     var isEnabled: Bool
   }
 
-  private let synth = ScrollEventSynthesizer(marker: EventTapController.synthMarker)
+  private let scrollRewriter = ScrollEventRewriter(marker: EventTapController.synthMarker)
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var isEnabled = false
+  private var status = Status(isInstalled: false, isEnabled: false)
 
-  private var configuration: AppConfiguration = .defaultValue
+  private var configuration = AppConfiguration.defaultValue
   var onStatusChange: ((Status) -> Void)?
 
   func apply(configuration: AppConfiguration) {
@@ -117,119 +91,24 @@ final class EventTapController {
 
     switch type {
     case .otherMouseDown, .otherMouseUp:
-      return handleOtherMouse(type: type, event: event) ? nil : pass
+      return consumeOtherMouse(type: type, event: event) ? nil : pass
     case .scrollWheel:
-      return handleScroll(event: event) ? nil : pass
+      return scrollRewriter.rewrite(event: event, configuration: configuration) ? nil : pass
     default:
       return pass
     }
   }
 
-  private func handleScroll(event: CGEvent) -> Bool {
-    guard isMouseWheelEvent(event) else {
-      return false
-    }
-    if event.getIntegerValueField(.eventSourceUserData) == Self.synthMarker {
-      return false
-    }
-
-    let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
-    if isContinuous {
-      return false
-    }
-    let hasPhase =
-      event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
-      || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
-    if hasPhase {
-      return false
-    }
-    let deltaAxis1 = Int32(
-      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
-    let deltaAxis2 = Int32(
-      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
-    if (deltaAxis1 != 0) == (deltaAxis2 != 0) {
-      return false
-    }
-    let originalFlags = event.flags
-    let isPrecision =
-      configuration.isPrecisionScrollEnabled && originalFlags.contains(.maskAlternate)
-
-    guard
-      let output = ScrollRewriteCore.rewrite(
-        ScrollRewriteInput(
-          deltaAxis1: deltaAxis1,
-          deltaAxis2: deltaAxis2,
-          intensity: configuration.intensity,
-          isContinuous: isContinuous,
-          hasPhase: hasPhase,
-          isPrecision: isPrecision,
-          isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
-        ))
-    else {
-      return false
-    }
-
-    if isPrecision {
-      return postPrecision(location: event.location, originalFlags: originalFlags, output: output)
-    }
-    return postSteps(location: event.location, flags: originalFlags, output: output)
-  }
-
-  private func isMouseWheelEvent(_ event: CGEvent) -> Bool {
-    let subtype = CGEventMouseSubtype(
-      rawValue: UInt32(event.getIntegerValueField(.mouseEventSubtype)))
-    if subtype != .defaultType {
-      return false
-    }
-    return event.getIntegerValueField(.tabletEventDeviceID) == 0
-  }
-
-  private func postPrecision(
-    location: CGPoint, originalFlags: CGEventFlags, output: ScrollRewriteOutput
-  ) -> Bool {
-    let flags = originalFlags.subtracting(.allOption)
-    let optionKey: CGKeyCode =
-      originalFlags.contains(.rightOption) ? CGKeyCode(kVK_RightOption) : CGKeyCode(kVK_Option)
-    guard
-      let replacement = synth.makeReplacement(
-        location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
-      ),
-      let releaseOption = synth.makeFlagsChanged(flags: flags, keyCode: optionKey),
-      let restoreOption = synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)
-    else {
-      return false
-    }
-
-    releaseOption.post(tap: .cgSessionEventTap)
-    replacement.post(tap: .cgSessionEventTap)
-    restoreOption.post(tap: .cgSessionEventTap)
-    return true
-  }
-
-  private func postSteps(
-    location: CGPoint, flags: CGEventFlags, output: ScrollRewriteOutput
-  ) -> Bool {
-    guard
-      let replacement = synth.makeReplacement(
-        location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
-      )
-    else { return false }
-    replacement.post(tap: .cgSessionEventTap)
-    return true
-  }
-
-  private func handleOtherMouse(type: CGEventType, event: CGEvent) -> Bool {
+  private func consumeOtherMouse(type: CGEventType, event: CGEvent) -> Bool {
     guard configuration.isLookUpEnabled else { return false }
-    guard event.getIntegerValueField(.mouseEventButtonNumber) == LookUpGesture.buttonNumber else {
-      return false
-    }
-    if type == .otherMouseDown {
-      LookUpGesture.post()
-    }
-    return true
+    return LookUpGesture.consume(type: type, event: event)
   }
 
   private func notifyStatus() {
-    onStatusChange?(Status(isInstalled: eventTap != nil, isEnabled: isEnabled && eventTap != nil))
+    let currentStatus = Status(
+      isInstalled: eventTap != nil, isEnabled: isEnabled && eventTap != nil)
+    guard status != currentStatus else { return }
+    status = currentStatus
+    onStatusChange?(currentStatus)
   }
 }

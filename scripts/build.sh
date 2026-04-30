@@ -30,7 +30,6 @@ xcrun swiftc \
   -target "$swift_target" \
   -swift-version 6 \
   -O \
-  -framework AppKit \
   -framework ApplicationServices \
   -framework ServiceManagement \
   -framework SwiftUI \
