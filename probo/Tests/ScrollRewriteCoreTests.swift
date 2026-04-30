@@ -28,6 +28,21 @@ let scrollRewriteCoreTests: [TestCase] = [
     try expectEqual(output.linesY, -1, "precision mode should override intensity")
   },
 
+  TestCase(
+    behavior: "given trackpad-style scrolling is disabled when rewriting then it reverses direction"
+  ) {
+    try expectRewrite(
+      scrollInput(deltaAxis1: 1, isTrackpadStyleScrollingEnabled: false),
+      ScrollRewriteOutput(linesX: 0, linesY: -2),
+      "vertical notch should reverse when trackpad-style scrolling is disabled"
+    )
+    try expectRewrite(
+      scrollInput(deltaAxis2: -9, intensity: .medium, isTrackpadStyleScrollingEnabled: false),
+      ScrollRewriteOutput(linesX: 3, linesY: 0),
+      "horizontal notch should reverse when trackpad-style scrolling is disabled"
+    )
+  },
+
   TestCase(behavior: "given unsupported wheel events when rewriting then it drops them") {
     try expectNil(
       ScrollRewriteCore.rewrite(scrollInput(deltaAxis1: 1, isContinuous: true)),
@@ -64,7 +79,8 @@ private func scrollInput(
   intensity: ScrollIntensity = .slow,
   isContinuous: Bool = false,
   hasPhase: Bool = false,
-  isPrecision: Bool = false
+  isPrecision: Bool = false,
+  isTrackpadStyleScrollingEnabled: Bool = true
 ) -> ScrollRewriteInput {
   ScrollRewriteInput(
     deltaAxis1: deltaAxis1,
@@ -72,6 +88,7 @@ private func scrollInput(
     intensity: intensity,
     isContinuous: isContinuous,
     hasPhase: hasPhase,
-    isPrecision: isPrecision
+    isPrecision: isPrecision,
+    isTrackpadStyleScrollingEnabled: isTrackpadStyleScrollingEnabled
   )
 }

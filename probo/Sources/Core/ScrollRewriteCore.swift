@@ -5,6 +5,7 @@ struct ScrollRewriteInput: Sendable {
   var isContinuous: Bool
   var hasPhase: Bool
   var isPrecision: Bool
+  var isTrackpadStyleScrollingEnabled: Bool
 }
 
 struct ScrollRewriteOutput: Sendable {
@@ -26,9 +27,10 @@ enum ScrollRewriteCore {
     }
 
     let stepLines = stepLines(for: input.intensity, isPrecision: input.isPrecision)
+    let direction: Int32 = input.isTrackpadStyleScrollingEnabled ? 1 : -1
     return ScrollRewriteOutput(
-      linesX: input.deltaAxis2.signum() * stepLines,
-      linesY: input.deltaAxis1.signum() * stepLines
+      linesX: input.deltaAxis2.signum() * stepLines * direction,
+      linesY: input.deltaAxis1.signum() * stepLines * direction
     )
   }
 

@@ -37,6 +37,7 @@ final class StatusMenuController: NSObject {
   var onSelectIntensity: ((ScrollIntensity) -> Void)?
   var onToggleLookUp: (() -> Void)?
   var onTogglePrecisionScroll: (() -> Void)?
+  var onToggleMouseWheelDirection: (() -> Void)?
   var onToggleStartAtLogin: (() -> Void)?
   var onGrantAccessibilityAccess: (() -> Void)?
   var onQuit: (() -> Void)?
@@ -57,6 +58,8 @@ final class StatusMenuController: NSObject {
     title: "Look Up", action: #selector(toggleLookUp), keyEquivalent: "")
   private let precisionScrollItem = NSMenuItem(
     title: "Precise Scrolling", action: #selector(togglePrecisionScroll), keyEquivalent: "")
+  private let naturalScrollingItem = NSMenuItem(
+    title: "Mouse Wheel Direction", action: #selector(toggleMouseWheelDirection), keyEquivalent: "")
   private let startAtLoginItem = NSMenuItem(
     title: "Start at Login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
   private let grantAccessibilityItem = NSMenuItem(
@@ -71,7 +74,7 @@ final class StatusMenuController: NSObject {
 
     for item in [
       enableItem, slowItem, mediumItem, lookUpItem,
-      precisionScrollItem, startAtLoginItem, grantAccessibilityItem, quitItem,
+      precisionScrollItem, naturalScrollingItem, startAtLoginItem, grantAccessibilityItem, quitItem,
     ] {
       item.target = self
     }
@@ -84,6 +87,9 @@ final class StatusMenuController: NSObject {
       title: lookUpItem.title, subtitle: "Trigger Look Up with mouse button 4")
     precisionScrollItem.attributedTitle = Self.makeAttributedTitle(
       title: precisionScrollItem.title, subtitle: "Hold \u{2325} for slow, precise scrolling")
+    naturalScrollingItem.attributedTitle = Self.makeAttributedTitle(
+      title: naturalScrollingItem.title,
+      subtitle: "Use trackpad-style scrolling when checked, classic wheel direction when unchecked")
 
     let intensityMenu = NSMenu(title: "Intensity")
     intensityMenu.addItem(slowItem)
@@ -93,6 +99,7 @@ final class StatusMenuController: NSObject {
     let miscMenu = NSMenu(title: "Misc")
     miscMenu.addItem(lookUpItem)
     miscMenu.addItem(precisionScrollItem)
+    miscMenu.addItem(naturalScrollingItem)
     miscItem.submenu = miscMenu
 
     menu.addItem(enableItem)
@@ -128,6 +135,8 @@ final class StatusMenuController: NSObject {
     mediumItem.state = state.configuration.intensity == .medium ? .on : .off
     lookUpItem.state = state.configuration.isLookUpEnabled ? .on : .off
     precisionScrollItem.state = state.configuration.isPrecisionScrollEnabled ? .on : .off
+    naturalScrollingItem.state =
+      state.configuration.isTrackpadStyleScrollingEnabled ? .on : .off
     startAtLoginItem.state = state.startAtLoginEnabled ? .on : .off
     accessibilityGroupSeparator.isHidden = state.accessibilityTrusted
     grantAccessibilityItem.isHidden = state.accessibilityTrusted
@@ -182,6 +191,7 @@ final class StatusMenuController: NSObject {
   @objc private func selectMedium() { onSelectIntensity?(.medium) }
   @objc private func toggleLookUp() { onToggleLookUp?() }
   @objc private func togglePrecisionScroll() { onTogglePrecisionScroll?() }
+  @objc private func toggleMouseWheelDirection() { onToggleMouseWheelDirection?() }
   @objc private func toggleStartAtLogin() { onToggleStartAtLogin?() }
   @objc private func grantAccessibilityAccess() { onGrantAccessibilityAccess?() }
   @objc private func quit() { onQuit?() }

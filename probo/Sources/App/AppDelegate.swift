@@ -51,6 +51,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
     statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
     statusMenuController.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
+    statusMenuController.onToggleMouseWheelDirection = { [weak self] in
+      self?.toggleMouseWheelDirection()
+    }
     statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
     statusMenuController.onGrantAccessibilityAccess = { [weak self] in
       self?.requestAccessibilityAccess()
@@ -84,6 +87,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func togglePrecisionScroll() {
     mutate { $0.isPrecisionScrollEnabled.toggle() }
+  }
+
+  private func toggleMouseWheelDirection() {
+    mutate { $0.isTrackpadStyleScrollingEnabled.toggle() }
   }
 
   private func toggleStartAtLogin() {

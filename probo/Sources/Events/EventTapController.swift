@@ -126,6 +126,9 @@ final class EventTapController {
   }
 
   private func handleScroll(event: CGEvent) -> Bool {
+    guard isMouseWheelEvent(event) else {
+      return false
+    }
     if event.getIntegerValueField(.eventSourceUserData) == Self.synthMarker {
       return false
     }
@@ -144,6 +147,9 @@ final class EventTapController {
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     let deltaAxis2 = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
+    if (deltaAxis1 != 0) == (deltaAxis2 != 0) {
+      return false
+    }
     let originalFlags = event.flags
     let isPrecision =
       configuration.isPrecisionScrollEnabled && originalFlags.contains(.maskAlternate)
@@ -156,7 +162,8 @@ final class EventTapController {
           intensity: configuration.intensity,
           isContinuous: isContinuous,
           hasPhase: hasPhase,
-          isPrecision: isPrecision
+          isPrecision: isPrecision,
+          isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
         ))
     else {
       return false
@@ -166,6 +173,15 @@ final class EventTapController {
       return postPrecision(location: event.location, originalFlags: originalFlags, output: output)
     }
     return postSteps(location: event.location, flags: originalFlags, output: output)
+  }
+
+  private func isMouseWheelEvent(_ event: CGEvent) -> Bool {
+    let subtype = CGEventMouseSubtype(
+      rawValue: UInt32(event.getIntegerValueField(.mouseEventSubtype)))
+    if subtype != .defaultType {
+      return false
+    }
+    return event.getIntegerValueField(.tabletEventDeviceID) == 0
   }
 
   private func postPrecision(

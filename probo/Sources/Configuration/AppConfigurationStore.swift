@@ -6,6 +6,7 @@ final class AppConfigurationStore {
     static let intensity = "intensity"
     static let isLookUpEnabled = "isLookUpEnabled"
     static let isPrecisionScrollEnabled = "isPrecisionScrollEnabled"
+    static let isTrackpadStyleScrollingEnabled = "isTrackpadStyleScrollingEnabled"
   }
 
   private let defaults: UserDefaults
@@ -17,6 +18,8 @@ final class AppConfigurationStore {
       Key.intensity: AppConfiguration.defaultValue.intensity.rawValue,
       Key.isLookUpEnabled: AppConfiguration.defaultValue.isLookUpEnabled,
       Key.isPrecisionScrollEnabled: AppConfiguration.defaultValue.isPrecisionScrollEnabled,
+      Key.isTrackpadStyleScrollingEnabled:
+        AppConfiguration.defaultValue.isTrackpadStyleScrollingEnabled,
     ])
   }
 
@@ -26,7 +29,8 @@ final class AppConfigurationStore {
       intensity: ScrollIntensity(rawValue: defaults.integer(forKey: Key.intensity))
         ?? AppConfiguration.defaultValue.intensity,
       isLookUpEnabled: defaults.bool(forKey: Key.isLookUpEnabled),
-      isPrecisionScrollEnabled: defaults.bool(forKey: Key.isPrecisionScrollEnabled)
+      isPrecisionScrollEnabled: defaults.bool(forKey: Key.isPrecisionScrollEnabled),
+      isTrackpadStyleScrollingEnabled: defaults.bool(forKey: Key.isTrackpadStyleScrollingEnabled)
     )
   }
 
@@ -35,5 +39,9 @@ final class AppConfigurationStore {
     defaults.set(configuration.intensity.rawValue, forKey: Key.intensity)
     defaults.set(configuration.isLookUpEnabled, forKey: Key.isLookUpEnabled)
     defaults.set(configuration.isPrecisionScrollEnabled, forKey: Key.isPrecisionScrollEnabled)
+    defaults.set(
+      configuration.isTrackpadStyleScrollingEnabled,
+      forKey: Key.isTrackpadStyleScrollingEnabled
+    )
   }
 }
