@@ -4,55 +4,32 @@ struct SettingsWindowState: Equatable {
   var configuration: AppConfiguration
 }
 
-private enum SettingsPane: CaseIterable {
-  case intensity, misc
-
-  var identifier: NSToolbarItem.Identifier {
-    switch self {
-    case .intensity: .init("com.probo.settings.intensity")
-    case .misc: .init("com.probo.settings.misc")
-    }
-  }
-
-  var title: String {
-    switch self {
-    case .intensity: "Intensity"
-    case .misc: "Misc"
-    }
-  }
-
-  var symbolName: String {
-    switch self {
-    case .intensity: "gauge.with.dots.needle.bottom.50percent"
-    case .misc: "switch.2"
-    }
-  }
-
-  static func pane(for identifier: NSToolbarItem.Identifier) -> Self {
-    allCases.first { $0.identifier == identifier }!
-  }
-}
-
 private enum SettingsLayout {
-  static let windowWidth: CGFloat = 460
-  static let contentHeight: CGFloat = 228
-  static let bodyInsetX: CGFloat = 28
-  static let bodyInsetY: CGFloat = 26
-  static let rowSpacing: CGFloat = 16
+  static let windowWidth: CGFloat = 620
+  static let contentHeight: CGFloat = 324
+  static let bodyInsetX: CGFloat = 24
+  static let bodyInsetY: CGFloat = 24
+  static let groupCornerRadius: CGFloat = 14
+  static let rowHeight: CGFloat = 68
+  static let rowInsetX: CGFloat = 18
   static let rowColumnSpacing: CGFloat = 16
-  static let textSpacing: CGFloat = 3
-  static let textWidth: CGFloat = 220
-  static let dropdownWidth: CGFloat = 150
+  static let textSpacing: CGFloat = 2
+  static let textWidth: CGFloat = 300
+  static let iconSize: CGFloat = 40
+  static let iconCornerRadius: CGFloat = 9
+  static let iconSymbolPointSize: CGFloat = 23
+  static let dropdownWidth: CGFloat = 132
+  static let accessoryWidth: CGFloat = 132
+  static var separatorInsetX: CGFloat { rowInsetX + iconSize + rowColumnSpacing }
 }
 
 @MainActor
-final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
+final class SettingsWindowController: NSWindowController {
   var onSelectIntensity: ((ScrollIntensity) -> Void)?
   var onToggleLookUp: (() -> Void)?
   var onTogglePrecisionScroll: (() -> Void)?
   var onToggleMouseWheelDirection: (() -> Void)?
 
-  private let contentContainer = NSView()
   private let intensityButton = NSPopUpButton(
     frame: .zero,
     pullsDown: false
@@ -60,8 +37,6 @@ final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
   private let lookUpSwitch = NSSwitch()
   private let precisionScrollSwitch = NSSwitch()
   private let mouseWheelDirectionSwitch = NSSwitch()
-
-  private var selectedPane = SettingsPane.intensity
 
   init() {
     let window = NSWindow(
@@ -76,24 +51,18 @@ final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
       defer: false
     )
     window.isReleasedWhenClosed = false
+    window.title = "Probo Settings"
     window.titlebarAppearsTransparent = true
-    window.toolbarStyle = .preference
 
     super.init(window: window)
 
-    for control in [
-      intensityButton, lookUpSwitch, precisionScrollSwitch, mouseWheelDirectionSwitch,
-    ] {
-      control.target = self
-    }
     configureIntensityButton()
+    configureSwitches()
     lookUpSwitch.action = #selector(toggleLookUp)
     precisionScrollSwitch.action = #selector(togglePrecisionScroll)
     mouseWheelDirectionSwitch.action = #selector(toggleMouseWheelDirection)
 
-    configureToolbar()
-    configureContentContainer()
-    showPane(.intensity)
+    window.contentView = makeContentView()
   }
 
   @available(*, unavailable)
@@ -120,43 +89,6 @@ final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
       state.configuration.isTrackpadStyleScrollingEnabled ? .on : .off
   }
 
-  func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    SettingsPane.allCases.map(\.identifier)
-  }
-
-  func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    toolbarAllowedItemIdentifiers(toolbar)
-  }
-
-  func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    toolbarAllowedItemIdentifiers(toolbar)
-  }
-
-  func toolbar(
-    _ toolbar: NSToolbar,
-    itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-    willBeInsertedIntoToolbar flag: Bool
-  ) -> NSToolbarItem? {
-    let pane = SettingsPane.pane(for: itemIdentifier)
-    let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-    item.label = pane.title
-    item.paletteLabel = pane.title
-    item.image = NSImage(systemSymbolName: pane.symbolName, accessibilityDescription: pane.title)
-    item.target = self
-    item.action = #selector(selectPaneFromToolbar)
-    return item
-  }
-
-  private func configureToolbar() {
-    let toolbar = NSToolbar(identifier: "com.probo.settings.toolbar")
-    toolbar.delegate = self
-    toolbar.allowsUserCustomization = false
-    toolbar.displayMode = .iconAndLabel
-    toolbar.sizeMode = .regular
-    toolbar.selectedItemIdentifier = selectedPane.identifier
-    window?.toolbar = toolbar
-  }
-
   private func configureIntensityButton() {
     for intensity in ScrollIntensity.allCases {
       intensityButton.addItem(withTitle: title(for: intensity))
@@ -169,116 +101,115 @@ final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
       true
   }
 
-  private func configureContentContainer() {
+  private func configureSwitches() {
+    for control in [lookUpSwitch, precisionScrollSwitch, mouseWheelDirectionSwitch] {
+      control.target = self
+      control.controlSize = .mini
+    }
+  }
+
+  private func makeContentView() -> NSView {
     let contentView = NSView()
-    contentContainer.translatesAutoresizingMaskIntoConstraints = false
-    contentView.addSubview(contentContainer)
-    window?.contentView = contentView
+    let group = settingsGroup()
+    group.translatesAutoresizingMaskIntoConstraints = false
+
+    contentView.addSubview(group)
 
     NSLayoutConstraint.activate([
-      contentContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-      contentContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      contentContainer.topAnchor.constraint(equalTo: contentView.topAnchor),
-      contentContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-    ])
-  }
-
-  private func showPane(_ pane: SettingsPane) {
-    guard pane != selectedPane || contentContainer.subviews.isEmpty else { return }
-    selectedPane = pane
-    window?.title = pane.title
-    window?.toolbar?.selectedItemIdentifier = pane.identifier
-
-    contentContainer.subviews.forEach { $0.removeFromSuperview() }
-
-    let paneView =
-      switch pane {
-      case .intensity: makeIntensityPane()
-      case .misc: makeMiscPane()
-      }
-    paneView.translatesAutoresizingMaskIntoConstraints = false
-    contentContainer.addSubview(paneView)
-
-    NSLayoutConstraint.activate([
-      paneView.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
-      paneView.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
-      paneView.topAnchor.constraint(equalTo: contentContainer.topAnchor),
-      paneView.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor),
+      group.leadingAnchor.constraint(
+        equalTo: contentView.leadingAnchor, constant: SettingsLayout.bodyInsetX),
+      group.trailingAnchor.constraint(
+        equalTo: contentView.trailingAnchor, constant: -SettingsLayout.bodyInsetX),
+      group.topAnchor.constraint(
+        equalTo: contentView.topAnchor, constant: SettingsLayout.bodyInsetY),
     ])
 
-    window?.setContentSize(
-      NSSize(width: SettingsLayout.windowWidth, height: SettingsLayout.contentHeight))
+    return contentView
   }
 
-  private func makeIntensityPane() -> NSView {
-    paneBody(views: [
+  private func settingsGroup() -> NSView {
+    let group = NSBox()
+    group.boxType = .custom
+    group.borderWidth = 0
+    group.fillColor = .controlBackgroundColor
+    group.cornerRadius = SettingsLayout.groupCornerRadius
+
+    let stack = NSStackView(views: [
       settingRow(
-        title: "wheel step",
+        symbolName: "gauge.with.dots.needle.bottom.50percent",
+        title: "Wheel Step",
+        detail: "Choose the fixed line step emitted for each mouse-wheel notch.",
         accessory: intensityButton
-      )
-    ])
-  }
-
-  private func makeMiscPane() -> NSView {
-    paneBody(views: [
+      ),
+      separator(),
       settingRow(
-        title: "look up",
-        detail: "map mouse button 4 to macos look up.",
+        symbolName: "text.magnifyingglass",
+        title: "Look Up",
+        detail: "Map mouse button 4 to macOS Look Up.",
         accessory: lookUpSwitch
       ),
+      separator(),
       settingRow(
-        title: "precise scrolling",
-        detail: "hold option to emit one line per wheel notch.",
+        symbolName: "line.3.horizontal.decrease.circle",
+        title: "Precision Scrolling",
+        detail: "Hold Option to emit one line per wheel notch.",
         accessory: precisionScrollSwitch
       ),
+      separator(),
       settingRow(
-        title: "mouse wheel direction",
-        detail: "match trackpad-style scrolling direction.",
+        symbolName: "arrow.up.arrow.down",
+        title: "Mouse Wheel Direction",
+        detail: "Match trackpad-style scrolling direction.",
         accessory: mouseWheelDirectionSwitch
       ),
     ])
-  }
-
-  private func paneBody(views: [NSView]) -> NSView {
-    let stack = NSStackView(views: views)
     stack.translatesAutoresizingMaskIntoConstraints = false
     stack.orientation = .vertical
-    stack.alignment = .leading
-    stack.spacing = SettingsLayout.rowSpacing
+    stack.alignment = .width
+    stack.spacing = 0
 
-    let body = NSView()
-    body.addSubview(stack)
+    group.addSubview(stack)
 
     NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(
-        equalTo: body.leadingAnchor,
-        constant: SettingsLayout.bodyInsetX
-      ),
-      stack.trailingAnchor.constraint(
-        lessThanOrEqualTo: body.trailingAnchor,
-        constant: -SettingsLayout.bodyInsetX
-      ),
-      stack.topAnchor.constraint(equalTo: body.topAnchor, constant: SettingsLayout.bodyInsetY),
+      stack.leadingAnchor.constraint(equalTo: group.leadingAnchor),
+      stack.trailingAnchor.constraint(equalTo: group.trailingAnchor),
+      stack.topAnchor.constraint(equalTo: group.topAnchor),
+      stack.bottomAnchor.constraint(equalTo: group.bottomAnchor),
     ])
 
-    return body
+    return group
   }
 
-  private func settingRow(title: String, detail: String? = nil, accessory: NSView) -> NSView {
-    let row = NSStackView(views: [textStack(title: title, detail: detail), accessory])
+  private func settingRow(
+    symbolName: String,
+    title: String,
+    detail: String,
+    accessory: NSView
+  ) -> NSView {
+    let spacer = NSView()
+    spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+    let row = NSStackView(views: [
+      icon(symbolName: symbolName, accessibilityDescription: title),
+      textStack(title: title, detail: detail),
+      spacer,
+      accessoryContainer(accessory),
+    ])
     row.orientation = .horizontal
     row.alignment = .centerY
     row.spacing = SettingsLayout.rowColumnSpacing
+    row.edgeInsets = NSEdgeInsets(
+      top: 0,
+      left: SettingsLayout.rowInsetX,
+      bottom: 0,
+      right: SettingsLayout.rowInsetX
+    )
+    row.heightAnchor.constraint(equalToConstant: SettingsLayout.rowHeight).isActive = true
     return row
   }
 
-  private func textStack(title: String, detail: String?) -> NSView {
-    var views: [NSView] = [titleLabel(title)]
-    if let detail {
-      views.append(caption(detail))
-    }
-
-    let stack = NSStackView(views: views)
+  private func textStack(title: String, detail: String) -> NSView {
+    let stack = NSStackView(views: [titleLabel(title), caption(detail)])
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = SettingsLayout.textSpacing
@@ -289,6 +220,7 @@ final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
     let label = NSTextField(labelWithString: text)
     label.font = .systemFont(ofSize: NSFont.systemFontSize)
     label.textColor = .labelColor
+    label.lineBreakMode = .byTruncatingTail
     label.widthAnchor.constraint(equalToConstant: SettingsLayout.textWidth).isActive = true
     return label
   }
@@ -298,7 +230,72 @@ final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
     label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
     label.textColor = .secondaryLabelColor
     label.preferredMaxLayoutWidth = SettingsLayout.textWidth
+    label.lineBreakMode = .byTruncatingTail
+    label.maximumNumberOfLines = 1
     return label
+  }
+
+  private func icon(symbolName: String, accessibilityDescription: String) -> NSView {
+    let container = NSBox()
+    container.boxType = .custom
+    container.borderWidth = 0
+    container.fillColor = .windowBackgroundColor
+    container.cornerRadius = SettingsLayout.iconCornerRadius
+
+    let imageView = NSImageView()
+    imageView.translatesAutoresizingMaskIntoConstraints = false
+    imageView.image = NSImage(
+      systemSymbolName: symbolName,
+      accessibilityDescription: accessibilityDescription
+    )
+    imageView.symbolConfiguration = NSImage.SymbolConfiguration(
+      pointSize: SettingsLayout.iconSymbolPointSize,
+      weight: .regular
+    )
+    imageView.contentTintColor = .controlAccentColor
+
+    container.addSubview(imageView)
+
+    NSLayoutConstraint.activate([
+      container.widthAnchor.constraint(equalToConstant: SettingsLayout.iconSize),
+      container.heightAnchor.constraint(equalToConstant: SettingsLayout.iconSize),
+      imageView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+      imageView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+    ])
+
+    return container
+  }
+
+  private func accessoryContainer(_ accessory: NSView) -> NSView {
+    let container = NSView()
+    accessory.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(accessory)
+
+    NSLayoutConstraint.activate([
+      container.widthAnchor.constraint(equalToConstant: SettingsLayout.accessoryWidth),
+      accessory.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+      accessory.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+    ])
+
+    return container
+  }
+
+  private func separator() -> NSView {
+    let container = NSView()
+    let rule = NSBox()
+    rule.translatesAutoresizingMaskIntoConstraints = false
+    rule.boxType = .separator
+    container.addSubview(rule)
+
+    NSLayoutConstraint.activate([
+      container.heightAnchor.constraint(equalToConstant: 1),
+      rule.leadingAnchor.constraint(
+        equalTo: container.leadingAnchor, constant: SettingsLayout.separatorInsetX),
+      rule.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+      rule.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+    ])
+
+    return container
   }
 
   private func title(for intensity: ScrollIntensity) -> String {
@@ -306,10 +303,6 @@ final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
     case .slow: "Slow"
     case .medium: "Medium"
     }
-  }
-
-  @objc private func selectPaneFromToolbar(_ sender: NSToolbarItem) {
-    showPane(SettingsPane.pane(for: sender.itemIdentifier))
   }
 
   @objc private func selectIntensity() {
