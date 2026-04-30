@@ -24,12 +24,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var tapStatus = EventTapController.Status(isInstalled: false, isEnabled: false)
   private var accessibilityTrusted = false
   private var lastMenuState: StatusMenuState?
+  private var settingsWindowController: SettingsWindowController?
+  private var lastSettingsWindowState: SettingsWindowState?
   private var permissionMonitor: Task<Void, Never>?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     configuration = configurationStore.load()
     eventTapController.apply(configuration: configuration)
-    wireMenuActions()
+    wireActions()
     eventTapController.onStatusChange = { [weak self] status in
       guard let self else { return }
       tapStatus = status
@@ -38,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: configuration.isEnabled)
     refreshRuntime()
+    renderStatusMenu()
     startPermissionMonitor()
   }
 
@@ -46,18 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     eventTapController.teardown()
   }
 
-  private func wireMenuActions() {
+  private func wireActions() {
+    statusMenuController.onShowSettings = { [weak self] in self?.showSettingsWindow() }
     statusMenuController.onToggleEnabled = { [weak self] in self?.toggleEnabled() }
-    statusMenuController.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
-    statusMenuController.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
-    statusMenuController.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
-    statusMenuController.onToggleMouseWheelDirection = { [weak self] in
-      self?.toggleMouseWheelDirection()
-    }
     statusMenuController.onToggleStartAtLogin = { [weak self] in self?.toggleStartAtLogin() }
-    statusMenuController.onGrantAccessibilityAccess = { [weak self] in
-      self?.requestAccessibilityAccess()
-    }
     statusMenuController.onQuit = { NSApplication.shared.terminate(nil) }
   }
 
@@ -66,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     configurationStore.save(configuration)
     eventTapController.apply(configuration: configuration)
     renderStatusMenu()
+    renderSettingsWindow()
   }
 
   private func toggleEnabled() {
@@ -103,13 +99,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     renderStatusMenu()
   }
 
-  private func requestAccessibilityAccess() {
-    accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
-    refreshRuntime()
-  }
-
   private func refreshRuntime() {
     eventTapController.setEnabled(configuration.isEnabled && accessibilityTrusted)
+  }
+
+  private func showSettingsWindow() {
+    let controller = makeSettingsWindowController()
+    renderSettingsWindow(controller)
+    controller.show()
   }
 
   private func renderStatusMenu() {
@@ -122,6 +119,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     guard lastMenuState != state else { return }
     lastMenuState = state
     statusMenuController.render(state)
+  }
+
+  private func renderSettingsWindow() {
+    guard let settingsWindowController else { return }
+    renderSettingsWindow(settingsWindowController)
+  }
+
+  private func renderSettingsWindow(_ controller: SettingsWindowController) {
+    let state = SettingsWindowState(configuration: configuration)
+    guard lastSettingsWindowState != state else { return }
+    lastSettingsWindowState = state
+    controller.render(state)
+  }
+
+  private func makeSettingsWindowController() -> SettingsWindowController {
+    if let settingsWindowController {
+      return settingsWindowController
+    }
+
+    let controller = SettingsWindowController()
+    controller.onSelectIntensity = { [weak self] in self?.selectIntensity($0) }
+    controller.onToggleLookUp = { [weak self] in self?.toggleLookUp() }
+    controller.onTogglePrecisionScroll = { [weak self] in self?.togglePrecisionScroll() }
+    controller.onToggleMouseWheelDirection = { [weak self] in
+      self?.toggleMouseWheelDirection()
+    }
+    settingsWindowController = controller
+    lastSettingsWindowState = nil
+    return controller
   }
 
   private func startPermissionMonitor() {
