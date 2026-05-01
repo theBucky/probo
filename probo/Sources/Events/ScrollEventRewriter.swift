@@ -12,10 +12,11 @@ struct ScrollEventRewriter {
   }
 
   func rewrite(event: CGEvent, configuration: AppConfiguration) -> Bool {
-    guard isMouseWheelEvent(event) else {
+    // self-synthesized events re-enter the session tap; bail before any other field reads.
+    if event.getIntegerValueField(.eventSourceUserData) == marker {
       return false
     }
-    if event.getIntegerValueField(.eventSourceUserData) == marker {
+    guard isMouseWheelEvent(event) else {
       return false
     }
 
