@@ -1,6 +1,4 @@
 @preconcurrency import ApplicationServices
-import Carbon.HIToolbox
-import IOKit.hidsystem
 
 struct ScrollEventRewriter {
   private let marker: Int64
@@ -67,7 +65,8 @@ struct ScrollEventRewriter {
   ) -> Bool {
     let flags = originalFlags.subtracting(.proboAllOption)
     let optionKey: CGKeyCode =
-      originalFlags.contains(.proboRightOption) ? CGKeyCode(kVK_RightOption) : CGKeyCode(kVK_Option)
+      originalFlags.contains(.proboRightOption)
+      ? KeyboardKeyCode.rightOption : KeyboardKeyCode.option
     guard
       let replacement = synth.makeReplacement(
         location: location, flags: flags, linesX: output.linesX, linesY: output.linesY

@@ -1,6 +1,6 @@
 import ApplicationServices
 
-final class ScrollEventSynthesizer {
+struct ScrollEventSynthesizer {
   private let marker: Int64
   private let source: CGEventSource? = {
     let source = CGEventSource(stateID: .hidSystemState)

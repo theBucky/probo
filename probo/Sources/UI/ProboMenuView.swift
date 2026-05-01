@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ProboMenuView: View {
-  @Bindable var model: ProboModel
+  let model: ProboModel
 
   var body: some View {
     Toggle("Enabled", isOn: enabled)

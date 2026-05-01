@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ProboSettingsView: View {
-  @Bindable var model: ProboModel
+  let model: ProboModel
 
   var body: some View {
     Form {
@@ -48,7 +48,7 @@ struct ProboSettingsView: View {
         }
 
         if !model.accessibilityTrusted {
-          Button("Request Access\u{2026}") {
+          Button("Request Access...") {
             model.requestAccessibilityAccess()
           }
         }

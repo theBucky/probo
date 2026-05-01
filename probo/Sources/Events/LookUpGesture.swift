@@ -1,9 +1,8 @@
 @preconcurrency import ApplicationServices
-import Carbon.HIToolbox
 
 enum LookUpGesture {
   private static let buttonNumber: Int64 = 3
-  private static let keyCode = CGKeyCode(kVK_ANSI_D)
+  private static let keyCode = KeyboardKeyCode.d
   private static let flags: CGEventFlags = [.maskCommand, .maskControl]
 
   static func consume(type: CGEventType, event: CGEvent) -> Bool {
