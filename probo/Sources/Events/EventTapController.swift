@@ -11,17 +11,25 @@ final class EventTapController: @unchecked Sendable {
     var isEnabled: Bool
   }
 
+  // Non-nil runtime with nil tap signals a thread mid-startup. id pins
+  // ownership so a stale thread cannot clobber a newer runtime.
   private struct TapRuntime {
+    let id: UInt64
     var tap: CFMachPort?
     var runLoop: CFRunLoop?
-    var isStopping = false
   }
 
   private struct State {
     var tapRuntime: TapRuntime?
+    var nextTapId: UInt64 = 0
     var isEnabled = false
     var status = Status(isInstalled: false, isEnabled: false)
     var configuration = AppConfiguration.defaultValue
+  }
+
+  private enum Action {
+    case startThread(id: UInt64)
+    case toggle(CFMachPort)
   }
 
   private let scrollRewriter = ScrollEventRewriter(marker: EventTapController.synthMarker)
@@ -30,73 +38,58 @@ final class EventTapController: @unchecked Sendable {
 
   @MainActor
   func apply(configuration: AppConfiguration) {
-    state.withLock {
-      $0.configuration = configuration
-    }
+    state.withLock { $0.configuration = configuration }
   }
 
   @MainActor
   func setEnabled(_ enabled: Bool) {
-    let action = state.withLock { state -> (shouldStart: Bool, tap: CFMachPort?) in
-      let runtime = state.tapRuntime
-
-      if state.isEnabled == enabled {
-        return (enabled && runtime == nil, nil)
-      }
-
+    // Reserve the slot so a concurrent setEnabled coalesces into the toggle path.
+    let action = state.withLock { state -> Action? in
       state.isEnabled = enabled
-      if enabled {
-        guard let runtime else { return (true, nil) }
-        return (false, runtime.isStopping ? nil : runtime.tap)
+      if enabled, state.tapRuntime == nil {
+        state.nextTapId += 1
+        let id = state.nextTapId
+        state.tapRuntime = TapRuntime(id: id)
+        return .startThread(id: id)
       }
-      return (false, runtime?.isStopping == false ? runtime?.tap : nil)
+      if let tap = state.tapRuntime?.tap {
+        return .toggle(tap)
+      }
+      return nil
     }
 
-    if action.shouldStart {
-      startTapThread()
+    switch action {
+    case .startThread(let id):
+      let thread = Thread { self.runTapLoop(id: id) }
+      thread.name = "Probo Event Tap"
+      thread.start()
+    case .toggle(let tap):
+      CGEvent.tapEnable(tap: tap, enable: enabled)
+    case nil:
+      break
     }
-    if let eventTap = action.tap {
-      CGEvent.tapEnable(tap: eventTap, enable: enabled)
-    }
-
     notifyStatus()
   }
 
   @MainActor
   func teardown() {
-    let runtime = state.withLock { state in
+    let runtime = state.withLock { state -> TapRuntime? in
       state.isEnabled = false
-      state.tapRuntime?.isStopping = true
-      return state.tapRuntime
+      let runtime = state.tapRuntime
+      state.tapRuntime = nil
+      return runtime
     }
 
-    if let eventTap = runtime?.tap, CFMachPortIsValid(eventTap) {
-      CFMachPortInvalidate(eventTap)
+    if let tap = runtime?.tap {
+      CFMachPortInvalidate(tap)
     }
-    if let tapRunLoop = runtime?.runLoop {
-      CFRunLoopStop(tapRunLoop)
+    if let runLoop = runtime?.runLoop {
+      CFRunLoopStop(runLoop)
     }
     notifyStatus()
   }
 
-  private func startTapThread() {
-    let thread = Thread {
-      self.runTapLoop()
-    }
-    thread.name = "Probo Event Tap"
-
-    let shouldStart = state.withLock { state in
-      guard state.tapRuntime == nil else { return false }
-      state.tapRuntime = TapRuntime()
-      return true
-    }
-
-    if shouldStart {
-      thread.start()
-    }
-  }
-
-  private func runTapLoop() {
+  private func runTapLoop(id: UInt64) {
     let runLoop = CFRunLoopGetCurrent()
     let mask =
       CGEventMask(1 << CGEventType.scrollWheel.rawValue)
@@ -118,7 +111,8 @@ final class EventTapController: @unchecked Sendable {
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
-      finishTapThread()
+      // Drop the placeholder so a subsequent setEnabled retries the install.
+      clearOwnedRuntime(id: id)
       notifyStatusOnMain()
       return
     }
@@ -127,108 +121,73 @@ final class EventTapController: @unchecked Sendable {
     CFRunLoopAddSource(runLoop, source, .commonModes)
     defer {
       CFRunLoopRemoveSource(runLoop, source, .commonModes)
-      if CFMachPortIsValid(tap) {
-        CFMachPortInvalidate(tap)
-      }
-      finishTapThread()
+      // CFMachPortInvalidate is idempotent (guarded by the port's _state).
+      CFMachPortInvalidate(tap)
+      clearOwnedRuntime(id: id)
       notifyStatusOnMain()
     }
 
-    let action = state.withLock { state in
-      guard var runtime = state.tapRuntime else {
-        return (shouldStop: true, shouldEnable: false)
-      }
-      if runtime.isStopping {
-        return (shouldStop: true, shouldEnable: false)
-      }
-
-      runtime.tap = tap
-      runtime.runLoop = runLoop
-      state.tapRuntime = runtime
-      return (shouldStop: false, shouldEnable: state.isEnabled)
+    // teardown may have run between tapCreate and now; bail so defer cleans up.
+    let shouldEnable = state.withLock { state -> Bool? in
+      guard state.tapRuntime?.id == id else { return nil }
+      state.tapRuntime = TapRuntime(id: id, tap: tap, runLoop: runLoop)
+      return state.isEnabled
     }
+    guard let shouldEnable else { return }
 
-    if action.shouldStop {
-      return
-    }
-
-    CGEvent.tapEnable(tap: tap, enable: action.shouldEnable)
+    CGEvent.tapEnable(tap: tap, enable: shouldEnable)
     notifyStatusOnMain()
 
     CFRunLoopRun()
+  }
+
+  private func clearOwnedRuntime(id: UInt64) {
+    state.withLock { state in
+      if state.tapRuntime?.id == id { state.tapRuntime = nil }
+    }
   }
 
   private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
     let pass = Unmanaged.passUnretained(event)
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      let snapshot = runtimeSnapshot()
-      if let eventTap = snapshot.eventTap, snapshot.isEnabled {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
+      let (isEnabled, tap) = state.withLock { ($0.isEnabled, $0.tapRuntime?.tap) }
+      if let tap, isEnabled {
+        CGEvent.tapEnable(tap: tap, enable: true)
       }
       return pass
     }
 
-    let snapshot = runtimeSnapshot()
-    guard snapshot.isEnabled else { return pass }
+    let (isEnabled, configuration) = state.withLock { ($0.isEnabled, $0.configuration) }
+    guard isEnabled else { return pass }
 
     switch type {
     case .otherMouseDown, .otherMouseUp:
-      guard snapshot.configuration.isLookUpEnabled else { return pass }
+      guard configuration.isLookUpEnabled else { return pass }
       return LookUpGesture.consume(type: type, event: event) ? nil : pass
     case .scrollWheel:
-      return scrollRewriter.rewrite(event: event, configuration: snapshot.configuration)
-        ? nil : pass
+      return scrollRewriter.rewrite(event: event, configuration: configuration) ? nil : pass
     default:
       return pass
     }
   }
 
-  private func runtimeSnapshot() -> (
-    isEnabled: Bool, configuration: AppConfiguration, eventTap: CFMachPort?
-  ) {
-    state.withLock {
-      let isStopping = $0.tapRuntime?.isStopping == true
-      return ($0.isEnabled && !isStopping, $0.configuration, $0.tapRuntime?.tap)
-    }
-  }
-
-  private func finishTapThread() {
-    let shouldRestart = state.withLock {
-      let shouldRestart = $0.tapRuntime?.isStopping == true && $0.isEnabled
-      $0.tapRuntime = nil
-      return shouldRestart
-    }
-
-    if shouldRestart {
-      startTapThread()
-    }
-  }
-
   private func notifyStatusOnMain() {
-    Task { @MainActor in
-      notifyStatus()
-    }
+    Task { @MainActor in notifyStatus() }
   }
 
   @MainActor
   private func notifyStatus() {
-    let currentStatus = state.withLock { state -> Status? in
-      let runtime = state.tapRuntime
-      let isInstalled = runtime?.tap != nil && runtime?.isStopping == false
-      let currentStatus = Status(
+    let next = state.withLock { state -> Status? in
+      let isInstalled = state.tapRuntime?.tap != nil
+      let next = Status(
         isInstalled: isInstalled,
         isEnabled: state.isEnabled && isInstalled
       )
-      if state.status == currentStatus {
-        return nil
-      }
-      state.status = currentStatus
-      return currentStatus
+      guard state.status != next else { return nil }
+      state.status = next
+      return next
     }
-
-    if let currentStatus {
-      onStatusChange?(currentStatus)
-    }
+    if let next { onStatusChange?(next) }
   }
 }
