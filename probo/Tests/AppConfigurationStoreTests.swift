@@ -25,31 +25,32 @@ let appConfigurationStoreTests: [TestCase] = [
         intensity: .medium,
         isLookUpEnabled: false,
         isPrecisionScrollEnabled: true,
-        isTrackpadStyleScrollingEnabled: false
+        isTrackpadStyleScrollingEnabled: true
       )
 
       store.save(configuration)
 
-      try expectEqual(
-        store.load(),
-        configuration,
-        "saved configuration should load unchanged"
-      )
+      try expectEqual(store.load(), configuration, "saved configuration should load unchanged")
     }
   },
 
   TestCase(
     behavior:
-      "given an unknown stored intensity when loading then it falls back to the default intensity"
+      "given partial invalid saved configuration when loading then it keeps valid values and defaults the rest"
   ) {
     try withIsolatedDefaults { defaults in
+      defaults.set(false, forKey: "isEnabled")
       defaults.set(99, forKey: "intensity")
+      defaults.set(true, forKey: "isPrecisionScrollEnabled")
       let store = AppConfigurationStore(defaults: defaults)
+      var expected = AppConfiguration.defaultValue
+      expected.isEnabled = false
+      expected.isPrecisionScrollEnabled = true
 
       try expectEqual(
-        store.load().intensity,
-        AppConfiguration.defaultValue.intensity,
-        "invalid stored intensity should fall back to the default intensity"
+        store.load(),
+        expected,
+        "valid stored values should survive while invalid or missing values use defaults"
       )
     }
   },

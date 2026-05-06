@@ -5,80 +5,51 @@ private let synthMarker: Int64 = 0x50_524F_424F
 let scrollEventSynthesizerTests: [TestCase] = [
   TestCase(
     behavior:
-      "given replacement scroll lines when synthesizing then it preserves location and flags"
+      "given replacement scroll lines when synthesizing then it emits tagged discrete scroll events"
   ) {
-    let event = try replacementEvent(
-      location: CGPoint(x: 12, y: 34),
-      flags: [.maskShift],
-      linesX: 0,
-      linesY: -2
-    )
+    let location = CGPoint(x: 12, y: 34)
+    let flags: CGEventFlags = [.maskShift]
+    let cases: [(linesX: Int32, linesY: Int32, axis1: Int64, axis2: Int64, note: String)] = [
+      (linesX: 0, linesY: -2, axis1: -2, axis2: 0, note: "vertical"),
+      (linesX: 3, linesY: 0, axis1: 0, axis2: 3, note: "horizontal"),
+    ]
 
-    try expectEqual(event.location, CGPoint(x: 12, y: 34), "replacement should preserve location")
-    try expect(event.flags.contains(.maskShift), "replacement should preserve flags")
-  },
+    for replacementCase in cases {
+      let event = try replacementEvent(
+        location: location,
+        flags: flags,
+        linesX: replacementCase.linesX,
+        linesY: replacementCase.linesY
+      )
 
-  TestCase(
-    behavior: "given vertical replacement lines when synthesizing then it emits axis1 deltas only"
-  ) {
-    let event = try replacementEvent(linesX: 0, linesY: -2)
-
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis1),
-      -2,
-      "vertical replacement should emit axis1 lines"
-    )
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis2),
-      0,
-      "vertical replacement should leave axis2 empty"
-    )
-  },
-
-  TestCase(
-    behavior: "given horizontal replacement lines when synthesizing then it emits axis2 deltas only"
-  ) {
-    let event = try replacementEvent(linesX: 3, linesY: 0)
-
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis1),
-      0,
-      "horizontal replacement should leave axis1 empty"
-    )
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventDeltaAxis2),
-      3,
-      "horizontal replacement should emit axis2 lines"
-    )
-  },
-
-  TestCase(
-    behavior: "given replacement scroll lines when synthesizing then it marks one discrete notch"
-  ) {
-    let event = try replacementEvent(linesX: 0, linesY: -2)
-
-    try expectEqual(
-      event.getIntegerValueField(.scrollWheelEventScrollCount),
-      1,
-      "replacement should look like one discrete notch"
-    )
+      try expectEqual(
+        event.getIntegerValueField(.scrollWheelEventDeltaAxis1),
+        replacementCase.axis1,
+        "\(replacementCase.note) replacement should emit axis1 lines"
+      )
+      try expectEqual(
+        event.getIntegerValueField(.scrollWheelEventDeltaAxis2),
+        replacementCase.axis2,
+        "\(replacementCase.note) replacement should emit axis2 lines"
+      )
+      try expectEqual(
+        event.getIntegerValueField(.scrollWheelEventScrollCount),
+        1,
+        "\(replacementCase.note) replacement should look like one discrete notch"
+      )
+      try expectEqual(
+        event.getIntegerValueField(.eventSourceUserData),
+        synthMarker,
+        "\(replacementCase.note) replacement should carry the synth marker"
+      )
+      try expectEqual(event.location, location, "\(replacementCase.note) should preserve location")
+      try expect(event.flags.contains(.maskShift), "\(replacementCase.note) should preserve flags")
+    }
   },
 
   TestCase(
     behavior:
-      "given replacement scroll lines when synthesizing then it tags the event as synthesized"
-  ) {
-    let event = try replacementEvent(linesX: 0, linesY: -2)
-
-    try expectEqual(
-      event.getIntegerValueField(.eventSourceUserData),
-      synthMarker,
-      "replacement should carry the synth marker"
-    )
-  },
-
-  TestCase(
-    behavior: "given modifier restoration when synthesizing then it emits a flags-changed event"
+      "given modifier restoration when synthesizing then it emits a tagged flags-changed event"
   ) {
     let event = try flagsChangedEvent(flags: [.maskCommand], keyCode: 58)
 
@@ -89,13 +60,6 @@ let scrollEventSynthesizerTests: [TestCase] = [
       58,
       "modifier event should preserve the key code"
     )
-  },
-
-  TestCase(
-    behavior: "given modifier restoration when synthesizing then it tags the event as synthesized"
-  ) {
-    let event = try flagsChangedEvent(flags: [.maskCommand], keyCode: 58)
-
     try expectEqual(
       event.getIntegerValueField(.eventSourceUserData),
       synthMarker,
