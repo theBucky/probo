@@ -58,7 +58,7 @@ struct ProboSettingsView: View {
     .frame(width: 420)
     .scrollDisabled(true)
     .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-    .task { model.refreshLaunchAtLogin() }
+    .onAppear { model.refreshLaunchAtLogin() }
   }
 
   private var intensity: Binding<ScrollIntensity> {

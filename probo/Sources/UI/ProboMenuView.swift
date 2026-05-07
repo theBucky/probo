@@ -5,7 +5,7 @@ struct ProboMenuView: View {
 
   var body: some View {
     Toggle("Enabled", isOn: enabled)
-      .task { model.refreshLaunchAtLogin() }
+      .onAppear { model.refreshLaunchAtLogin() }
 
     if !model.accessibilityTrusted {
       Button("Request Accessibility Access...") {
