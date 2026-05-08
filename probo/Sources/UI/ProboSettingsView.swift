@@ -22,6 +22,12 @@ struct ProboSettingsView: View {
             .foregroundStyle(.secondary)
         }
 
+        Toggle(isOn: terminalPrecision) {
+          Text("Precision in Terminals")
+          Text("Emit one line per notch in terminal apps; hold Option for your wheel step.")
+            .foregroundStyle(.secondary)
+        }
+
         Toggle(isOn: trackpadStyleScrolling) {
           Text("Natural Direction")
           Text("Match trackpad scrolling direction.")
@@ -79,6 +85,13 @@ struct ProboSettingsView: View {
     Binding(
       get: { model.configuration.isPrecisionScrollEnabled },
       set: { model.setPrecisionScrollEnabled($0) }
+    )
+  }
+
+  private var terminalPrecision: Binding<Bool> {
+    Binding(
+      get: { model.configuration.isTerminalPrecisionEnabled },
+      set: { model.setTerminalPrecisionEnabled($0) }
     )
   }
 

@@ -32,9 +32,16 @@ final class EventTapController: @unchecked Sendable {
     case toggle(CFMachPort)
   }
 
-  private let scrollRewriter = ScrollEventRewriter(marker: EventTapController.synthMarker)
+  private let scrollRewriter: ScrollEventRewriter
   private let state = Mutex(State())
   var onStatusChange: ((Status) -> Void)?
+
+  init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
+    scrollRewriter = ScrollEventRewriter(
+      marker: Self.synthMarker,
+      isTerminalFrontmost: isTerminalFrontmost
+    )
+  }
 
   @MainActor
   func apply(configuration: AppConfiguration) {

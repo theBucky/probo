@@ -4,7 +4,8 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps. Swift/SwiftUI
 
 ## Stack
 
-- Latest Swift and SwiftUI only. No old API, syntax, and AppKit.
+- Latest Swift; no legacy API or syntax
+- SwiftUI for UI; AppKit only as non-UI system glue with no SwiftUI equivalent
 - `swiftc` flags in [build.sh](scripts/build.sh) are the only Swift gate; target `macos26.0`, `-swift-version 6 -O`
 
 ## Layout
@@ -26,7 +27,8 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps. Swift/SwiftUI
 
 - Tap callback is hot; keep Swift core allocation-free
 - Rewrite core drops continuous, phased, diagonal, zero-delta events; extend, never loosen
-- No smoothing, momentum, acceleration, gesture-phase output, or per-app rules
+- No smoothing, momentum, acceleration, or gesture-phase output
+- Per-app behavior is limited to built-in ecosystem heuristics (e.g. terminal-aware precision); no user-configurable app lists
 
 ## Local
 

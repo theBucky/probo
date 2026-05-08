@@ -25,6 +25,7 @@ let appConfigurationStoreTests: [TestCase] = [
         intensity: .medium,
         isLookUpEnabled: false,
         isPrecisionScrollEnabled: true,
+        isTerminalPrecisionEnabled: false,
         isTrackpadStyleScrollingEnabled: true
       )
 

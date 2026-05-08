@@ -3,9 +3,11 @@
 struct ScrollEventRewriter {
   private let marker: Int64
   private let synth: ScrollEventSynthesizer
+  private let isTerminalFrontmost: @Sendable () -> Bool
 
-  init(marker: Int64) {
+  init(marker: Int64, isTerminalFrontmost: @escaping @Sendable () -> Bool) {
     self.marker = marker
+    self.isTerminalFrontmost = isTerminalFrontmost
     synth = ScrollEventSynthesizer(marker: marker)
   }
 
@@ -27,8 +29,12 @@ struct ScrollEventRewriter {
     let deltaAxis2 = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
     let originalFlags = event.flags
-    let isPrecision =
-      configuration.isPrecisionScrollEnabled && originalFlags.contains(.maskAlternate)
+    let decision = ScrollRewriteCore.decide(
+      isOptionHeld: originalFlags.contains(.maskAlternate),
+      isPrecisionScrollEnabled: configuration.isPrecisionScrollEnabled,
+      isTerminalFrontmost: isTerminalFrontmost(),
+      isTerminalPrecisionEnabled: configuration.isTerminalPrecisionEnabled
+    )
 
     guard
       let output = ScrollRewriteCore.rewrite(
@@ -38,17 +44,19 @@ struct ScrollEventRewriter {
           intensity: configuration.intensity,
           isContinuous: isContinuous,
           hasPhase: hasPhase,
-          isPrecision: isPrecision,
+          isPrecision: decision.isPrecision,
           isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
         ))
     else {
       return false
     }
 
-    if isPrecision {
-      return postPrecision(location: event.location, originalFlags: originalFlags, output: output)
-    }
-    return postSteps(location: event.location, flags: originalFlags, output: output)
+    return post(
+      location: event.location,
+      originalFlags: originalFlags,
+      output: output,
+      stripOption: decision.stripOption
+    )
   }
 
   private func isMouseWheelEvent(_ event: CGEvent) -> Bool {
@@ -60,9 +68,26 @@ struct ScrollEventRewriter {
     return event.getIntegerValueField(.tabletEventDeviceID) == 0
   }
 
-  private func postPrecision(
-    location: CGPoint, originalFlags: CGEventFlags, output: ScrollRewriteOutput
+  private func post(
+    location: CGPoint,
+    originalFlags: CGEventFlags,
+    output: ScrollRewriteOutput,
+    stripOption: Bool
   ) -> Bool {
+    if !stripOption {
+      guard
+        let replacement = synth.makeReplacement(
+          location: location, flags: originalFlags, linesX: output.linesX, linesY: output.linesY
+        )
+      else { return false }
+      replacement.post(tap: .cgSessionEventTap)
+      return true
+    }
+
+    // stripOption implies option was held; sandwich the stripped replacement with flagsChanged
+    // so the target app sees option release before our event and restore after. The replacement
+    // is required: skipping the sandwich on flagsChanged synthesis failure still beats passing
+    // the original Option-bearing event through, which terminals would read as alt-scroll.
     let flags = originalFlags.subtracting(.proboAllOption)
     let optionKey: CGKeyCode =
       originalFlags.contains(.proboRightOption)
@@ -70,28 +95,15 @@ struct ScrollEventRewriter {
     guard
       let replacement = synth.makeReplacement(
         location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
-      ),
-      let releaseOption = synth.makeFlagsChanged(flags: flags, keyCode: optionKey),
-      let restoreOption = synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)
-    else {
-      return false
-    }
-
-    releaseOption.post(tap: .cgSessionEventTap)
-    replacement.post(tap: .cgSessionEventTap)
-    restoreOption.post(tap: .cgSessionEventTap)
-    return true
-  }
-
-  private func postSteps(
-    location: CGPoint, flags: CGEventFlags, output: ScrollRewriteOutput
-  ) -> Bool {
-    guard
-      let replacement = synth.makeReplacement(
-        location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
       )
     else { return false }
+
+    let releaseOption = synth.makeFlagsChanged(flags: flags, keyCode: optionKey)
+    let restoreOption = synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)
+
+    releaseOption?.post(tap: .cgSessionEventTap)
     replacement.post(tap: .cgSessionEventTap)
+    restoreOption?.post(tap: .cgSessionEventTap)
     return true
   }
 }
