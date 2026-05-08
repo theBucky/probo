@@ -8,4 +8,11 @@ enum ScrollIntensity: Int, CaseIterable, Sendable {
     case .medium: "Medium"
     }
   }
+
+  var lines: Int32 {
+    switch self {
+    case .slow: 2
+    case .medium: 3
+    }
+  }
 }

@@ -14,10 +14,6 @@ struct ScrollRewriteOutput: Sendable {
 }
 
 enum ScrollRewriteCore {
-  private static let precisionStepLines: Int32 = 1
-  private static let slowStepLines: Int32 = 2
-  private static let mediumStepLines: Int32 = 3
-
   struct ScrollDecision: Equatable, Sendable {
     var isPrecision: Bool
     var stripOption: Bool
@@ -46,24 +42,11 @@ enum ScrollRewriteCore {
       return nil
     }
 
-    let stepLines = stepLines(for: input.intensity, isPrecision: input.isPrecision)
+    let stepLines: Int32 = input.isPrecision ? 1 : input.intensity.lines
     let direction: Int32 = input.isTrackpadStyleScrollingEnabled ? 1 : -1
     return ScrollRewriteOutput(
       linesX: input.deltaAxis2.signum() * stepLines * direction,
       linesY: input.deltaAxis1.signum() * stepLines * direction
     )
   }
-
-  private static func stepLines(for intensity: ScrollIntensity, isPrecision: Bool) -> Int32 {
-    if isPrecision {
-      return precisionStepLines
-    }
-    switch intensity {
-    case .slow:
-      return slowStepLines
-    case .medium:
-      return mediumStepLines
-    }
-  }
-
 }
