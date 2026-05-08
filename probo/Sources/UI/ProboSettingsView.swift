@@ -2,11 +2,12 @@ import SwiftUI
 
 struct ProboSettingsView: View {
   let model: ProboModel
+  let runtime: ProboRuntime
 
   var body: some View {
     Form {
       Section("Scrolling") {
-        Picker(selection: bind(\.intensity, model.setIntensity)) {
+        Picker(selection: bind(\.intensity)) {
           ForEach(ScrollIntensity.allCases, id: \.self) {
             Text($0.title).tag($0)
           }
@@ -16,20 +17,20 @@ struct ProboSettingsView: View {
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: bind(\.isPrecisionScrollEnabled, model.setPrecisionScrollEnabled)) {
+        Toggle(isOn: bind(\.isPrecisionScrollEnabled)) {
           Text("Precision Scrolling")
           Text("Hold Option to emit one line per notch.")
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: bind(\.isTerminalPrecisionEnabled, model.setTerminalPrecisionEnabled)) {
+        Toggle(isOn: bind(\.isTerminalPrecisionEnabled)) {
           Text("Precision in Terminals")
           Text("Emit one line per notch in terminal apps; hold Option for your wheel step.")
             .foregroundStyle(.secondary)
         }
 
         Toggle(
-          isOn: bind(\.isTrackpadStyleScrollingEnabled, model.setTrackpadStyleScrollingEnabled)
+          isOn: bind(\.isTrackpadStyleScrollingEnabled)
         ) {
           Text("Natural Direction")
           Text("Match trackpad scrolling direction.")
@@ -38,7 +39,7 @@ struct ProboSettingsView: View {
       }
 
       Section("Input") {
-        Toggle(isOn: bind(\.isLookUpEnabled, model.setLookUpEnabled)) {
+        Toggle(isOn: bind(\.isLookUpEnabled)) {
           Text("Look Up")
           Text("Map mouse button 4 to Look Up.")
             .foregroundStyle(.secondary)
@@ -57,7 +58,7 @@ struct ProboSettingsView: View {
 
         if !model.accessibilityTrusted {
           Button("Request Access...") {
-            model.requestAccessibilityAccess()
+            runtime.requestAccessibilityAccess()
           }
         }
       }
@@ -69,12 +70,13 @@ struct ProboSettingsView: View {
   }
 
   private func bind<V>(
-    _ keyPath: KeyPath<AppConfiguration, V>,
-    _ setter: @escaping @MainActor (V) -> Void
+    _ keyPath: WritableKeyPath<AppConfiguration, V>
   ) -> Binding<V> {
     Binding(
       get: { model.configuration[keyPath: keyPath] },
-      set: setter
+      set: { value in
+        runtime.updateConfiguration { $0[keyPath: keyPath] = value }
+      }
     )
   }
 }

@@ -3,11 +3,13 @@ import AppKit
 @MainActor
 final class ProboStatusMenu: NSObject, NSMenuDelegate {
   private let model: ProboModel
+  private let runtime: ProboRuntime
   private let onOpenSettings: () -> Void
   let menu = NSMenu()
 
-  init(model: ProboModel, onOpenSettings: @escaping () -> Void) {
+  init(model: ProboModel, runtime: ProboRuntime, onOpenSettings: @escaping () -> Void) {
     self.model = model
+    self.runtime = runtime
     self.onOpenSettings = onOpenSettings
     super.init()
     menu.autoenablesItems = false
@@ -15,10 +17,9 @@ final class ProboStatusMenu: NSObject, NSMenuDelegate {
   }
 
   // Rebuild on open so toggle states and the access-required item track current model state
-  // without per-item observation plumbing. Sections group by state-shape so macOS 26's
-  // per-section checkmark column reservation produces consistent leading insets.
+  // without per-item observation plumbing.
   func menuNeedsUpdate(_ menu: NSMenu) {
-    model.refreshLaunchAtLogin()
+    runtime.refreshExternalState()
     menu.removeAllItems()
 
     menu.addItem(
@@ -59,11 +60,11 @@ final class ProboStatusMenu: NSObject, NSMenuDelegate {
   }
 
   @objc private func toggleEnabled() {
-    model.setEnabled(!model.configuration.isEnabled)
+    runtime.setEnabled(!model.configuration.isEnabled)
   }
 
   @objc private func requestAccess() {
-    model.requestAccessibilityAccess()
+    runtime.requestAccessibilityAccess()
   }
 
   @objc private func showSettings() {
@@ -71,10 +72,10 @@ final class ProboStatusMenu: NSObject, NSMenuDelegate {
   }
 
   @objc private func toggleStartAtLogin() {
-    model.setStartAtLoginEnabled(!model.startAtLoginEnabled)
+    runtime.setStartAtLoginEnabled(!model.startAtLoginEnabled)
   }
 
   @objc private func quit() {
-    model.quit()
+    NSApp.terminate(nil)
   }
 }
