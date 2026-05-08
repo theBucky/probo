@@ -17,14 +17,14 @@ struct ProboSettingsView: View {
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: bind(\.isPrecisionScrollEnabled)) {
-          Text("Precision Scrolling")
+        Toggle(isOn: bind(\.isOptionPrecisionEnabled)) {
+          Text("Option Precision")
           Text("Hold Option to emit one line per notch.")
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: bind(\.isTerminalPrecisionEnabled)) {
-          Text("Precision in Terminals")
+        Toggle(isOn: bind(\.isTerminalDefaultPrecisionEnabled)) {
+          Text("Default Precision in Terminals")
           Text("Emit one line per notch in terminal apps; hold Option for your wheel step.")
             .foregroundStyle(.secondary)
         }

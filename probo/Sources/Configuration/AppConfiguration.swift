@@ -3,15 +3,15 @@ struct AppConfiguration: Equatable, Sendable {
     isEnabled: true,
     intensity: .slow,
     isLookUpEnabled: true,
-    isPrecisionScrollEnabled: false,
-    isTerminalPrecisionEnabled: true,
+    isOptionPrecisionEnabled: false,
+    isTerminalDefaultPrecisionEnabled: true,
     isTrackpadStyleScrollingEnabled: false
   )
 
   var isEnabled: Bool
   var intensity: ScrollIntensity
   var isLookUpEnabled: Bool
-  var isPrecisionScrollEnabled: Bool
-  var isTerminalPrecisionEnabled: Bool
+  var isOptionPrecisionEnabled: Bool
+  var isTerminalDefaultPrecisionEnabled: Bool
   var isTrackpadStyleScrollingEnabled: Bool
 }

@@ -20,34 +20,28 @@ struct ScrollEventRewriter {
       return false
     }
 
-    let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
-    let hasPhase =
-      event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
-      || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
-    let deltaAxis1 = Int32(
-      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
-    let deltaAxis2 = Int32(
-      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
     let originalFlags = event.flags
-    let decision = ScrollRewriteCore.decide(
+    let decision = ScrollRewriteCore.decidePrecision(
       isOptionHeld: originalFlags.contains(.maskAlternate),
-      isPrecisionScrollEnabled: configuration.isPrecisionScrollEnabled,
+      isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
       isTerminalFrontmost: isTerminalFrontmost(),
-      isTerminalPrecisionEnabled: configuration.isTerminalPrecisionEnabled
+      isTerminalDefaultPrecisionEnabled: configuration.isTerminalDefaultPrecisionEnabled
+    )
+    let input = ScrollRewriteInput(
+      deltaAxis1: Int32(
+        truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1)),
+      deltaAxis2: Int32(
+        truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2)),
+      intensity: configuration.intensity,
+      isContinuous: event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0,
+      hasPhase:
+        event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
+        || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0,
+      isPrecision: decision.isPrecision,
+      isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
     )
 
-    guard
-      let output = ScrollRewriteCore.rewrite(
-        ScrollRewriteInput(
-          deltaAxis1: deltaAxis1,
-          deltaAxis2: deltaAxis2,
-          intensity: configuration.intensity,
-          isContinuous: isContinuous,
-          hasPhase: hasPhase,
-          isPrecision: decision.isPrecision,
-          isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
-        ))
-    else {
+    guard let output = ScrollRewriteCore.rewrite(input) else {
       return false
     }
 

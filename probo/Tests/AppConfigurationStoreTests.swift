@@ -24,8 +24,8 @@ let appConfigurationStoreTests: [TestCase] = [
         isEnabled: false,
         intensity: .medium,
         isLookUpEnabled: false,
-        isPrecisionScrollEnabled: true,
-        isTerminalPrecisionEnabled: false,
+        isOptionPrecisionEnabled: true,
+        isTerminalDefaultPrecisionEnabled: false,
         isTrackpadStyleScrollingEnabled: true
       )
 
@@ -46,7 +46,7 @@ let appConfigurationStoreTests: [TestCase] = [
       let store = AppConfigurationStore(defaults: defaults)
       var expected = AppConfiguration.defaultValue
       expected.isEnabled = false
-      expected.isPrecisionScrollEnabled = true
+      expected.isOptionPrecisionEnabled = true
 
       try expectEqual(
         store.load(),
