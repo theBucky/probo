@@ -27,7 +27,6 @@ final class FrontmostAppMonitor {
   ]
 
   private nonisolated let terminalFrontmost = Atomic<Bool>(false)
-  private var observation: Task<Void, Never>?
 
   nonisolated func isTerminalFrontmost() -> Bool {
     terminalFrontmost.load(ordering: .relaxed)
@@ -37,17 +36,12 @@ final class FrontmostAppMonitor {
     refresh()
     let stream = NSWorkspace.shared.notificationCenter
       .notifications(named: NSWorkspace.didActivateApplicationNotification)
-    observation = Task { [weak self] in
+    Task { [weak self] in
       for await _ in stream {
         guard let self else { return }
         refresh()
       }
     }
-  }
-
-  func stop() {
-    observation?.cancel()
-    observation = nil
   }
 
   private func refresh() {
