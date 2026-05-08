@@ -42,7 +42,7 @@ let appConfigurationStoreTests: [TestCase] = [
     try withIsolatedDefaults { defaults in
       defaults.set(false, forKey: "isEnabled")
       defaults.set(99, forKey: "intensity")
-      defaults.set(true, forKey: "isPrecisionScrollEnabled")
+      defaults.set(true, forKey: "isOptionPrecisionEnabled")
       let store = AppConfigurationStore(defaults: defaults)
       var expected = AppConfiguration.defaultValue
       expected.isEnabled = false

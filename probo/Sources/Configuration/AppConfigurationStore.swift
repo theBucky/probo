@@ -5,8 +5,8 @@ final class AppConfigurationStore {
     static let isEnabled = "isEnabled"
     static let intensity = "intensity"
     static let isLookUpEnabled = "isLookUpEnabled"
-    static let isOptionPrecisionEnabled = "isPrecisionScrollEnabled"
-    static let isTerminalDefaultPrecisionEnabled = "isTerminalPrecisionEnabled"
+    static let isOptionPrecisionEnabled = "isOptionPrecisionEnabled"
+    static let isTerminalDefaultPrecisionEnabled = "isTerminalDefaultPrecisionEnabled"
     static let isTrackpadStyleScrollingEnabled = "isTrackpadStyleScrollingEnabled"
   }
 
