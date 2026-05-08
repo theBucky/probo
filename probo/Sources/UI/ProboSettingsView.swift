@@ -6,7 +6,7 @@ struct ProboSettingsView: View {
   var body: some View {
     Form {
       Section("Scrolling") {
-        Picker(selection: intensity) {
+        Picker(selection: bind(\.intensity, model.setIntensity)) {
           ForEach(ScrollIntensity.allCases, id: \.self) {
             Text($0.title).tag($0)
           }
@@ -16,19 +16,21 @@ struct ProboSettingsView: View {
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: precisionScroll) {
+        Toggle(isOn: bind(\.isPrecisionScrollEnabled, model.setPrecisionScrollEnabled)) {
           Text("Precision Scrolling")
           Text("Hold Option to emit one line per notch.")
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: terminalPrecision) {
+        Toggle(isOn: bind(\.isTerminalPrecisionEnabled, model.setTerminalPrecisionEnabled)) {
           Text("Precision in Terminals")
           Text("Emit one line per notch in terminal apps; hold Option for your wheel step.")
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: trackpadStyleScrolling) {
+        Toggle(
+          isOn: bind(\.isTrackpadStyleScrollingEnabled, model.setTrackpadStyleScrollingEnabled)
+        ) {
           Text("Natural Direction")
           Text("Match trackpad scrolling direction.")
             .foregroundStyle(.secondary)
@@ -36,7 +38,7 @@ struct ProboSettingsView: View {
       }
 
       Section("Input") {
-        Toggle(isOn: lookUp) {
+        Toggle(isOn: bind(\.isLookUpEnabled, model.setLookUpEnabled)) {
           Text("Look Up")
           Text("Map mouse button 4 to Look Up.")
             .foregroundStyle(.secondary)
@@ -64,41 +66,15 @@ struct ProboSettingsView: View {
     .frame(width: 420)
     .scrollDisabled(true)
     .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-    .onAppear { model.refreshLaunchAtLogin() }
   }
 
-  private var intensity: Binding<ScrollIntensity> {
+  private func bind<V>(
+    _ keyPath: KeyPath<AppConfiguration, V>,
+    _ setter: @escaping @MainActor (V) -> Void
+  ) -> Binding<V> {
     Binding(
-      get: { model.configuration.intensity },
-      set: { model.setIntensity($0) }
-    )
-  }
-
-  private var lookUp: Binding<Bool> {
-    Binding(
-      get: { model.configuration.isLookUpEnabled },
-      set: { model.setLookUpEnabled($0) }
-    )
-  }
-
-  private var precisionScroll: Binding<Bool> {
-    Binding(
-      get: { model.configuration.isPrecisionScrollEnabled },
-      set: { model.setPrecisionScrollEnabled($0) }
-    )
-  }
-
-  private var terminalPrecision: Binding<Bool> {
-    Binding(
-      get: { model.configuration.isTerminalPrecisionEnabled },
-      set: { model.setTerminalPrecisionEnabled($0) }
-    )
-  }
-
-  private var trackpadStyleScrolling: Binding<Bool> {
-    Binding(
-      get: { model.configuration.isTrackpadStyleScrollingEnabled },
-      set: { model.setTrackpadStyleScrollingEnabled($0) }
+      get: { model.configuration[keyPath: keyPath] },
+      set: setter
     )
   }
 }
