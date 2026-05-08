@@ -6,11 +6,12 @@ Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each notc
 
 - Selectable line step per notch, identical across apps (slow = 2, medium = 3)
 - Rewrites discrete wheel events only; passes continuous, phased, diagonal, and zero-delta events through
-- Option-hold precision scroll (1 line per notch)
+- Optional Option-hold precision scroll (1 line per notch), off by default
 - Natural (trackpad-style) scroll direction toggle, off by default
-- Mouse button 4 mapped to macOS Look Up
+- Mouse button 4 mapped to macOS Look Up, on by default and toggleable
 - Launch at login via `SMAppService`
 - No smoothing, momentum, acceleration, gesture-phase output, or per-app rules
+- All behavior toggles live in the `Settings` window
 
 ## Requirements
 
