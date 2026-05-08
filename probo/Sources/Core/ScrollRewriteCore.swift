@@ -14,24 +14,28 @@ struct ScrollRewriteOutput: Sendable {
 }
 
 enum ScrollRewriteCore {
-  struct ScrollDecision: Equatable, Sendable {
+  struct PrecisionDecision: Equatable, Sendable {
     var isPrecision: Bool
     var stripOption: Bool
   }
 
-  // Terminal mode inverts Option: precision by default, Option escapes to intensity.
-  // Stripping keeps the target app from seeing alt-scroll layered on top of our override.
-  static func decide(
+  static func decidePrecision(
     isOptionHeld: Bool,
-    isPrecisionScrollEnabled: Bool,
+    isOptionPrecisionEnabled: Bool,
     isTerminalFrontmost: Bool,
-    isTerminalPrecisionEnabled: Bool
-  ) -> ScrollDecision {
-    let terminalMode = isTerminalFrontmost && isTerminalPrecisionEnabled
-    let isPrecision =
-      terminalMode ? !isOptionHeld : (isPrecisionScrollEnabled && isOptionHeld)
-    let stripOption = isOptionHeld && (terminalMode || isPrecisionScrollEnabled)
-    return ScrollDecision(isPrecision: isPrecision, stripOption: stripOption)
+    isTerminalDefaultPrecisionEnabled: Bool
+  ) -> PrecisionDecision {
+    if isTerminalFrontmost && isTerminalDefaultPrecisionEnabled {
+      return PrecisionDecision(
+        isPrecision: !isOptionHeld,
+        stripOption: isOptionHeld
+      )
+    }
+
+    return PrecisionDecision(
+      isPrecision: isOptionPrecisionEnabled && isOptionHeld,
+      stripOption: isOptionPrecisionEnabled && isOptionHeld
+    )
   }
 
   static func rewrite(_ input: ScrollRewriteInput) -> ScrollRewriteOutput? {

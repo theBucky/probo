@@ -5,8 +5,8 @@ final class AppConfigurationStore {
     static let isEnabled = "isEnabled"
     static let intensity = "intensity"
     static let isLookUpEnabled = "isLookUpEnabled"
-    static let isPrecisionScrollEnabled = "isPrecisionScrollEnabled"
-    static let isTerminalPrecisionEnabled = "isTerminalPrecisionEnabled"
+    static let isOptionPrecisionEnabled = "isOptionPrecisionEnabled"
+    static let isTerminalDefaultPrecisionEnabled = "isTerminalDefaultPrecisionEnabled"
     static let isTrackpadStyleScrollingEnabled = "isTrackpadStyleScrollingEnabled"
   }
 
@@ -14,14 +14,14 @@ final class AppConfigurationStore {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
+    let configuration = AppConfiguration.defaultValue
     defaults.register(defaults: [
-      Key.isEnabled: AppConfiguration.defaultValue.isEnabled,
-      Key.intensity: AppConfiguration.defaultValue.intensity.rawValue,
-      Key.isLookUpEnabled: AppConfiguration.defaultValue.isLookUpEnabled,
-      Key.isPrecisionScrollEnabled: AppConfiguration.defaultValue.isPrecisionScrollEnabled,
-      Key.isTerminalPrecisionEnabled: AppConfiguration.defaultValue.isTerminalPrecisionEnabled,
-      Key.isTrackpadStyleScrollingEnabled:
-        AppConfiguration.defaultValue.isTrackpadStyleScrollingEnabled,
+      Key.isEnabled: configuration.isEnabled,
+      Key.intensity: configuration.intensity.rawValue,
+      Key.isLookUpEnabled: configuration.isLookUpEnabled,
+      Key.isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
+      Key.isTerminalDefaultPrecisionEnabled: configuration.isTerminalDefaultPrecisionEnabled,
+      Key.isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled,
     ])
   }
 
@@ -31,8 +31,9 @@ final class AppConfigurationStore {
       intensity: ScrollIntensity(rawValue: defaults.integer(forKey: Key.intensity))
         ?? AppConfiguration.defaultValue.intensity,
       isLookUpEnabled: defaults.bool(forKey: Key.isLookUpEnabled),
-      isPrecisionScrollEnabled: defaults.bool(forKey: Key.isPrecisionScrollEnabled),
-      isTerminalPrecisionEnabled: defaults.bool(forKey: Key.isTerminalPrecisionEnabled),
+      isOptionPrecisionEnabled: defaults.bool(forKey: Key.isOptionPrecisionEnabled),
+      isTerminalDefaultPrecisionEnabled: defaults.bool(
+        forKey: Key.isTerminalDefaultPrecisionEnabled),
       isTrackpadStyleScrollingEnabled: defaults.bool(forKey: Key.isTrackpadStyleScrollingEnabled)
     )
   }
@@ -41,8 +42,10 @@ final class AppConfigurationStore {
     defaults.set(configuration.isEnabled, forKey: Key.isEnabled)
     defaults.set(configuration.intensity.rawValue, forKey: Key.intensity)
     defaults.set(configuration.isLookUpEnabled, forKey: Key.isLookUpEnabled)
-    defaults.set(configuration.isPrecisionScrollEnabled, forKey: Key.isPrecisionScrollEnabled)
-    defaults.set(configuration.isTerminalPrecisionEnabled, forKey: Key.isTerminalPrecisionEnabled)
+    defaults.set(configuration.isOptionPrecisionEnabled, forKey: Key.isOptionPrecisionEnabled)
+    defaults.set(
+      configuration.isTerminalDefaultPrecisionEnabled, forKey: Key.isTerminalDefaultPrecisionEnabled
+    )
     defaults.set(
       configuration.isTrackpadStyleScrollingEnabled,
       forKey: Key.isTrackpadStyleScrollingEnabled

@@ -6,11 +6,12 @@ Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each notc
 
 - Selectable line step per notch, identical across apps (slow = 2, medium = 3)
 - Rewrites discrete wheel events only; passes continuous, phased, diagonal, and zero-delta events through
-- Optional Option-hold precision scroll (1 line per notch), off by default
+- Optional Option precision outside terminals (hold Option for 1 line per notch), off by default
+- Default precision in terminal apps (1 line per notch; hold Option for your selected wheel step), on by default
 - Natural (trackpad-style) scroll direction toggle, off by default
 - Mouse button 4 mapped to macOS Look Up, on by default and toggleable
 - Launch at login via `SMAppService`
-- No smoothing, momentum, acceleration, gesture-phase output, or per-app rules
+- No smoothing, momentum, acceleration, gesture-phase output, or user-configurable app lists
 - All behavior toggles live in the `Settings` window
 
 ## Requirements
@@ -30,7 +31,7 @@ Open the menubar icon or `Settings` to check Accessibility status. When enabling
 Requires Xcode command line tools. Local builds codesign with a self-minted identity (auto-created on first run).
 
 ```sh
-bash scripts/local/run.sh
+scripts/local/run.sh
 ```
 
 The bundle lands in `build/Probo.app` and relaunches. Override the signing identity with `PROBO_CODESIGN_IDENTITY=-` for ad-hoc signing.
@@ -45,10 +46,10 @@ SwiftUI shell over a native Swift scroll rewrite core.
 | Core | `probo/Sources/Core` | Pure scroll rewrite hot path |
 | Events | `probo/Sources/Events` | Event tap and scroll event synthesis |
 | Configuration | `probo/Sources/Configuration` | App settings model and persistence |
-| System | `probo/Sources/System` | Accessibility and launch-at-login glue |
+| System | `probo/Sources/System` | Accessibility, frontmost-app, and launch-at-login glue |
 | UI | `probo/Sources/UI` | Menubar and settings views |
 
-The tap callback reads raw `CGEvent` fields, asks the Swift core for a rewrite decision, and synthesizes a replacement scroll event when asked.
+The tap callback reads raw `CGEvent` fields, uses a built-in terminal heuristic for precision behavior, asks the Swift core for a rewrite decision, and synthesizes a replacement scroll event when asked.
 
 The hot path stays allocation-free and keeps policy logic out of the SwiftUI layer.
 
@@ -58,6 +59,7 @@ No SwiftPM, no Xcode project. Shell scripts drive everything.
 
 | Script | Purpose |
 | --- | --- |
+| `swift-format format -i -r probo/Sources probo/Tests` | Format Swift sources and tests |
 | `scripts/test.sh` | Build and run BDD-style Swift tests for core behavior and system boundaries |
 | `scripts/build.sh` | Build Swift app and codesign bundle (shared with CI) |
 | `scripts/lsp.sh` | Generate `compile_commands.json` for SourceKit-LSP |

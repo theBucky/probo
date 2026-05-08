@@ -62,22 +62,22 @@ let scrollRewriteCoreTests: [TestCase] = [
 
   TestCase(
     behavior:
-      "given decide outside terminals then precision and Option stripping require the legacy toggle plus Option"
+      "given precision outside terminals then Option precision must be enabled and Option held"
   ) {
     try expectDecision(
-      decide(isOptionHeld: true, isPrecisionScrollEnabled: true),
+      decidePrecision(isOptionHeld: true, isOptionPrecisionEnabled: true),
       isPrecision: true,
       stripOption: true,
-      "Option held with the legacy toggle enables precision and strips Option"
+      "Option held with the setting enabled emits precision and strips Option"
     )
     try expectDecision(
-      decide(isOptionHeld: true, isPrecisionScrollEnabled: false),
+      decidePrecision(isOptionHeld: true, isOptionPrecisionEnabled: false),
       isPrecision: false,
       stripOption: false,
-      "Option held without the legacy toggle stays in intensity mode and forwards Option"
+      "Option held with the setting disabled stays in intensity mode and forwards Option"
     )
     try expectDecision(
-      decide(isOptionHeld: false, isPrecisionScrollEnabled: true),
+      decidePrecision(isOptionHeld: false, isOptionPrecisionEnabled: true),
       isPrecision: false,
       stripOption: false,
       "Option released keeps intensity mode and leaves flags untouched"
@@ -86,40 +86,40 @@ let scrollRewriteCoreTests: [TestCase] = [
 
   TestCase(
     behavior:
-      "given decide in terminals then precision is the default and Option escapes to intensity without leaking alt-scroll"
+      "given terminal precision then precision is the default and Option escapes to intensity"
   ) {
     try expectDecision(
-      decide(isOptionHeld: false, isTerminalFrontmost: true),
+      decidePrecision(isOptionHeld: false, isTerminalFrontmost: true),
       isPrecision: true,
       stripOption: false,
       "no Option in a terminal yields precision and needs no flag dance"
     )
     try expectDecision(
-      decide(isOptionHeld: true, isTerminalFrontmost: true),
+      decidePrecision(isOptionHeld: true, isTerminalFrontmost: true),
       isPrecision: false,
       stripOption: true,
       "Option held in a terminal escapes to the wheel step and strips Option from the synthesized event"
     )
     try expectDecision(
-      decide(
+      decidePrecision(
         isOptionHeld: false,
         isTerminalFrontmost: true,
-        isTerminalPrecisionEnabled: false
+        isTerminalDefaultPrecisionEnabled: false
       ),
       isPrecision: false,
       stripOption: false,
-      "terminal precision off falls back to legacy precision rules"
+      "terminal precision off falls back to normal app rules"
     )
     try expectDecision(
-      decide(
+      decidePrecision(
         isOptionHeld: true,
-        isPrecisionScrollEnabled: true,
+        isOptionPrecisionEnabled: true,
         isTerminalFrontmost: true,
-        isTerminalPrecisionEnabled: false
+        isTerminalDefaultPrecisionEnabled: false
       ),
       isPrecision: true,
       stripOption: true,
-      "terminal precision off still honors the legacy precision toggle"
+      "terminal precision off still honors the Option precision setting"
     )
   },
 
@@ -155,22 +155,22 @@ private func expectRewrite(
   try expectEqual(output.linesY, expected.linesY, "\(message): linesY")
 }
 
-private func decide(
+private func decidePrecision(
   isOptionHeld: Bool,
-  isPrecisionScrollEnabled: Bool = false,
+  isOptionPrecisionEnabled: Bool = false,
   isTerminalFrontmost: Bool = false,
-  isTerminalPrecisionEnabled: Bool = true
-) -> ScrollRewriteCore.ScrollDecision {
-  ScrollRewriteCore.decide(
+  isTerminalDefaultPrecisionEnabled: Bool = true
+) -> ScrollRewriteCore.PrecisionDecision {
+  ScrollRewriteCore.decidePrecision(
     isOptionHeld: isOptionHeld,
-    isPrecisionScrollEnabled: isPrecisionScrollEnabled,
+    isOptionPrecisionEnabled: isOptionPrecisionEnabled,
     isTerminalFrontmost: isTerminalFrontmost,
-    isTerminalPrecisionEnabled: isTerminalPrecisionEnabled
+    isTerminalDefaultPrecisionEnabled: isTerminalDefaultPrecisionEnabled
   )
 }
 
 private func expectDecision(
-  _ actual: ScrollRewriteCore.ScrollDecision,
+  _ actual: ScrollRewriteCore.PrecisionDecision,
   isPrecision: Bool,
   stripOption: Bool,
   _ message: String
