@@ -11,25 +11,18 @@ final class EventTapController: @unchecked Sendable {
     var isEnabled: Bool
   }
 
-  // Non-nil runtime with nil tap signals a thread mid-startup. id pins
-  // ownership so a stale thread cannot clobber a newer runtime.
-  private struct TapRuntime {
-    let id: UInt64
-    var tap: CFMachPort?
-    var runLoop: CFRunLoop?
-  }
-
   private struct State {
-    var tapRuntime: TapRuntime?
-    var nextTapId: UInt64 = 0
+    var tap: CFMachPort?
+    var installPending = false
     var isEnabled = false
     var status = Status(isInstalled: false, isEnabled: false)
     var configuration = AppConfiguration.defaultValue
   }
 
-  private enum Action {
-    case startThread(id: UInt64)
+  private enum InstallAction {
     case toggle(CFMachPort)
+    case install
+    case none
   }
 
   private let scrollRewriter: ScrollEventRewriter
@@ -48,56 +41,33 @@ final class EventTapController: @unchecked Sendable {
     state.withLock { $0.configuration = configuration }
   }
 
+  // Install once on first enable, then toggle forever via CGEvent.tapEnable.
+  // The tap thread outlives setEnabled(false); process exit reaps it.
+  // installPending coalesces back-to-back enables so the in-flight install thread
+  // picks up the latest isEnabled at completion instead of spawning a duplicate tap.
   @MainActor
   func setEnabled(_ enabled: Bool) {
-    // Reserve the slot so a concurrent setEnabled coalesces into the toggle path.
-    let action = state.withLock { state -> Action? in
+    let action = state.withLock { state -> InstallAction in
       state.isEnabled = enabled
-      if enabled, state.tapRuntime == nil {
-        state.nextTapId += 1
-        let id = state.nextTapId
-        state.tapRuntime = TapRuntime(id: id)
-        return .startThread(id: id)
-      }
-      if let tap = state.tapRuntime?.tap {
-        return .toggle(tap)
-      }
-      return nil
+      if let tap = state.tap { return .toggle(tap) }
+      if !enabled || state.installPending { return .none }
+      state.installPending = true
+      return .install
     }
-
     switch action {
-    case .startThread(let id):
-      let thread = Thread { self.runTapLoop(id: id) }
-      thread.name = "Probo Event Tap"
-      thread.start()
     case .toggle(let tap):
       CGEvent.tapEnable(tap: tap, enable: enabled)
-    case nil:
+    case .install:
+      let thread = Thread { self.runTapLoop() }
+      thread.name = "Probo Event Tap"
+      thread.start()
+    case .none:
       break
     }
     notifyStatus()
   }
 
-  @MainActor
-  func teardown() {
-    let runtime = state.withLock { state -> TapRuntime? in
-      state.isEnabled = false
-      let runtime = state.tapRuntime
-      state.tapRuntime = nil
-      return runtime
-    }
-
-    if let tap = runtime?.tap {
-      CFMachPortInvalidate(tap)
-    }
-    if let runLoop = runtime?.runLoop {
-      CFRunLoopStop(runLoop)
-    }
-    notifyStatus()
-  }
-
-  private func runTapLoop(id: UInt64) {
-    let runLoop = CFRunLoopGetCurrent()
+  private func runTapLoop() {
     let mask =
       CGEventMask(1 << CGEventType.scrollWheel.rawValue)
       | CGEventMask(1 << CGEventType.otherMouseDown.rawValue)
@@ -118,47 +88,36 @@ final class EventTapController: @unchecked Sendable {
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
-      // Drop the placeholder so a subsequent setEnabled retries the install.
-      clearOwnedRuntime(id: id)
+      state.withLock { $0.installPending = false }
       notifyStatusOnMain()
       return
     }
 
     let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-    CFRunLoopAddSource(runLoop, source, .commonModes)
-    defer {
-      CFRunLoopRemoveSource(runLoop, source, .commonModes)
-      // CFMachPortInvalidate is idempotent (guarded by the port's _state).
-      CFMachPortInvalidate(tap)
-      clearOwnedRuntime(id: id)
-      notifyStatusOnMain()
-    }
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
 
-    // teardown may have run between tapCreate and now; bail so defer cleans up.
-    let shouldEnable = state.withLock { state -> Bool? in
-      guard state.tapRuntime?.id == id else { return nil }
-      state.tapRuntime = TapRuntime(id: id, tap: tap, runLoop: runLoop)
+    let shouldEnable = state.withLock { state -> Bool in
+      state.tap = tap
+      state.installPending = false
       return state.isEnabled
     }
-    guard let shouldEnable else { return }
-
     CGEvent.tapEnable(tap: tap, enable: shouldEnable)
     notifyStatusOnMain()
 
     CFRunLoopRun()
-  }
 
-  private func clearOwnedRuntime(id: UInt64) {
-    state.withLock { state in
-      if state.tapRuntime?.id == id { state.tapRuntime = nil }
-    }
+    // CFRunLoopRun only returns if the tap source is invalidated externally
+    // (e.g. event service restart); drop the dead port so a future setEnabled
+    // retries the install instead of toggling a corpse.
+    state.withLock { $0.tap = nil }
+    notifyStatusOnMain()
   }
 
   private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
     let pass = Unmanaged.passUnretained(event)
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      let (isEnabled, tap) = state.withLock { ($0.isEnabled, $0.tapRuntime?.tap) }
+      let (isEnabled, tap) = state.withLock { ($0.isEnabled, $0.tap) }
       if let tap, isEnabled {
         CGEvent.tapEnable(tap: tap, enable: true)
       }
@@ -186,7 +145,7 @@ final class EventTapController: @unchecked Sendable {
   @MainActor
   private func notifyStatus() {
     let next = state.withLock { state -> Status? in
-      let isInstalled = state.tapRuntime?.tap != nil
+      let isInstalled = state.tap != nil
       let next = Status(
         isInstalled: isInstalled,
         isEnabled: state.isEnabled && isInstalled
