@@ -1,21 +1,16 @@
 @preconcurrency import ApplicationServices
 
 struct ScrollEventRewriter {
-  private let marker: Int64
   private let synth: ScrollEventSynthesizer
   private let isTerminalFrontmost: @Sendable () -> Bool
 
   init(marker: Int64, isTerminalFrontmost: @escaping @Sendable () -> Bool) {
-    self.marker = marker
     self.isTerminalFrontmost = isTerminalFrontmost
     synth = ScrollEventSynthesizer(marker: marker)
   }
 
+  // EventTapController filters self-synth re-entry before calling here.
   func rewrite(event: CGEvent, configuration: AppConfiguration) -> Bool {
-    // self-synthesized events re-enter the session tap; bail before any other field reads.
-    if event.getIntegerValueField(.eventSourceUserData) == marker {
-      return false
-    }
     guard isMouseWheelEvent(event) else {
       return false
     }
@@ -34,8 +29,7 @@ struct ScrollEventRewriter {
         truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2)),
       intensity: configuration.intensity,
       isContinuous: event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0,
-      hasPhase:
-        event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
+      hasPhase: event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
         || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0,
       isPrecision: decision.isPrecision,
       isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled

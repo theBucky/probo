@@ -1,6 +1,6 @@
 @preconcurrency import ApplicationServices
 import Foundation
-import Synchronization
+import os
 
 final class EventTapController: @unchecked Sendable {
   // ASCII "PROBO" — tags synthesized events so the tap can skip its own output.
@@ -26,7 +26,9 @@ final class EventTapController: @unchecked Sendable {
   }
 
   private let scrollRewriter: ScrollEventRewriter
-  private let state = Mutex(State())
+  // ~5x faster than Synchronization.Mutex on this hot path; uncheckedState
+  // because CFMachPort? blocks Sendable conformance.
+  private let state = OSAllocatedUnfairLock(uncheckedState: State())
   var onStatusChange: ((Status) -> Void)?
 
   init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
@@ -121,6 +123,14 @@ final class EventTapController: @unchecked Sendable {
       if let tap, isEnabled {
         CGEvent.tapEnable(tap: tap, enable: true)
       }
+      return pass
+    }
+
+    // Skip self-synth re-entry before the lock so option-strip sandwiches don't
+    // pay 3 lock acquisitions per click.
+    if type == .scrollWheel,
+      event.getIntegerValueField(.eventSourceUserData) == Self.synthMarker
+    {
       return pass
     }
 
