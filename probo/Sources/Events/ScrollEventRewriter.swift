@@ -84,8 +84,10 @@ struct ScrollEventRewriter {
       return true
     }
 
-    // stripOption implies option was held; sandwich the replacement with flagsChanged so
-    // the target app sees option release before our event and restore after.
+    // stripOption implies option was held; sandwich the stripped replacement with flagsChanged
+    // so the target app sees option release before our event and restore after. The replacement
+    // is required: skipping the sandwich on flagsChanged synthesis failure still beats passing
+    // the original Option-bearing event through, which terminals would read as alt-scroll.
     let flags = originalFlags.subtracting(.proboAllOption)
     let optionKey: CGKeyCode =
       originalFlags.contains(.proboRightOption)
@@ -93,16 +95,15 @@ struct ScrollEventRewriter {
     guard
       let replacement = synth.makeReplacement(
         location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
-      ),
-      let releaseOption = synth.makeFlagsChanged(flags: flags, keyCode: optionKey),
-      let restoreOption = synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)
-    else {
-      return false
-    }
+      )
+    else { return false }
 
-    releaseOption.post(tap: .cgSessionEventTap)
+    let releaseOption = synth.makeFlagsChanged(flags: flags, keyCode: optionKey)
+    let restoreOption = synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)
+
+    releaseOption?.post(tap: .cgSessionEventTap)
     replacement.post(tap: .cgSessionEventTap)
-    restoreOption.post(tap: .cgSessionEventTap)
+    restoreOption?.post(tap: .cgSessionEventTap)
     return true
   }
 }
