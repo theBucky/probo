@@ -4,6 +4,7 @@ struct AppConfiguration: Equatable, Sendable {
     intensity: .slow,
     isLookUpEnabled: true,
     isPrecisionScrollEnabled: false,
+    isTerminalPrecisionEnabled: true,
     isTrackpadStyleScrollingEnabled: false
   )
 
@@ -11,5 +12,6 @@ struct AppConfiguration: Equatable, Sendable {
   var intensity: ScrollIntensity
   var isLookUpEnabled: Bool
   var isPrecisionScrollEnabled: Bool
+  var isTerminalPrecisionEnabled: Bool
   var isTrackpadStyleScrollingEnabled: Bool
 }

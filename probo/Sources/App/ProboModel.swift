@@ -8,10 +8,17 @@ import os
 final class ProboModel {
   private let configurationStore = AppConfigurationStore()
   private let launchAtLogin = LaunchAtLogin()
-  private let eventTapController = EventTapController()
+  private let frontmostMonitor = FrontmostAppMonitor()
+  private let eventTapController: EventTapController
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
 
   private var accessibilityObservation: Task<Void, Never>?
+
+  init() {
+    eventTapController = EventTapController(
+      isTerminalFrontmost: { [frontmostMonitor] in frontmostMonitor.isTerminalFrontmost() }
+    )
+  }
 
   private(set) var configuration = AppConfiguration.defaultValue
   private(set) var tapStatus = EventTapController.Status(isInstalled: false, isEnabled: false)
@@ -27,6 +34,7 @@ final class ProboModel {
   func start() {
     configuration = configurationStore.load()
     startAtLoginEnabled = launchAtLogin.isEnabled
+    frontmostMonitor.start()
     eventTapController.apply(configuration: configuration)
     eventTapController.onStatusChange = { [weak self] status in
       self?.tapStatus = status
@@ -55,6 +63,10 @@ final class ProboModel {
 
   func setPrecisionScrollEnabled(_ isEnabled: Bool) {
     mutate { $0.isPrecisionScrollEnabled = isEnabled }
+  }
+
+  func setTerminalPrecisionEnabled(_ isEnabled: Bool) {
+    mutate { $0.isTerminalPrecisionEnabled = isEnabled }
   }
 
   func setTrackpadStyleScrollingEnabled(_ isEnabled: Bool) {
@@ -112,6 +124,7 @@ final class ProboModel {
 
   private func stop() {
     accessibilityObservation?.cancel()
+    frontmostMonitor.stop()
     eventTapController.teardown()
   }
 

@@ -61,6 +61,69 @@ let scrollRewriteCoreTests: [TestCase] = [
   },
 
   TestCase(
+    behavior:
+      "given decide outside terminals then precision and Option stripping require the legacy toggle plus Option"
+  ) {
+    try expectDecision(
+      decide(isOptionHeld: true, isPrecisionScrollEnabled: true),
+      isPrecision: true,
+      stripOption: true,
+      "Option held with the legacy toggle enables precision and strips Option"
+    )
+    try expectDecision(
+      decide(isOptionHeld: true, isPrecisionScrollEnabled: false),
+      isPrecision: false,
+      stripOption: false,
+      "Option held without the legacy toggle stays in intensity mode and forwards Option"
+    )
+    try expectDecision(
+      decide(isOptionHeld: false, isPrecisionScrollEnabled: true),
+      isPrecision: false,
+      stripOption: false,
+      "Option released keeps intensity mode and leaves flags untouched"
+    )
+  },
+
+  TestCase(
+    behavior:
+      "given decide in terminals then precision is the default and Option escapes to intensity without leaking alt-scroll"
+  ) {
+    try expectDecision(
+      decide(isOptionHeld: false, isTerminalFrontmost: true),
+      isPrecision: true,
+      stripOption: false,
+      "no Option in a terminal yields precision and needs no flag dance"
+    )
+    try expectDecision(
+      decide(isOptionHeld: true, isTerminalFrontmost: true),
+      isPrecision: false,
+      stripOption: true,
+      "Option held in a terminal escapes to the wheel step and strips Option from the synthesized event"
+    )
+    try expectDecision(
+      decide(
+        isOptionHeld: false,
+        isTerminalFrontmost: true,
+        isTerminalPrecisionEnabled: false
+      ),
+      isPrecision: false,
+      stripOption: false,
+      "terminal precision off falls back to legacy precision rules"
+    )
+    try expectDecision(
+      decide(
+        isOptionHeld: true,
+        isPrecisionScrollEnabled: true,
+        isTerminalFrontmost: true,
+        isTerminalPrecisionEnabled: false
+      ),
+      isPrecision: true,
+      stripOption: true,
+      "terminal precision off still honors the legacy precision toggle"
+    )
+  },
+
+  TestCase(
     behavior: "given non-discrete or ambiguous scrolling when rewriting then it drops the event"
   ) {
     try expectNil(
@@ -90,6 +153,30 @@ private func expectRewrite(
   let output = try expectNotNil(ScrollRewriteCore.rewrite(input), message)
   try expectEqual(output.linesX, expected.linesX, "\(message): linesX")
   try expectEqual(output.linesY, expected.linesY, "\(message): linesY")
+}
+
+private func decide(
+  isOptionHeld: Bool,
+  isPrecisionScrollEnabled: Bool = false,
+  isTerminalFrontmost: Bool = false,
+  isTerminalPrecisionEnabled: Bool = true
+) -> ScrollRewriteCore.ScrollDecision {
+  ScrollRewriteCore.decide(
+    isOptionHeld: isOptionHeld,
+    isPrecisionScrollEnabled: isPrecisionScrollEnabled,
+    isTerminalFrontmost: isTerminalFrontmost,
+    isTerminalPrecisionEnabled: isTerminalPrecisionEnabled
+  )
+}
+
+private func expectDecision(
+  _ actual: ScrollRewriteCore.ScrollDecision,
+  isPrecision: Bool,
+  stripOption: Bool,
+  _ message: String
+) throws {
+  try expectEqual(actual.isPrecision, isPrecision, "\(message): isPrecision")
+  try expectEqual(actual.stripOption, stripOption, "\(message): stripOption")
 }
 
 private func scrollInput(

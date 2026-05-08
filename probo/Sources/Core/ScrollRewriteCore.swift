@@ -18,6 +18,26 @@ enum ScrollRewriteCore {
   private static let slowStepLines: Int32 = 2
   private static let mediumStepLines: Int32 = 3
 
+  struct ScrollDecision: Equatable, Sendable {
+    var isPrecision: Bool
+    var stripOption: Bool
+  }
+
+  // Terminal mode inverts Option: precision by default, Option escapes to intensity.
+  // Stripping keeps the target app from seeing alt-scroll layered on top of our override.
+  static func decide(
+    isOptionHeld: Bool,
+    isPrecisionScrollEnabled: Bool,
+    isTerminalFrontmost: Bool,
+    isTerminalPrecisionEnabled: Bool
+  ) -> ScrollDecision {
+    let terminalMode = isTerminalFrontmost && isTerminalPrecisionEnabled
+    let isPrecision =
+      terminalMode ? !isOptionHeld : (isPrecisionScrollEnabled && isOptionHeld)
+    let stripOption = isOptionHeld && (terminalMode || isPrecisionScrollEnabled)
+    return ScrollDecision(isPrecision: isPrecision, stripOption: stripOption)
+  }
+
   static func rewrite(_ input: ScrollRewriteInput) -> ScrollRewriteOutput? {
     if input.isContinuous || input.hasPhase {
       return nil
