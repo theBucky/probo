@@ -34,7 +34,7 @@ On first launch, open the menubar icon or Settings to check Accessibility status
 You'll need Xcode command line tools. Local builds codesign with a self-minted identity that's created automatically on first run.
 
 ```sh
-scripts/local/run.sh
+scripts/dev/run.sh
 ```
 
 The script writes the bundle to `build/Probo.app` and relaunches it. To skip codesigning, set `PROBO_CODESIGN_IDENTITY=-` for an ad-hoc signature.
@@ -53,6 +53,7 @@ The source tree splits cleanly by concern:
 | Configuration | `probo/Sources/Configuration` | Settings model and persistence |
 | System | `probo/Sources/System` | Accessibility, frontmost-app, and launch-at-login glue |
 | UI | `probo/Sources/UI` | Menubar and settings views |
+| Tools | `probo/Tools` | Developer-only Swift probes and diagnostics |
 
 ## Develop
 
@@ -63,12 +64,13 @@ There's no SwiftPM manifest and no Xcode project. Shell scripts drive everything
 | `swift-format format -i -r probo/Sources probo/Tests` | Format Swift sources and tests |
 | `scripts/test.sh` | Build and run the BDD-style Swift tests |
 | `scripts/build.sh` | Build the app and codesign the bundle (shared with CI) |
-| `scripts/lsp.sh` | Generate `compile_commands.json` for SourceKit-LSP |
-| `scripts/local/run.sh` | Build, then relaunch `Probo.app` |
-| `scripts/local/setup-codesign.sh` | Mint the local signing identity |
+| `scripts/dev/lsp.sh` | Generate `compile_commands.json` for SourceKit-LSP |
+| `scripts/dev/run.sh` | Build, then relaunch `Probo.app` |
+| `scripts/dev/setup-codesign.sh` | Mint the local signing identity |
+| `scripts/profiling/hot-path.sh` | Build and run hot-path micro profiles or xctrace recordings |
 | `scripts/ci/mint-identity.sh` | Emit p12 and passphrase for CI release-signing secrets |
 
-Re-run `scripts/lsp.sh` whenever the source layout or compiler flags change so IDE diagnostics use the same SDK, target, frameworks, and source sets as the shell build.
+Re-run `scripts/dev/lsp.sh` whenever the source layout or compiler flags change so IDE diagnostics use the same SDK, target, frameworks, and source sets as the shell build.
 
 ## Release
 

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-root_dir="$(cd "$(dirname "$0")/.." && pwd)"
+root_dir="$(cd "$(dirname "$0")/../.." && pwd)"
 swift_dir="$root_dir/probo"
 sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
 swift_target="$(uname -m)-apple-macos26.0"

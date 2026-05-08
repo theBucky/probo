@@ -19,7 +19,7 @@ while IFS= read -r source; do
 done < <(find "$swift_dir/Sources" -type f -name '*.swift' | sort)
 
 if [[ "$signing_identity" != "-" ]] && ! security find-identity -p codesigning | grep -qF "\"$signing_identity\""; then
-  PROBO_CODESIGN_DEFAULT_IDENTITY="$signing_identity" "$root_dir/scripts/local/setup-codesign.sh" >/dev/null
+  PROBO_CODESIGN_DEFAULT_IDENTITY="$signing_identity" "$root_dir/scripts/dev/setup-codesign.sh" >/dev/null
 fi
 
 rm -rf "$app_dir"
