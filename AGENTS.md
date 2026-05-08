@@ -1,11 +1,11 @@
 # Probo
 
-Menubar macOS app remapping mouse-wheel ticks to fixed line steps. Swift/SwiftUI shell with a native Swift rewrite core.
+Menubar macOS app remapping mouse-wheel ticks to fixed line steps. AppKit status-item shell hosting a SwiftUI settings form, with a native Swift rewrite core.
 
 ## Stack
 
 - Latest Swift; no legacy API or syntax
-- SwiftUI for UI; AppKit only as non-UI system glue with no SwiftUI equivalent
+- AppKit `NSStatusItem` + `NSMenu` for the status surface; `NSWindow` hosts the SwiftUI settings `Form` via `NSHostingController`
 - `swiftc` flags in [build.sh](scripts/build.sh) are the only Swift gate; target `macos26.0`, `-swift-version 6 -O`
 
 ## Layout
@@ -15,7 +15,7 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps. Swift/SwiftUI
 - [Events](probo/Sources/Events): event tap and synth
 - [Configuration](probo/Sources/Configuration): config model and persistence
 - [System](probo/Sources/System): permission and launch-at-login glue
-- [UI](probo/Sources/UI): status menu
+- [UI](probo/Sources/UI): status menu (AppKit) and settings form (SwiftUI)
 
 ## Validation
 

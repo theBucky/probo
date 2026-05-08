@@ -7,12 +7,9 @@ import os
 @Observable
 final class ProboModel {
   private let configurationStore = AppConfigurationStore()
-  private let launchAtLogin = LaunchAtLogin()
   private let frontmostMonitor = FrontmostAppMonitor()
   private let eventTapController: EventTapController
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
-
-  private var accessibilityObservation: Task<Void, Never>?
 
   init() {
     eventTapController = EventTapController(
@@ -33,24 +30,26 @@ final class ProboModel {
 
   func start() {
     configuration = configurationStore.load()
-    startAtLoginEnabled = launchAtLogin.isEnabled
+    startAtLoginEnabled = LaunchAtLogin.isEnabled
     frontmostMonitor.start()
     eventTapController.apply(configuration: configuration)
     eventTapController.onStatusChange = { [weak self] status in
       self?.tapStatus = status
     }
-
-    accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: configuration.isEnabled)
-    refreshRuntime()
+    accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
+    eventTapController.setEnabled(configuration.isEnabled && accessibilityTrusted)
+    if configuration.isEnabled && !accessibilityTrusted {
+      requestAccessibilityAccess()
+    }
     observeAccessibility()
   }
 
   func setEnabled(_ isEnabled: Bool) {
     mutate { $0.isEnabled = isEnabled }
-    if isEnabled {
-      accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
+    eventTapController.setEnabled(isEnabled && accessibilityTrusted)
+    if isEnabled && !accessibilityTrusted {
+      requestAccessibilityAccess()
     }
-    refreshRuntime()
   }
 
   func setIntensity(_ intensity: ScrollIntensity) {
@@ -74,28 +73,31 @@ final class ProboModel {
   }
 
   func setStartAtLoginEnabled(_ isEnabled: Bool) {
-    do {
-      try launchAtLogin.setEnabled(isEnabled)
-      startAtLoginEnabled = launchAtLogin.isEnabled
-    } catch {
-      startAtLoginEnabled = launchAtLogin.isEnabled
-      logger.error("failed to update launch at login: \(error.localizedDescription)")
+    Task.detached { [weak self, logger] in
+      let resolved: Bool
+      do {
+        try LaunchAtLogin.setEnabled(isEnabled)
+        resolved = isEnabled
+      } catch {
+        logger.error("failed to update launch at login: \(error.localizedDescription)")
+        resolved = LaunchAtLogin.isEnabled
+      }
+      await self?.applyLaunchAtLogin(resolved)
     }
   }
 
   func refreshLaunchAtLogin() {
-    let enabled = launchAtLogin.isEnabled
-    guard startAtLoginEnabled != enabled else { return }
-    startAtLoginEnabled = enabled
+    startAtLoginEnabled = LaunchAtLogin.isEnabled
   }
 
   func requestAccessibilityAccess() {
-    accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
-    refreshRuntime()
+    Task.detached { [weak self] in
+      let trusted = AccessibilityPermission.isTrusted(prompt: true)
+      await self?.applyAccessibilityTrust(trusted)
+    }
   }
 
   func quit() {
-    stop()
     exit(EXIT_SUCCESS)
   }
 
@@ -107,31 +109,25 @@ final class ProboModel {
     eventTapController.apply(configuration: configuration)
   }
 
-  private func refreshRuntime() {
-    eventTapController.setEnabled(configuration.isEnabled && accessibilityTrusted)
+  private func applyLaunchAtLogin(_ enabled: Bool) {
+    startAtLoginEnabled = enabled
+  }
+
+  private func applyAccessibilityTrust(_ trusted: Bool) {
+    guard accessibilityTrusted != trusted else { return }
+    accessibilityTrusted = trusted
+    eventTapController.setEnabled(configuration.isEnabled && trusted)
   }
 
   private func observeAccessibility() {
     let stream = DistributedNotificationCenter.default()
       .notifications(named: AccessibilityPermission.trustChangedNotification)
-    accessibilityObservation = Task { [weak self] in
+    Task { [weak self] in
       for await _ in stream {
         guard let self else { return }
-        refreshAccessibility()
+        let trusted = AccessibilityPermission.isTrusted(prompt: false)
+        applyAccessibilityTrust(trusted)
       }
     }
-  }
-
-  private func stop() {
-    accessibilityObservation?.cancel()
-    frontmostMonitor.stop()
-    eventTapController.teardown()
-  }
-
-  private func refreshAccessibility() {
-    let trusted = AccessibilityPermission.isTrusted(prompt: false)
-    guard accessibilityTrusted != trusted else { return }
-    accessibilityTrusted = trusted
-    refreshRuntime()
   }
 }
