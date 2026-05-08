@@ -1,5 +1,4 @@
 import AppKit
-import Observation
 import SwiftUI
 
 @MainActor
@@ -14,33 +13,49 @@ final class ProboApp: NSObject, NSApplicationDelegate {
   }
 
   private let model = ProboModel()
+  private let runtime = ProboRuntime()
   private var statusItem: NSStatusItem!
   private var statusMenu: ProboStatusMenu!
   private var settingsWindow: NSWindow?
+  private var lastSymbolName: String?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    model.start()
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    statusMenu = ProboStatusMenu(model: model) { [weak self] in self?.openSettings() }
+    statusMenu = ProboStatusMenu(model: model, runtime: runtime) { [weak self] in
+      self?.openSettings()
+    }
     statusItem.menu = statusMenu.menu
-    refreshIcon()
+    runtime.onConfigurationChange = { [weak self, model] configuration in
+      model.configuration = configuration
+      self?.setStatusIcon(model.statusSymbolName)
+    }
+    runtime.onAccessibilityTrustChange = { [weak self, model] trusted in
+      model.accessibilityTrusted = trusted
+      self?.setStatusIcon(model.statusSymbolName)
+    }
+    runtime.onTapStatusChange = { [weak self, model] status in
+      model.tapStatus = status
+      self?.setStatusIcon(model.statusSymbolName)
+    }
+    runtime.onStartAtLoginChange = { [model] enabled in
+      model.startAtLoginEnabled = enabled
+    }
+    runtime.start()
   }
 
-  // withObservationTracking is one-shot; re-enter on every change to keep tracking live.
-  private func refreshIcon() {
-    let symbolName = withObservationTracking {
-      model.statusSymbolName
-    } onChange: { [weak self] in
-      Task { @MainActor in self?.refreshIcon() }
-    }
+  private func setStatusIcon(_ symbolName: String) {
+    guard lastSymbolName != symbolName else { return }
+    lastSymbolName = symbolName
     let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Probo")
     image?.isTemplate = true
     statusItem.button?.image = image
   }
 
   private func openSettings() {
+    runtime.refreshExternalState()
     if settingsWindow == nil {
-      let controller = NSHostingController(rootView: ProboSettingsView(model: model))
+      let controller = NSHostingController(
+        rootView: ProboSettingsView(model: model, runtime: runtime))
       // SwiftUI Form has no intrinsic size until it lays out; preferredContentSize
       // pipes the layout result into the window so it doesn't open at 0x0.
       controller.sizingOptions = .preferredContentSize
