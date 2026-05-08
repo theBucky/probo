@@ -17,13 +17,13 @@ Menubar macOS app that remaps mouse wheel notches to fixed line steps. Each notc
 
 - macOS 26 or newer
 - Apple silicon (arm64)
-- Accessibility permission (prompted on first launch)
+- Accessibility permission
 
 ## Install
 
 Download the latest signed build from [Releases](https://github.com/theBucky/probo/releases/latest), unzip, drag `Probo.app` into `/Applications`, and launch.
 
-First launch prompts for Accessibility (`System Settings > Privacy & Security > Accessibility`). Grant access, then open the menubar icon to toggle `Enabled` or open `Settings` to tune scrolling and input behavior.
+Open the menubar icon or `Settings` to check Accessibility status. When enabling Probo or requesting access, macOS opens `System Settings > Privacy & Security > Accessibility`; grant access there, then Probo enables the tap when macOS reports the grant.
 
 ### Build from source
 
