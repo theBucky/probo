@@ -6,9 +6,10 @@ import os
 final class AutomaticSleepPreventionController: Sendable {
   typealias AssertionID = UInt32
 
+  private static let logger = Logger(subsystem: "com.probo.app", category: "Power")
+
   private let createAssertion: @Sendable () -> AssertionID?
   private let releaseAssertion: @Sendable (AssertionID) -> Void
-  private let logger = Logger(subsystem: "com.probo.app", category: "Power")
   private let assertionID = Mutex<AssertionID?>(nil)
 
   init(
@@ -30,7 +31,7 @@ final class AutomaticSleepPreventionController: Sendable {
       if enabled {
         guard storedAssertionID == nil else { return }
         guard let createdAssertionID = createAssertion() else {
-          logger.error("failed to prevent automatic sleep")
+          Self.logger.error("failed to prevent automatic sleep")
           return
         }
         storedAssertionID = createdAssertionID
@@ -61,6 +62,12 @@ final class AutomaticSleepPreventionController: Sendable {
   }
 
   private static func releaseSystemAssertion(_ assertionID: AssertionID) {
-    IOPMAssertionRelease(IOPMAssertionID(assertionID))
+    let result = IOPMAssertionRelease(IOPMAssertionID(assertionID))
+    guard result == kIOReturnSuccess else {
+      logger.error(
+        "failed to release automatic sleep assertion \(assertionID, privacy: .public): \(result, privacy: .public)"
+      )
+      return
+    }
   }
 }
