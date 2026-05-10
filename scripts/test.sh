@@ -18,6 +18,8 @@ for source_root in Core Configuration; do
   done < <(find "$swift_dir/Sources/$source_root" -type f -name '*.swift' | sort)
 done
 
+swift_sources+=("$swift_dir/Sources/System/AutomaticSleepPreventionController.swift")
+
 while IFS= read -r source; do
   test_sources+=("$source")
 done < <(find "$swift_dir/Tests" -type f -name '*.swift' | sort)
@@ -30,6 +32,7 @@ xcrun swiftc \
   -swift-version 6 \
   -O \
   -framework ApplicationServices \
+  -framework IOKit \
   "${swift_sources[@]}" \
   "${test_sources[@]}" \
   -o "$build_dir/ProboTests"

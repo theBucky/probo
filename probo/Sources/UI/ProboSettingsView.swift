@@ -46,6 +46,16 @@ struct ProboSettingsView: View {
         }
       }
 
+      Section("Power") {
+        Toggle(isOn: bind(\.preventsAutomaticSleep)) {
+          Text("Prevent Automatic Sleep")
+          Text(
+            "Keep your Mac awake while Probo is enabled. Display sleep, lid close, and manual sleep are still allowed."
+          )
+          .foregroundStyle(.secondary)
+        }
+      }
+
       Section("Accessibility") {
         LabeledContent("Permission") {
           Label(
