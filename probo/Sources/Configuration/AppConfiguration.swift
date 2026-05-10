@@ -5,7 +5,8 @@ struct AppConfiguration: Equatable, Sendable {
     isLookUpEnabled: true,
     isOptionPrecisionEnabled: false,
     isTerminalDefaultPrecisionEnabled: true,
-    isTrackpadStyleScrollingEnabled: false
+    isTrackpadStyleScrollingEnabled: false,
+    preventsAutomaticSleep: false
   )
 
   var isEnabled: Bool
@@ -14,4 +15,5 @@ struct AppConfiguration: Equatable, Sendable {
   var isOptionPrecisionEnabled: Bool
   var isTerminalDefaultPrecisionEnabled: Bool
   var isTrackpadStyleScrollingEnabled: Bool
+  var preventsAutomaticSleep: Bool
 }

@@ -95,6 +95,8 @@ for source_root in Core Configuration; do
   done < <(find "$swift_dir/Sources/$source_root" -type f -name "*.swift" | sort)
 done
 
+test_sources+=("$swift_dir/Sources/System/AutomaticSleepPreventionController.swift")
+
 while IFS= read -r source; do
   test_sources+=("$source")
   test_primary_sources+=("$source")
@@ -105,13 +107,13 @@ entries_written=0
   printf "[\n"
 
   current_sources=("${app_sources[@]}")
-  current_frameworks=(ApplicationServices ServiceManagement SwiftUI)
+  current_frameworks=(ApplicationServices IOKit ServiceManagement SwiftUI)
   for source in "${app_sources[@]}"; do
     write_entry "$source" "Probo"
   done
 
   current_sources=("${test_sources[@]}")
-  current_frameworks=(ApplicationServices)
+  current_frameworks=(ApplicationServices IOKit)
   for source in "${test_primary_sources[@]}"; do
     write_entry "$source" "ProboTests"
   done

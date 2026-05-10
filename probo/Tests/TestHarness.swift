@@ -44,7 +44,9 @@ func expectNotNil<T>(_ actual: T?, _ message: String) throws -> T {
 @main
 enum ProboTests {
   static func main() {
-    let tests = scrollRewriteCoreTests + scrollEventSynthesizerTests + appConfigurationStoreTests
+    let tests =
+      scrollRewriteCoreTests + scrollEventSynthesizerTests + appConfigurationStoreTests
+      + automaticSleepPreventionControllerTests
     var failures = 0
 
     for test in tests {

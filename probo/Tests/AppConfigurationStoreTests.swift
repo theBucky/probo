@@ -16,6 +16,21 @@ let appConfigurationStoreTests: [TestCase] = [
   },
 
   TestCase(
+    behavior:
+      "given no saved configuration when loading then automatic sleep prevention is disabled"
+  ) {
+    try withIsolatedDefaults { defaults in
+      let store = AppConfigurationStore(defaults: defaults)
+
+      try expectEqual(
+        store.load().preventsAutomaticSleep,
+        false,
+        "automatic sleep prevention should be opt-in"
+      )
+    }
+  },
+
+  TestCase(
     behavior: "given a saved configuration when loading then it returns the saved configuration"
   ) {
     try withIsolatedDefaults { defaults in
@@ -26,7 +41,8 @@ let appConfigurationStoreTests: [TestCase] = [
         isLookUpEnabled: false,
         isOptionPrecisionEnabled: true,
         isTerminalDefaultPrecisionEnabled: false,
-        isTrackpadStyleScrollingEnabled: true
+        isTrackpadStyleScrollingEnabled: true,
+        preventsAutomaticSleep: true
       )
 
       store.save(configuration)

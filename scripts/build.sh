@@ -32,6 +32,7 @@ xcrun swiftc \
   -O \
   -framework AppKit \
   -framework ApplicationServices \
+  -framework IOKit \
   -framework ServiceManagement \
   -framework SwiftUI \
   "${swift_sources[@]}" \

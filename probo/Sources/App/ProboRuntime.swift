@@ -5,6 +5,7 @@ import os
 final class ProboRuntime {
   private let frontmostMonitor = FrontmostAppMonitor()
   private let eventTapController: EventTapController
+  private let automaticSleepPreventionController = AutomaticSleepPreventionController()
   private let configurationStore = AppConfigurationStore()
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
   private var configuration: AppConfiguration
@@ -27,8 +28,7 @@ final class ProboRuntime {
     eventTapController.onStatusChange = { [weak self] status in
       self?.onTapStatusChange?(status)
     }
-    onConfigurationChange?(configuration)
-    eventTapController.apply(configuration: configuration)
+    applyConfiguration()
 
     guard configuration.isEnabled else { return }
     applyAccessibilityTrust(AccessibilityPermission.isTrusted(prompt: false))
@@ -90,8 +90,7 @@ final class ProboRuntime {
     let loaded = configurationStore.load()
     guard loaded != configuration else { return }
     configuration = loaded
-    onConfigurationChange?(configuration)
-    eventTapController.apply(configuration: configuration)
+    applyConfiguration()
   }
 
   func updateConfiguration(_ change: (inout AppConfiguration) -> Void) {
@@ -101,7 +100,14 @@ final class ProboRuntime {
 
     configuration = next
     configurationStore.save(configuration)
+    applyConfiguration()
+  }
+
+  private func applyConfiguration() {
     onConfigurationChange?(configuration)
     eventTapController.apply(configuration: configuration)
+    automaticSleepPreventionController.setEnabled(
+      configuration.isEnabled && configuration.preventsAutomaticSleep
+    )
   }
 }

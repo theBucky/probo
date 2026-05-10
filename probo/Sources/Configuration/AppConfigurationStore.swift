@@ -8,6 +8,7 @@ final class AppConfigurationStore {
     static let isOptionPrecisionEnabled = "isOptionPrecisionEnabled"
     static let isTerminalDefaultPrecisionEnabled = "isTerminalDefaultPrecisionEnabled"
     static let isTrackpadStyleScrollingEnabled = "isTrackpadStyleScrollingEnabled"
+    static let preventsAutomaticSleep = "preventsAutomaticSleep"
   }
 
   private let defaults: UserDefaults
@@ -22,6 +23,7 @@ final class AppConfigurationStore {
       Key.isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
       Key.isTerminalDefaultPrecisionEnabled: configuration.isTerminalDefaultPrecisionEnabled,
       Key.isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled,
+      Key.preventsAutomaticSleep: configuration.preventsAutomaticSleep,
     ])
   }
 
@@ -34,7 +36,8 @@ final class AppConfigurationStore {
       isOptionPrecisionEnabled: defaults.bool(forKey: Key.isOptionPrecisionEnabled),
       isTerminalDefaultPrecisionEnabled: defaults.bool(
         forKey: Key.isTerminalDefaultPrecisionEnabled),
-      isTrackpadStyleScrollingEnabled: defaults.bool(forKey: Key.isTrackpadStyleScrollingEnabled)
+      isTrackpadStyleScrollingEnabled: defaults.bool(forKey: Key.isTrackpadStyleScrollingEnabled),
+      preventsAutomaticSleep: defaults.bool(forKey: Key.preventsAutomaticSleep)
     )
   }
 
@@ -50,5 +53,6 @@ final class AppConfigurationStore {
       configuration.isTrackpadStyleScrollingEnabled,
       forKey: Key.isTrackpadStyleScrollingEnabled
     )
+    defaults.set(configuration.preventsAutomaticSleep, forKey: Key.preventsAutomaticSleep)
   }
 }
