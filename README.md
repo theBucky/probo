@@ -1,82 +1,80 @@
 # Probo
 
-Probo is a tiny macOS menubar app that turns every mouse wheel notch into a fixed number of lines. One notch, one deterministic tick, every app, every time. Trackpads, momentum scrolling, and gesture phases pass through untouched.
-
-If you've ever fought a mouse that scrolls inconsistently across apps, or jumps half a page in one app and a single line in another, Probo evens it out.
+Probo is a macOS menu bar utility that converts each mouse-wheel notch into a fixed number of scroll lines. It addresses mice that produce inconsistent scroll distances across applications. Trackpad input, momentum, and gesture phases are not modified.
 
 ## Features
 
-- Pick a line step per notch that's identical across every app, like 2 for slow or 3 for medium
-- Rewrites discrete wheel events only, and passes continuous, phased, diagonal, and zero-delta events straight through
-- Optional Option-key precision outside terminals, where holding Option drops to 1 line per notch
-- Terminal-aware default that uses 1 line per notch in terminal apps and switches to your wheel step when you hold Option
-- Natural (trackpad-style) scroll direction toggle
-- Mouse button 4 mapped to macOS Look Up, on by default
-- Launches at login through `SMAppService`
-- No smoothing, momentum, acceleration, gesture-phase output, or user-configurable app lists
+- Fixed line step per notch, selectable as Slow (2 lines) or Medium (3 lines)
+- Pass-through for continuous, phased, diagonal, and zero-delta scroll events
+- Optional Option-key precision that drops to one line per notch
+- Terminal-aware default that emits one line per notch in terminal apps and applies the configured step when Option is held
+- Natural scroll-direction toggle
+- Mouse button 4 mapped to the macOS Look Up gesture
+- Optional automatic-sleep prevention while Probo is enabled, with display sleep, lid close, and manual sleep still permitted
+- Launch at login through `SMAppService`
 
-Every toggle lives in the Settings window. Open it from the menubar icon.
+All options are exposed in the Settings window, which opens from the menu bar icon.
 
 ## Requirements
 
-- macOS 26 or newer
+- macOS 26 or later
 - Apple silicon (arm64)
 - Accessibility permission
 
-## Install
+## Installation
 
-Grab the latest signed build from [Releases](https://github.com/theBucky/probo/releases/latest), unzip it, drag `Probo.app` into `/Applications`, and launch.
+Download the latest signed build from [Releases](https://github.com/theBucky/probo/releases/latest), expand the archive, and move `Probo.app` into `/Applications`.
 
-On first launch, open the menubar icon or Settings to check Accessibility status. When you enable Probo or request access, macOS opens `System Settings > Privacy & Security > Accessibility`. Grant access there, and Probo turns on the event tap as soon as macOS reports the grant.
+On first launch, open the menu bar icon to review Accessibility status. Enabling Probo or selecting Request Access opens `System Settings > Privacy & Security > Accessibility`. Probo installs the event tap as soon as macOS reports the grant.
 
 ### Build from source
 
-You'll need Xcode command line tools. Local builds codesign with a self-minted identity that's created automatically on first run.
+The build requires Xcode command-line tools. Local builds codesign with a self-minted identity that is created on first run.
 
 ```sh
 scripts/dev/run.sh
 ```
 
-The script writes the bundle to `build/Probo.app` and relaunches it. To skip codesigning, set `PROBO_CODESIGN_IDENTITY=-` for an ad-hoc signature.
+The script writes the bundle to `build/Probo.app` and relaunches it. Set `PROBO_CODESIGN_IDENTITY=-` to apply an ad-hoc signature instead.
 
 ## Architecture
 
-Probo is a SwiftUI shell wrapped around a native Swift scroll-rewrite core. The tap callback reads raw `CGEvent` fields, applies a built-in terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when the core says so. The hot path stays allocation-free, and policy logic stays out of the SwiftUI layer.
+Probo is an AppKit `NSStatusItem` shell that hosts a SwiftUI settings form and wraps a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the built-in terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when one is required. The hot path remains allocation-free.
 
-The source tree splits cleanly by concern:
+The source tree is partitioned by concern.
 
 | Layer | Path | Role |
 | --- | --- | --- |
 | App | `probo/Sources/App` | Lifecycle and controller wiring |
 | Core | `probo/Sources/Core` | Pure scroll-rewrite hot path |
-| Events | `probo/Sources/Events` | Event tap and scroll-event synthesis |
+| Events | `probo/Sources/Events` | Event tap and scroll synthesis |
 | Configuration | `probo/Sources/Configuration` | Settings model and persistence |
-| System | `probo/Sources/System` | Accessibility, frontmost-app, and launch-at-login glue |
-| UI | `probo/Sources/UI` | Menubar and settings views |
-| Tools | `probo/Tools` | Developer-only Swift probes and diagnostics |
+| System | `probo/Sources/System` | Accessibility, frontmost-app, sleep, and login glue |
+| UI | `probo/Sources/UI` | Menu bar (AppKit) and Settings (SwiftUI) |
+| Tools | `probo/Tools` | Developer probes and diagnostics |
 
-## Develop
+## Development
 
-There's no SwiftPM manifest and no Xcode project. Shell scripts drive everything.
+The project ships without a SwiftPM manifest or Xcode project. Shell scripts drive every workflow.
 
 | Script | Purpose |
 | --- | --- |
 | `swift-format format -i -r probo/Sources probo/Tests` | Format Swift sources and tests |
 | `scripts/test.sh` | Build and run the BDD-style Swift tests |
-| `scripts/build.sh` | Build the app and codesign the bundle (shared with CI) |
+| `scripts/build.sh` | Build and codesign the app bundle (shared with CI) |
 | `scripts/dev/lsp.sh` | Generate `compile_commands.json` for SourceKit-LSP |
-| `scripts/dev/run.sh` | Build, then relaunch `Probo.app` |
-| `scripts/dev/setup-codesign.sh` | Mint the local signing identity |
-| `scripts/profiling/hot-path.sh` | Build and run hot-path micro profiles or xctrace recordings |
-| `scripts/ci/mint-identity.sh` | Emit p12 and passphrase for CI release-signing secrets |
+| `scripts/dev/run.sh` | Build and relaunch `Probo.app` |
+| `scripts/dev/setup-codesign.sh` | Create the local signing identity |
+| `scripts/profiling/hot-path.sh` | Run hot-path micro profiles or xctrace recordings |
+| `scripts/ci/mint-identity.sh` | Emit a p12 and passphrase for CI signing secrets |
 
-Re-run `scripts/dev/lsp.sh` whenever the source layout or compiler flags change so IDE diagnostics use the same SDK, target, frameworks, and source sets as the shell build.
+Re-run `scripts/dev/lsp.sh` whenever the source layout or compiler flags change so the IDE uses the same SDK, target, frameworks, and source set as the shell build.
 
 ## Release
 
-CI runs on every push and PR. After CI passes on `main`, CD publishes a rolling `latest` GitHub release with a signed arm64 zip.
+CI runs on every push and pull request. After CI passes on `main`, CD publishes a rolling `latest` GitHub release with a signed arm64 archive.
 
-Release signing reads the `PROBO_RELEASE_P12_BASE64` and `PROBO_RELEASE_P12_PASSWORD` secrets. If either is missing, the build falls back to ad-hoc signing and emits a warning.
+Release signing reads the `PROBO_RELEASE_P12_BASE64` and `PROBO_RELEASE_P12_PASSWORD` secrets. If either is missing, the build falls back to an ad-hoc signature and emits a warning.
 
 ## License
 
