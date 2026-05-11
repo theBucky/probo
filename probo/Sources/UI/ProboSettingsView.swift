@@ -1,13 +1,12 @@
 import SwiftUI
 
 struct ProboSettingsView: View {
-  let model: ProboModel
-  let runtime: ProboRuntime
+  @Bindable var runtime: ProboRuntime
 
   var body: some View {
     Form {
       Section("Scrolling") {
-        Picker(selection: bind(\.intensity)) {
+        Picker(selection: $runtime.intensity) {
           ForEach(ScrollIntensity.allCases, id: \.self) {
             Text($0.title).tag($0)
           }
@@ -17,20 +16,20 @@ struct ProboSettingsView: View {
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: bind(\.isOptionPrecisionEnabled)) {
+        Toggle(isOn: $runtime.isOptionPrecisionEnabled) {
           Text("Option Precision")
           Text("Hold Option to emit one line per notch.")
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: bind(\.isTerminalDefaultPrecisionEnabled)) {
+        Toggle(isOn: $runtime.isTerminalDefaultPrecisionEnabled) {
           Text("Default Precision in Terminals")
           Text("Emit one line per notch in terminal apps; hold Option for your wheel step.")
             .foregroundStyle(.secondary)
         }
 
         Toggle(
-          isOn: bind(\.isTrackpadStyleScrollingEnabled)
+          isOn: $runtime.isTrackpadStyleScrollingEnabled
         ) {
           Text("Natural Direction")
           Text("Match trackpad scrolling direction.")
@@ -39,7 +38,7 @@ struct ProboSettingsView: View {
       }
 
       Section("Input") {
-        Toggle(isOn: bind(\.isLookUpEnabled)) {
+        Toggle(isOn: $runtime.isLookUpEnabled) {
           Text("Look Up")
           Text("Map mouse button 4 to Look Up.")
             .foregroundStyle(.secondary)
@@ -47,7 +46,7 @@ struct ProboSettingsView: View {
       }
 
       Section("Power") {
-        Toggle(isOn: bind(\.preventsAutomaticSleep)) {
+        Toggle(isOn: $runtime.preventsAutomaticSleep) {
           Text("Prevent Automatic Sleep")
           Text(
             "Keep your Mac awake while Probo is enabled. Display sleep, lid close, and manual sleep are still allowed."
@@ -59,14 +58,14 @@ struct ProboSettingsView: View {
       Section("Accessibility") {
         LabeledContent("Permission") {
           Label(
-            model.accessibilityTrusted ? "Granted" : "Required",
-            systemImage: model.accessibilityTrusted
+            runtime.accessibilityTrusted ? "Granted" : "Required",
+            systemImage: runtime.accessibilityTrusted
               ? "checkmark.circle.fill" : "xmark.circle.fill"
           )
-          .foregroundStyle(model.accessibilityTrusted ? .green : .red)
+          .foregroundStyle(runtime.accessibilityTrusted ? .green : .red)
         }
 
-        if !model.accessibilityTrusted {
+        if !runtime.accessibilityTrusted {
           Button("Request Access...") {
             runtime.requestAccessibilityAccess()
           }
@@ -77,16 +76,5 @@ struct ProboSettingsView: View {
     .frame(width: 420)
     .scrollDisabled(true)
     .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-  }
-
-  private func bind<V>(
-    _ keyPath: WritableKeyPath<AppConfiguration, V>
-  ) -> Binding<V> {
-    Binding(
-      get: { model.configuration[keyPath: keyPath] },
-      set: { value in
-        runtime.updateConfiguration { $0[keyPath: keyPath] = value }
-      }
-    )
   }
 }

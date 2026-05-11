@@ -1,4 +1,4 @@
-enum ScrollIntensity: Int, CaseIterable, Sendable {
+enum ScrollIntensity: Int, CaseIterable, Codable, Sendable {
   case slow = 0
   case medium = 1
 

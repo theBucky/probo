@@ -89,13 +89,13 @@ let scrollRewriteCoreTests: [TestCase] = [
       "given terminal precision then precision is the default and Option escapes to intensity"
   ) {
     try expectDecision(
-      decidePrecision(isOptionHeld: false, isTerminalFrontmost: true),
+      decidePrecision(isOptionHeld: false, isTerminalDefaultPrecisionActive: true),
       isPrecision: true,
       stripOption: false,
       "no Option in a terminal yields precision and needs no flag dance"
     )
     try expectDecision(
-      decidePrecision(isOptionHeld: true, isTerminalFrontmost: true),
+      decidePrecision(isOptionHeld: true, isTerminalDefaultPrecisionActive: true),
       isPrecision: false,
       stripOption: true,
       "Option held in a terminal escapes to the wheel step and strips Option from the synthesized event"
@@ -103,8 +103,7 @@ let scrollRewriteCoreTests: [TestCase] = [
     try expectDecision(
       decidePrecision(
         isOptionHeld: false,
-        isTerminalFrontmost: true,
-        isTerminalDefaultPrecisionEnabled: false
+        isTerminalDefaultPrecisionActive: false
       ),
       isPrecision: false,
       stripOption: false,
@@ -114,8 +113,7 @@ let scrollRewriteCoreTests: [TestCase] = [
       decidePrecision(
         isOptionHeld: true,
         isOptionPrecisionEnabled: true,
-        isTerminalFrontmost: true,
-        isTerminalDefaultPrecisionEnabled: false
+        isTerminalDefaultPrecisionActive: false
       ),
       isPrecision: true,
       stripOption: true,
@@ -158,14 +156,12 @@ private func expectRewrite(
 private func decidePrecision(
   isOptionHeld: Bool,
   isOptionPrecisionEnabled: Bool = false,
-  isTerminalFrontmost: Bool = false,
-  isTerminalDefaultPrecisionEnabled: Bool = true
+  isTerminalDefaultPrecisionActive: Bool = false
 ) -> ScrollRewriteCore.PrecisionDecision {
   ScrollRewriteCore.decidePrecision(
     isOptionHeld: isOptionHeld,
     isOptionPrecisionEnabled: isOptionPrecisionEnabled,
-    isTerminalFrontmost: isTerminalFrontmost,
-    isTerminalDefaultPrecisionEnabled: isTerminalDefaultPrecisionEnabled
+    isTerminalDefaultPrecisionActive: isTerminalDefaultPrecisionActive
   )
 }
 

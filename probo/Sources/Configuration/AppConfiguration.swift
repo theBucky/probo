@@ -1,4 +1,4 @@
-struct AppConfiguration: Equatable, Sendable {
+struct AppConfiguration: Equatable, Codable, Sendable {
   static let defaultValue = Self(
     isEnabled: true,
     intensity: .slow,
