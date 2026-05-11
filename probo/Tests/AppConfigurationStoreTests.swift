@@ -52,22 +52,16 @@ let appConfigurationStoreTests: [TestCase] = [
   },
 
   TestCase(
-    behavior:
-      "given partial invalid saved configuration when loading then it keeps valid values and defaults the rest"
+    behavior: "given invalid stored configuration when loading then it returns the default"
   ) {
     try withIsolatedDefaults { defaults in
-      defaults.set(false, forKey: "isEnabled")
-      defaults.set(99, forKey: "intensity")
-      defaults.set(true, forKey: "isOptionPrecisionEnabled")
+      defaults.set(Data("not a configuration".utf8), forKey: "configuration")
       let store = AppConfigurationStore(defaults: defaults)
-      var expected = AppConfiguration.defaultValue
-      expected.isEnabled = false
-      expected.isOptionPrecisionEnabled = true
 
       try expectEqual(
         store.load(),
-        expected,
-        "valid stored values should survive while invalid or missing values use defaults"
+        .defaultValue,
+        "invalid stored data should not produce a partial configuration"
       )
     }
   },

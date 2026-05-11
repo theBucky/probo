@@ -14,7 +14,7 @@ final class EventTapController: @unchecked Sendable {
   private struct State {
     var tap: CFMachPort?
     var installPending = false
-    var isEnabled = false
+    var isActive = false
     var status = Status(isInstalled: false, isEnabled: false)
     var configuration = AppConfiguration.defaultValue
   }
@@ -39,26 +39,33 @@ final class EventTapController: @unchecked Sendable {
   }
 
   @MainActor
-  func apply(configuration: AppConfiguration) {
-    state.withLock { $0.configuration = configuration }
+  func setConfiguration(_ configuration: AppConfiguration) {
+    state.withLock { state in
+      guard state.configuration != configuration else { return }
+      state.configuration = configuration
+    }
   }
 
   // Install once on first enable, then toggle forever via CGEvent.tapEnable.
-  // The tap thread outlives setEnabled(false); process exit reaps it.
+  // The tap thread outlives setActive(false); process exit reaps it.
   // installPending coalesces back-to-back enables so the in-flight install thread
-  // picks up the latest isEnabled at completion instead of spawning a duplicate tap.
+  // picks up the latest isActive at completion instead of spawning a duplicate tap.
   @MainActor
-  func setEnabled(_ enabled: Bool) {
+  func setActive(_ isActive: Bool) {
     let action = state.withLock { state -> InstallAction in
-      state.isEnabled = enabled
-      if let tap = state.tap { return .toggle(tap) }
-      if !enabled || state.installPending { return .none }
+      let wasActive = state.isActive
+      state.isActive = isActive
+      if let tap = state.tap {
+        return wasActive == isActive ? .none : .toggle(tap)
+      }
+      if !isActive || state.installPending { return .none }
       state.installPending = true
       return .install
     }
     switch action {
     case .toggle(let tap):
-      CGEvent.tapEnable(tap: tap, enable: enabled)
+      CGEvent.tapEnable(tap: tap, enable: isActive)
+      publishStatusIfChanged()
     case .install:
       let thread = Thread { self.runTapLoop() }
       thread.name = "Probo Event Tap"
@@ -66,7 +73,6 @@ final class EventTapController: @unchecked Sendable {
     case .none:
       break
     }
-    notifyStatus()
   }
 
   private func runTapLoop() {
@@ -91,7 +97,7 @@ final class EventTapController: @unchecked Sendable {
       )
     else {
       state.withLock { $0.installPending = false }
-      notifyStatusOnMain()
+      publishStatusOnMain()
       return
     }
 
@@ -101,26 +107,26 @@ final class EventTapController: @unchecked Sendable {
     let shouldEnable = state.withLock { state -> Bool in
       state.tap = tap
       state.installPending = false
-      return state.isEnabled
+      return state.isActive
     }
     CGEvent.tapEnable(tap: tap, enable: shouldEnable)
-    notifyStatusOnMain()
+    publishStatusOnMain()
 
     CFRunLoopRun()
 
     // CFRunLoopRun only returns if the tap source is invalidated externally
-    // (e.g. event service restart); drop the dead port so a future setEnabled
+    // (e.g. event service restart); drop the dead port so a future setActive
     // retries the install instead of toggling a corpse.
     state.withLock { $0.tap = nil }
-    notifyStatusOnMain()
+    publishStatusOnMain()
   }
 
   private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
     let pass = Unmanaged.passUnretained(event)
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      let (isEnabled, tap) = state.withLock { ($0.isEnabled, $0.tap) }
-      if let tap, isEnabled {
+      let (isActive, tap) = state.withLock { ($0.isActive, $0.tap) }
+      if let tap, isActive {
         CGEvent.tapEnable(tap: tap, enable: true)
       }
       return pass
@@ -134,8 +140,8 @@ final class EventTapController: @unchecked Sendable {
       return pass
     }
 
-    let (isEnabled, configuration) = state.withLock { ($0.isEnabled, $0.configuration) }
-    guard isEnabled else { return pass }
+    let (isActive, configuration) = state.withLock { ($0.isActive, $0.configuration) }
+    guard isActive else { return pass }
 
     switch type {
     case .otherMouseDown, .otherMouseUp:
@@ -148,17 +154,17 @@ final class EventTapController: @unchecked Sendable {
     }
   }
 
-  private func notifyStatusOnMain() {
-    Task { @MainActor in notifyStatus() }
+  private func publishStatusOnMain() {
+    Task { @MainActor in publishStatusIfChanged() }
   }
 
   @MainActor
-  private func notifyStatus() {
+  private func publishStatusIfChanged() {
     let next = state.withLock { state -> Status? in
       let isInstalled = state.tap != nil
       let next = Status(
         isInstalled: isInstalled,
-        isEnabled: state.isEnabled && isInstalled
+        isEnabled: state.isActive && isInstalled
       )
       guard state.status != next else { return nil }
       state.status = next

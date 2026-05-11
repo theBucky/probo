@@ -27,17 +27,28 @@ final class FrontmostAppMonitor {
   ]
 
   private nonisolated let terminalFrontmost = Atomic<Bool>(false)
+  private var activationTask: Task<Void, Never>?
 
   nonisolated func isTerminalFrontmost() -> Bool {
     terminalFrontmost.load(ordering: .relaxed)
   }
 
-  func start() {
+  func setActive(_ isActive: Bool) {
+    if !isActive {
+      guard activationTask != nil else { return }
+      activationTask?.cancel()
+      activationTask = nil
+      terminalFrontmost.store(false, ordering: .relaxed)
+      return
+    }
+
+    guard activationTask == nil else { return }
     refresh()
     let stream = NSWorkspace.shared.notificationCenter
       .notifications(named: NSWorkspace.didActivateApplicationNotification)
-    Task { [weak self] in
+    activationTask = Task { [weak self] in
       for await _ in stream {
+        if Task.isCancelled { return }
         guard let self else { return }
         refresh()
       }

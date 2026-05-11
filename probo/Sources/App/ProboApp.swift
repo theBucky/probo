@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import SwiftUI
 
 @MainActor
@@ -12,7 +13,6 @@ final class ProboApp: NSObject, NSApplicationDelegate {
     app.run()
   }
 
-  private let model = ProboModel()
   private let runtime = ProboRuntime()
   private var statusItem: NSStatusItem!
   private var statusMenu: ProboStatusMenu!
@@ -21,26 +21,12 @@ final class ProboApp: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    statusMenu = ProboStatusMenu(model: model, runtime: runtime) { [weak self] in
+    statusMenu = ProboStatusMenu(runtime: runtime) { [weak self] in
       self?.openSettings()
     }
     statusItem.menu = statusMenu.menu
-    runtime.onConfigurationChange = { [weak self, model] configuration in
-      model.configuration = configuration
-      self?.setStatusIcon(model.statusSymbolName)
-    }
-    runtime.onAccessibilityTrustChange = { [weak self, model] trusted in
-      model.accessibilityTrusted = trusted
-      self?.setStatusIcon(model.statusSymbolName)
-    }
-    runtime.onTapStatusChange = { [weak self, model] status in
-      model.tapStatus = status
-      self?.setStatusIcon(model.statusSymbolName)
-    }
-    runtime.onStartAtLoginChange = { [model] enabled in
-      model.startAtLoginEnabled = enabled
-    }
     runtime.start()
+    observeStatusIcon()
   }
 
   private func setStatusIcon(_ symbolName: String) {
@@ -51,11 +37,21 @@ final class ProboApp: NSObject, NSApplicationDelegate {
     statusItem.button?.image = image
   }
 
+  private func observeStatusIcon() {
+    withObservationTracking {
+      setStatusIcon(runtime.statusSymbolName)
+    } onChange: { [weak self] in
+      Task { @MainActor in
+        self?.observeStatusIcon()
+      }
+    }
+  }
+
   private func openSettings() {
-    runtime.refreshExternalState()
+    runtime.refreshSystemState()
     if settingsWindow == nil {
       let controller = NSHostingController(
-        rootView: ProboSettingsView(model: model, runtime: runtime))
+        rootView: ProboSettingsView(runtime: runtime))
       // SwiftUI Form has no intrinsic size until it lays out; preferredContentSize
       // pipes the layout result into the window so it doesn't open at 0x0.
       controller.sizingOptions = .preferredContentSize

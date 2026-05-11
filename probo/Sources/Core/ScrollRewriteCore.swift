@@ -22,10 +22,9 @@ enum ScrollRewriteCore {
   static func decidePrecision(
     isOptionHeld: Bool,
     isOptionPrecisionEnabled: Bool,
-    isTerminalFrontmost: Bool,
-    isTerminalDefaultPrecisionEnabled: Bool
+    isTerminalDefaultPrecisionActive: Bool
   ) -> PrecisionDecision {
-    if isTerminalFrontmost && isTerminalDefaultPrecisionEnabled {
+    if isTerminalDefaultPrecisionActive {
       return PrecisionDecision(
         isPrecision: !isOptionHeld,
         stripOption: isOptionHeld

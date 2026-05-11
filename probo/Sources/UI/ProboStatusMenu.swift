@@ -2,13 +2,11 @@ import AppKit
 
 @MainActor
 final class ProboStatusMenu: NSObject, NSMenuDelegate {
-  private let model: ProboModel
   private let runtime: ProboRuntime
   private let onOpenSettings: () -> Void
   let menu = NSMenu()
 
-  init(model: ProboModel, runtime: ProboRuntime, onOpenSettings: @escaping () -> Void) {
-    self.model = model
+  init(runtime: ProboRuntime, onOpenSettings: @escaping () -> Void) {
     self.runtime = runtime
     self.onOpenSettings = onOpenSettings
     super.init()
@@ -16,30 +14,33 @@ final class ProboStatusMenu: NSObject, NSMenuDelegate {
     menu.delegate = self
   }
 
-  // Rebuild on open so toggle states and the access-required item track current model state
-  // without per-item observation plumbing.
+  // Rebuild on open so toggle states track the runtime without per-item observation plumbing.
   func menuNeedsUpdate(_ menu: NSMenu) {
-    runtime.refreshExternalState()
+    runtime.refreshSystemState()
     menu.removeAllItems()
 
     menu.addItem(
       item(
         title: "Enabled",
         action: #selector(toggleEnabled),
-        state: model.configuration.isEnabled
+        state: runtime.isEnabled
       ))
     menu.addItem(
       item(
         title: "Start at Login",
         action: #selector(toggleStartAtLogin),
-        state: model.startAtLoginEnabled
+        state: runtime.startAtLoginEnabled
       ))
 
     menu.addItem(.separator())
 
-    if !model.accessibilityTrusted {
-      menu.addItem(item(title: "Request Accessibility Access...", action: #selector(requestAccess)))
-    }
+    let accessItem = item(
+      title: "Accessibility Access",
+      action: #selector(requestAccess),
+      state: runtime.accessibilityTrusted
+    )
+    accessItem.isEnabled = !runtime.accessibilityTrusted
+    menu.addItem(accessItem)
     menu.addItem(item(title: "Settings...", action: #selector(showSettings)))
 
     menu.addItem(.separator())
@@ -60,7 +61,7 @@ final class ProboStatusMenu: NSObject, NSMenuDelegate {
   }
 
   @objc private func toggleEnabled() {
-    runtime.setEnabled(!model.configuration.isEnabled)
+    runtime.isEnabled.toggle()
   }
 
   @objc private func requestAccess() {
@@ -72,7 +73,7 @@ final class ProboStatusMenu: NSObject, NSMenuDelegate {
   }
 
   @objc private func toggleStartAtLogin() {
-    runtime.setStartAtLoginEnabled(!model.startAtLoginEnabled)
+    runtime.setStartAtLoginEnabled(!runtime.startAtLoginEnabled)
   }
 
   @objc private func quit() {
