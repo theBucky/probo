@@ -4,7 +4,7 @@ struct AppConfiguration: Equatable, Codable, Sendable {
     intensity: .slow,
     isLookUpEnabled: true,
     isOptionPrecisionEnabled: false,
-    isTerminalDefaultPrecisionEnabled: true,
+    isTerminalOptimizationEnabled: true,
     isTrackpadStyleScrollingEnabled: false,
     preventsAutomaticSleep: false
   )
@@ -13,7 +13,7 @@ struct AppConfiguration: Equatable, Codable, Sendable {
   var intensity: ScrollIntensity
   var isLookUpEnabled: Bool
   var isOptionPrecisionEnabled: Bool
-  var isTerminalDefaultPrecisionEnabled: Bool
+  var isTerminalOptimizationEnabled: Bool
   var isTrackpadStyleScrollingEnabled: Bool
   var preventsAutomaticSleep: Bool
 }

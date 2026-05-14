@@ -86,16 +86,16 @@ let scrollRewriteCoreTests: [TestCase] = [
 
   TestCase(
     behavior:
-      "given terminal precision then precision is the default and Option escapes to intensity"
+      "given terminal optimization then one line is the default and Option escapes to intensity"
   ) {
     try expectDecision(
-      decidePrecision(isOptionHeld: false, isTerminalDefaultPrecisionActive: true),
+      decidePrecision(isOptionHeld: false, isTerminalOptimizationActive: true),
       isPrecision: true,
       stripOption: false,
       "no Option in a terminal yields precision and needs no flag dance"
     )
     try expectDecision(
-      decidePrecision(isOptionHeld: true, isTerminalDefaultPrecisionActive: true),
+      decidePrecision(isOptionHeld: true, isTerminalOptimizationActive: true),
       isPrecision: false,
       stripOption: true,
       "Option held in a terminal escapes to the wheel step and strips Option from the synthesized event"
@@ -103,21 +103,21 @@ let scrollRewriteCoreTests: [TestCase] = [
     try expectDecision(
       decidePrecision(
         isOptionHeld: false,
-        isTerminalDefaultPrecisionActive: false
+        isTerminalOptimizationActive: false
       ),
       isPrecision: false,
       stripOption: false,
-      "terminal precision off falls back to normal app rules"
+      "terminal optimization off falls back to normal app rules"
     )
     try expectDecision(
       decidePrecision(
         isOptionHeld: true,
         isOptionPrecisionEnabled: true,
-        isTerminalDefaultPrecisionActive: false
+        isTerminalOptimizationActive: false
       ),
       isPrecision: true,
       stripOption: true,
-      "terminal precision off still honors the Option precision setting"
+      "terminal optimization off still honors the Option precision setting"
     )
   },
 
@@ -156,12 +156,12 @@ private func expectRewrite(
 private func decidePrecision(
   isOptionHeld: Bool,
   isOptionPrecisionEnabled: Bool = false,
-  isTerminalDefaultPrecisionActive: Bool = false
+  isTerminalOptimizationActive: Bool = false
 ) -> ScrollRewriteCore.PrecisionDecision {
   ScrollRewriteCore.decidePrecision(
     isOptionHeld: isOptionHeld,
     isOptionPrecisionEnabled: isOptionPrecisionEnabled,
-    isTerminalDefaultPrecisionActive: isTerminalDefaultPrecisionActive
+    isTerminalOptimizationActive: isTerminalOptimizationActive
   )
 }
 

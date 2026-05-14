@@ -30,9 +30,9 @@ final class ProboRuntime {
     set { updateConfiguration { $0.isOptionPrecisionEnabled = newValue } }
   }
 
-  var isTerminalDefaultPrecisionEnabled: Bool {
-    get { configuration.isTerminalDefaultPrecisionEnabled }
-    set { updateConfiguration { $0.isTerminalDefaultPrecisionEnabled = newValue } }
+  var isTerminalOptimizationEnabled: Bool {
+    get { configuration.isTerminalOptimizationEnabled }
+    set { updateConfiguration { $0.isTerminalOptimizationEnabled = newValue } }
   }
 
   var isTrackpadStyleScrollingEnabled: Bool {
@@ -145,7 +145,7 @@ final class ProboRuntime {
 
   private func reconcile() {
     let tapActive = configuration.isEnabled && accessibilityTrusted
-    frontmostMonitor.setActive(tapActive && configuration.isTerminalDefaultPrecisionEnabled)
+    frontmostMonitor.setActive(tapActive && configuration.isTerminalOptimizationEnabled)
     eventTapController.setConfiguration(configuration)
     eventTapController.setActive(tapActive)
     automaticSleepPreventionController.setEnabled(
