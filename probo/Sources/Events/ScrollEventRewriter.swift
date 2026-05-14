@@ -19,8 +19,8 @@ struct ScrollEventRewriter {
     let decision = ScrollRewriteCore.decidePrecision(
       isOptionHeld: originalFlags.contains(.maskAlternate),
       isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
-      isTerminalDefaultPrecisionActive:
-        configuration.isTerminalDefaultPrecisionEnabled && isTerminalFrontmost(),
+      isTerminalOptimizationActive:
+        configuration.isTerminalOptimizationEnabled && isTerminalFrontmost(),
     )
     let input = ScrollRewriteInput(
       deltaAxis1: Int32(

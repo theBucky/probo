@@ -40,7 +40,7 @@ let appConfigurationStoreTests: [TestCase] = [
         intensity: .medium,
         isLookUpEnabled: false,
         isOptionPrecisionEnabled: true,
-        isTerminalDefaultPrecisionEnabled: false,
+        isTerminalOptimizationEnabled: false,
         isTrackpadStyleScrollingEnabled: true,
         preventsAutomaticSleep: true
       )

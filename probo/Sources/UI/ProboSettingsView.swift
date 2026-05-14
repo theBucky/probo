@@ -22,9 +22,9 @@ struct ProboSettingsView: View {
             .foregroundStyle(.secondary)
         }
 
-        Toggle(isOn: $runtime.isTerminalDefaultPrecisionEnabled) {
-          Text("Default Precision in Terminals")
-          Text("Emit one line per notch in terminal apps; hold Option for your wheel step.")
+        Toggle(isOn: $runtime.isTerminalOptimizationEnabled) {
+          Text("Terminal Optimization")
+          Text("In terminal apps, emit one line per notch; hold Option for your wheel step.")
             .foregroundStyle(.secondary)
         }
 
