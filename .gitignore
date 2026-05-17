@@ -2,3 +2,6 @@ build/
 compile_commands.json
 refs/
 .DS_Store
+.agents
+.codex
+.claude
