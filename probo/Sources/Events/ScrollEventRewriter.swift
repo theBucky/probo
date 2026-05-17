@@ -15,6 +15,26 @@ struct ScrollEventRewriter {
       return false
     }
 
+    let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
+    if isContinuous {
+      return false
+    }
+
+    let hasPhase =
+      event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
+      || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
+    if hasPhase {
+      return false
+    }
+
+    let deltaAxis1 = Int32(
+      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
+    let deltaAxis2 = Int32(
+      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
+    if (deltaAxis1 != 0) == (deltaAxis2 != 0) {
+      return false
+    }
+
     let originalFlags = event.flags
     let decision = ScrollRewriteCore.decidePrecision(
       isOptionHeld: originalFlags.contains(.maskAlternate),
@@ -23,14 +43,11 @@ struct ScrollEventRewriter {
         configuration.isTerminalOptimizationEnabled && isTerminalFrontmost(),
     )
     let input = ScrollRewriteInput(
-      deltaAxis1: Int32(
-        truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1)),
-      deltaAxis2: Int32(
-        truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2)),
+      deltaAxis1: deltaAxis1,
+      deltaAxis2: deltaAxis2,
       intensity: configuration.intensity,
-      isContinuous: event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0,
-      hasPhase: event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
-        || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0,
+      isContinuous: isContinuous,
+      hasPhase: hasPhase,
       isPrecision: decision.isPrecision,
       isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
     )
