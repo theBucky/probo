@@ -39,6 +39,7 @@ xcrun swiftc \
   -o "$app_binary_dir/Probo"
 
 cp "$swift_dir/Resources/Info.plist" "$app_contents_dir/Info.plist"
+cp "$swift_dir/Resources/AppIcon.icns" "$app_resources_dir/AppIcon.icns"
 
 codesign \
   --force \
