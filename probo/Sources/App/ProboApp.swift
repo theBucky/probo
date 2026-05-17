@@ -4,7 +4,7 @@ import SwiftUI
 
 @MainActor
 @main
-final class ProboApp: NSObject, NSApplicationDelegate {
+final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
   static func main() {
     let app = NSApplication.shared
     let delegate = ProboApp()
@@ -25,8 +25,33 @@ final class ProboApp: NSObject, NSApplicationDelegate {
       self?.openSettings()
     }
     statusItem.menu = statusMenu.menu
+    installMainMenu()
     runtime.start()
     observeStatusIcon()
+  }
+
+  // Accessory apps show no menu bar, but NSApp dispatches key equivalents
+  // through the main menu regardless, so this is what wires up Cmd+W/Cmd+Q.
+  private func installMainMenu() {
+    let appMenu = NSMenu()
+    appMenu.addItem(
+      withTitle: "Quit Probo",
+      action: #selector(NSApplication.terminate(_:)),
+      keyEquivalent: "q")
+
+    let windowMenu = NSMenu(title: "Window")
+    windowMenu.addItem(
+      withTitle: "Close",
+      action: #selector(NSWindow.performClose(_:)),
+      keyEquivalent: "w")
+
+    let mainMenu = NSMenu()
+    for submenu in [appMenu, windowMenu] {
+      let item = NSMenuItem()
+      mainMenu.addItem(item)
+      mainMenu.setSubmenu(submenu, for: item)
+    }
+    NSApp.mainMenu = mainMenu
   }
 
   private func setStatusIcon(_ symbolName: String) {
@@ -59,10 +84,26 @@ final class ProboApp: NSObject, NSApplicationDelegate {
       window.styleMask = [.titled, .closable]
       window.title = "Probo"
       window.isReleasedWhenClosed = false
+      window.delegate = self
       window.center()
       settingsWindow = window
     }
-    NSApp.activate()
-    settingsWindow?.makeKeyAndOrderFront(nil)
+    // An accessory app is a background utility; macOS only raises windows
+    // reliably for apps that own a Dock icon. Promote to .regular while the
+    // settings window is visible, then revert in windowWillClose.
+    NSApp.setActivationPolicy(.regular)
+    Task { @MainActor in
+      // Let the policy change register before activating, otherwise the
+      // activation lands before the app is a foreground citizen.
+      try? await Task.sleep(for: .milliseconds(50))
+      NSApp.activate()
+      settingsWindow?.makeKeyAndOrderFront(nil)
+      settingsWindow?.orderFrontRegardless()
+    }
+  }
+
+  // Settings window closed: drop back to a menu-bar-only background app.
+  func windowWillClose(_ notification: Notification) {
+    NSApp.setActivationPolicy(.accessory)
   }
 }
