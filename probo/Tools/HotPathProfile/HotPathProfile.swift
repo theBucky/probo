@@ -170,10 +170,9 @@ struct HotPathProfile {
 
 private func parseOptions() throws -> Options {
   var options = Options()
-  var arguments = Array(CommandLine.arguments.dropFirst())
+  var arguments = CommandLine.arguments.dropFirst()
 
-  while !arguments.isEmpty {
-    let argument = arguments.removeFirst()
+  while let argument = arguments.popFirst() {
     switch argument {
     case "--iterations":
       options.iterations = try takePositiveInt(&arguments, argument)
@@ -203,7 +202,7 @@ private func parseOptions() throws -> Options {
   return options
 }
 
-private func takePositiveInt(_ arguments: inout [String], _ name: String) throws -> Int {
+private func takePositiveInt(_ arguments: inout ArraySlice<String>, _ name: String) throws -> Int {
   let value = try takeNonNegativeInt(&arguments, name)
   if value <= 0 {
     throw ProbeError.message("\(name) must be positive")
@@ -211,11 +210,11 @@ private func takePositiveInt(_ arguments: inout [String], _ name: String) throws
   return value
 }
 
-private func takeNonNegativeInt(_ arguments: inout [String], _ name: String) throws -> Int {
-  guard let rawValue = arguments.first else {
+private func takeNonNegativeInt(_ arguments: inout ArraySlice<String>, _ name: String) throws -> Int
+{
+  guard let rawValue = arguments.popFirst() else {
     throw ProbeError.message("missing value for \(name)")
   }
-  arguments.removeFirst()
   guard let value = Int(rawValue), value >= 0 else {
     throw ProbeError.message("\(name) must be a non-negative integer")
   }
@@ -249,8 +248,7 @@ private func makeRewriteInput(event: CGEvent, configuration: AppConfiguration) -
   let decision = ScrollRewriteCore.decidePrecision(
     isOptionHeld: originalFlags.contains(.maskAlternate),
     isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
-    isTerminalFrontmost: false,
-    isTerminalDefaultPrecisionEnabled: configuration.isTerminalDefaultPrecisionEnabled
+    isTerminalOptimizationActive: false
   )
 
   return ScrollRewriteInput(
