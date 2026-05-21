@@ -3,19 +3,11 @@ import Foundation
 import os
 
 final class EventTapController: @unchecked Sendable {
-  // ASCII "PROBO" — tags synthesized events so the tap can skip its own output.
-  private static let synthMarker: Int64 = 0x50_524F_424F
-
-  struct Status: Equatable, Sendable {
-    var isInstalled: Bool
-    var isEnabled: Bool
-  }
-
   private struct State {
     var tap: CFMachPort?
     var installPending = false
     var isActive = false
-    var status = Status(isInstalled: false, isEnabled: false)
+    var lastEmittedEnabled = false
     var configuration = AppConfiguration.defaultValue
   }
 
@@ -29,13 +21,10 @@ final class EventTapController: @unchecked Sendable {
   // ~5x faster than Synchronization.Mutex on this hot path; uncheckedState
   // because CFMachPort? blocks Sendable conformance.
   private let state = OSAllocatedUnfairLock(uncheckedState: State())
-  var onStatusChange: ((Status) -> Void)?
+  var onTapEnabledChange: ((Bool) -> Void)?
 
   init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
-    scrollRewriter = ScrollEventRewriter(
-      marker: Self.synthMarker,
-      isTerminalFrontmost: isTerminalFrontmost
-    )
+    scrollRewriter = ScrollEventRewriter(isTerminalFrontmost: isTerminalFrontmost)
   }
 
   @MainActor
@@ -65,7 +54,7 @@ final class EventTapController: @unchecked Sendable {
     switch action {
     case .toggle(let tap):
       CGEvent.tapEnable(tap: tap, enable: isActive)
-      publishStatusIfChanged()
+      publishTapEnabledIfChanged()
     case .install:
       let thread = Thread { self.runTapLoop() }
       thread.name = "Probo Event Tap"
@@ -97,7 +86,7 @@ final class EventTapController: @unchecked Sendable {
       )
     else {
       state.withLock { $0.installPending = false }
-      publishStatusOnMain()
+      publishTapEnabledOnMain()
       return
     }
 
@@ -110,7 +99,7 @@ final class EventTapController: @unchecked Sendable {
       return state.isActive
     }
     CGEvent.tapEnable(tap: tap, enable: shouldEnable)
-    publishStatusOnMain()
+    publishTapEnabledOnMain()
 
     CFRunLoopRun()
 
@@ -118,7 +107,7 @@ final class EventTapController: @unchecked Sendable {
     // (e.g. event service restart); drop the dead port so a future setActive
     // retries the install instead of toggling a corpse.
     state.withLock { $0.tap = nil }
-    publishStatusOnMain()
+    publishTapEnabledOnMain()
   }
 
   private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -135,7 +124,7 @@ final class EventTapController: @unchecked Sendable {
     // Skip self-synth re-entry before the lock so option-strip sandwiches don't
     // pay 3 lock acquisitions per click.
     if type == .scrollWheel,
-      event.getIntegerValueField(.eventSourceUserData) == Self.synthMarker
+      event.getIntegerValueField(.eventSourceUserData) == ScrollEventSynthesizer.marker
     {
       return pass
     }
@@ -154,22 +143,18 @@ final class EventTapController: @unchecked Sendable {
     }
   }
 
-  private func publishStatusOnMain() {
-    Task { @MainActor in publishStatusIfChanged() }
+  private func publishTapEnabledOnMain() {
+    Task { @MainActor in publishTapEnabledIfChanged() }
   }
 
   @MainActor
-  private func publishStatusIfChanged() {
-    let next = state.withLock { state -> Status? in
-      let isInstalled = state.tap != nil
-      let next = Status(
-        isInstalled: isInstalled,
-        isEnabled: state.isActive && isInstalled
-      )
-      guard state.status != next else { return nil }
-      state.status = next
+  private func publishTapEnabledIfChanged() {
+    let next = state.withLock { state -> Bool? in
+      let next = state.isActive && state.tap != nil
+      guard state.lastEmittedEnabled != next else { return nil }
+      state.lastEmittedEnabled = next
       return next
     }
-    if let next { onStatusChange?(next) }
+    if let next { onTapEnabledChange?(next) }
   }
 }

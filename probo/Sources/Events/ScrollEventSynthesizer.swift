@@ -1,16 +1,14 @@
 import ApplicationServices
 
 struct ScrollEventSynthesizer {
-  private let marker: Int64
+  // ASCII "PROBO" — tags synthesized events so the tap can skip its own output.
+  static let marker: Int64 = 0x50_524F_424F
+
   private let source: CGEventSource? = {
     let source = CGEventSource(stateID: .hidSystemState)
     source?.pixelsPerLine = 16.0
     return source
   }()
-
-  init(marker: Int64) {
-    self.marker = marker
-  }
 
   func makeReplacement(location: CGPoint, flags: CGEventFlags, linesX: Int32, linesY: Int32)
     -> CGEvent?
@@ -33,7 +31,7 @@ struct ScrollEventSynthesizer {
     replacement.flags = flags
     // synthesized events default ScrollCount to 0; real HID notches send 1.
     replacement.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
-    replacement.setIntegerValueField(.eventSourceUserData, value: marker)
+    replacement.setIntegerValueField(.eventSourceUserData, value: Self.marker)
     return replacement
   }
 
@@ -42,7 +40,7 @@ struct ScrollEventSynthesizer {
     event.type = .flagsChanged
     event.flags = flags
     event.setIntegerValueField(.keyboardEventKeycode, value: Int64(keyCode))
-    event.setIntegerValueField(.eventSourceUserData, value: marker)
+    event.setIntegerValueField(.eventSourceUserData, value: Self.marker)
     return event
   }
 }

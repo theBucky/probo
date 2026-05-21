@@ -1,39 +1,25 @@
 @preconcurrency import ApplicationServices
 
 struct ScrollEventRewriter {
-  private let synth: ScrollEventSynthesizer
+  private let synth = ScrollEventSynthesizer()
   private let isTerminalFrontmost: @Sendable () -> Bool
 
-  init(marker: Int64, isTerminalFrontmost: @escaping @Sendable () -> Bool) {
+  init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
     self.isTerminalFrontmost = isTerminalFrontmost
-    synth = ScrollEventSynthesizer(marker: marker)
   }
 
-  // EventTapController filters self-synth re-entry before calling here.
+  // EventTapController filters self-synth re-entry; the core owns the drop decision.
   func rewrite(event: CGEvent, configuration: AppConfiguration) -> Bool {
-    guard isMouseWheelEvent(event) else {
-      return false
-    }
+    guard isMouseWheelEvent(event) else { return false }
 
     let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
-    if isContinuous {
-      return false
-    }
-
     let hasPhase =
       event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
       || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
-    if hasPhase {
-      return false
-    }
-
     let deltaAxis1 = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     let deltaAxis2 = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
-    if (deltaAxis1 != 0) == (deltaAxis2 != 0) {
-      return false
-    }
 
     let originalFlags = event.flags
     let decision = ScrollRewriteCore.decidePrecision(
@@ -42,24 +28,23 @@ struct ScrollEventRewriter {
       isTerminalOptimizationActive:
         configuration.isTerminalOptimizationEnabled && isTerminalFrontmost(),
     )
-    let input = ScrollRewriteInput(
-      deltaAxis1: deltaAxis1,
-      deltaAxis2: deltaAxis2,
-      intensity: configuration.intensity,
-      isContinuous: isContinuous,
-      hasPhase: hasPhase,
-      isPrecision: decision.isPrecision,
-      isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
-    )
-
-    guard let output = ScrollRewriteCore.rewrite(input) else {
-      return false
-    }
+    guard
+      let (linesX, linesY) = ScrollRewriteCore.rewrite(
+        deltaAxis1: deltaAxis1,
+        deltaAxis2: deltaAxis2,
+        intensity: configuration.intensity,
+        isContinuous: isContinuous,
+        hasPhase: hasPhase,
+        isPrecision: decision.isPrecision,
+        isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
+      )
+    else { return false }
 
     return post(
       location: event.location,
       originalFlags: originalFlags,
-      output: output,
+      linesX: linesX,
+      linesY: linesY,
       stripOption: decision.stripOption
     )
   }
@@ -67,22 +52,21 @@ struct ScrollEventRewriter {
   private func isMouseWheelEvent(_ event: CGEvent) -> Bool {
     let subtype = CGEventMouseSubtype(
       rawValue: UInt32(event.getIntegerValueField(.mouseEventSubtype)))
-    if subtype != .defaultType {
-      return false
-    }
+    if subtype != .defaultType { return false }
     return event.getIntegerValueField(.tabletEventDeviceID) == 0
   }
 
   private func post(
     location: CGPoint,
     originalFlags: CGEventFlags,
-    output: ScrollRewriteOutput,
+    linesX: Int32,
+    linesY: Int32,
     stripOption: Bool
   ) -> Bool {
     if !stripOption {
       guard
         let replacement = synth.makeReplacement(
-          location: location, flags: originalFlags, linesX: output.linesX, linesY: output.linesY
+          location: location, flags: originalFlags, linesX: linesX, linesY: linesY
         )
       else { return false }
       replacement.post(tap: .cgSessionEventTap)
@@ -99,7 +83,7 @@ struct ScrollEventRewriter {
       ? KeyboardKeyCode.rightOption : KeyboardKeyCode.option
     guard
       let replacement = synth.makeReplacement(
-        location: location, flags: flags, linesX: output.linesX, linesY: output.linesY
+        location: location, flags: flags, linesX: linesX, linesY: linesY
       )
     else { return false }
 
