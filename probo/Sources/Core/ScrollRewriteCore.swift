@@ -1,18 +1,3 @@
-struct ScrollRewriteInput: Sendable {
-  var deltaAxis1: Int32
-  var deltaAxis2: Int32
-  var intensity: ScrollIntensity
-  var isContinuous: Bool
-  var hasPhase: Bool
-  var isPrecision: Bool
-  var isTrackpadStyleScrollingEnabled: Bool
-}
-
-struct ScrollRewriteOutput: Sendable {
-  var linesX: Int32
-  var linesY: Int32
-}
-
 enum ScrollRewriteCore {
   struct PrecisionDecision: Equatable, Sendable {
     var isPrecision: Bool
@@ -37,19 +22,24 @@ enum ScrollRewriteCore {
     )
   }
 
-  static func rewrite(_ input: ScrollRewriteInput) -> ScrollRewriteOutput? {
-    if input.isContinuous || input.hasPhase {
-      return nil
-    }
-    if (input.deltaAxis1 != 0) == (input.deltaAxis2 != 0) {
-      return nil
-    }
+  // Drops continuous, phased, diagonal, and zero-delta events per the project invariant.
+  static func rewrite(
+    deltaAxis1: Int32,
+    deltaAxis2: Int32,
+    intensity: ScrollIntensity,
+    isContinuous: Bool,
+    hasPhase: Bool,
+    isPrecision: Bool,
+    isTrackpadStyleScrollingEnabled: Bool
+  ) -> (linesX: Int32, linesY: Int32)? {
+    if isContinuous || hasPhase { return nil }
+    if (deltaAxis1 != 0) == (deltaAxis2 != 0) { return nil }
 
-    let stepLines: Int32 = input.isPrecision ? 1 : input.intensity.lines
-    let direction: Int32 = input.isTrackpadStyleScrollingEnabled ? 1 : -1
-    return ScrollRewriteOutput(
-      linesX: input.deltaAxis2.signum() * stepLines * direction,
-      linesY: input.deltaAxis1.signum() * stepLines * direction
+    let stepLines: Int32 = isPrecision ? 1 : intensity.lines
+    let direction: Int32 = isTrackpadStyleScrollingEnabled ? 1 : -1
+    return (
+      linesX: deltaAxis2.signum() * stepLines * direction,
+      linesY: deltaAxis1.signum() * stepLines * direction
     )
   }
 }

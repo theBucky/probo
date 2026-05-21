@@ -1,7 +1,5 @@
 import ApplicationServices
 
-private let synthMarker: Int64 = 0x50_524F_424F
-
 let scrollEventSynthesizerTests: [TestCase] = [
   TestCase(
     behavior:
@@ -39,7 +37,7 @@ let scrollEventSynthesizerTests: [TestCase] = [
       )
       try expectEqual(
         event.getIntegerValueField(.eventSourceUserData),
-        synthMarker,
+        ScrollEventSynthesizer.marker,
         "\(replacementCase.note) replacement should carry the synth marker"
       )
       try expectEqual(event.location, location, "\(replacementCase.note) should preserve location")
@@ -62,7 +60,7 @@ let scrollEventSynthesizerTests: [TestCase] = [
     )
     try expectEqual(
       event.getIntegerValueField(.eventSourceUserData),
-      synthMarker,
+      ScrollEventSynthesizer.marker,
       "modifier event should carry the synth marker"
     )
   },
@@ -74,17 +72,17 @@ private func replacementEvent(
   linesX: Int32,
   linesY: Int32
 ) throws -> CGEvent {
-  let synthesizer = ScrollEventSynthesizer(marker: synthMarker)
-  return try expectNotNil(
-    synthesizer.makeReplacement(location: location, flags: flags, linesX: linesX, linesY: linesY),
+  try expectNotNil(
+    ScrollEventSynthesizer().makeReplacement(
+      location: location, flags: flags, linesX: linesX, linesY: linesY
+    ),
     "replacement scroll should be created"
   )
 }
 
 private func flagsChangedEvent(flags: CGEventFlags, keyCode: CGKeyCode) throws -> CGEvent {
-  let synthesizer = ScrollEventSynthesizer(marker: synthMarker)
-  return try expectNotNil(
-    synthesizer.makeFlagsChanged(flags: flags, keyCode: keyCode),
+  try expectNotNil(
+    ScrollEventSynthesizer().makeFlagsChanged(flags: flags, keyCode: keyCode),
     "flags-changed event should be created"
   )
 }

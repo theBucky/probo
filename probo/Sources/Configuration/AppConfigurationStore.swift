@@ -15,7 +15,7 @@ struct AppConfigurationStore {
   }
 
   func save(_ configuration: AppConfiguration) {
-    guard let data = try? PropertyListEncoder().encode(configuration) else { return }
+    let data = try! PropertyListEncoder().encode(configuration)
     defaults.set(data, forKey: Self.configurationKey)
   }
 }

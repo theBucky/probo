@@ -2,8 +2,6 @@ import ApplicationServices
 import Darwin
 import Foundation
 
-private let synthMarker: Int64 = 0x50_524F_424F
-
 private struct Options {
   var iterations = 100_000
   var warmup = 10_000
@@ -76,8 +74,8 @@ struct HotPathProfile {
     }
 
     let configuration = AppConfiguration.defaultValue
-    let synth = ScrollEventSynthesizer(marker: synthMarker)
-    let output = ScrollRewriteOutput(linesX: 0, linesY: configuration.intensity.lines)
+    let synth = ScrollEventSynthesizer()
+    let linesY = configuration.intensity.lines
     var blackhole: Int64 = 0
 
     Swift.print("synthetic input: discrete line-unit CGEvent, no HID driver, no device coalescing")
@@ -99,17 +97,18 @@ struct HotPathProfile {
       timebase: timebase,
       blackhole: &blackhole
     ) {
-      let input = ScrollRewriteInput(
-        deltaAxis1: 1,
-        deltaAxis2: 0,
-        intensity: configuration.intensity,
-        isContinuous: false,
-        hasPhase: false,
-        isPrecision: false,
-        isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
-      )
-      guard let result = ScrollRewriteCore.rewrite(input) else { return 0 }
-      return Int64(result.linesY)
+      guard
+        let (_, linesY) = ScrollRewriteCore.rewrite(
+          deltaAxis1: 1,
+          deltaAxis2: 0,
+          intensity: configuration.intensity,
+          isContinuous: false,
+          hasPhase: false,
+          isPrecision: false,
+          isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
+        )
+      else { return 0 }
+      return Int64(linesY)
     }.print()
 
     measure(
@@ -118,9 +117,9 @@ struct HotPathProfile {
       timebase: timebase,
       blackhole: &blackhole
     ) {
-      let input = makeRewriteInput(event: event, configuration: configuration)
-      guard let result = ScrollRewriteCore.rewrite(input) else { return 0 }
-      return Int64(result.linesY)
+      guard let (_, linesY) = rewriteFromEvent(event, configuration: configuration)
+      else { return 0 }
+      return Int64(linesY)
     }.print()
 
     measure(
@@ -133,8 +132,8 @@ struct HotPathProfile {
         let replacement = synth.makeReplacement(
           location: event.location,
           flags: event.flags,
-          linesX: output.linesX,
-          linesY: output.linesY
+          linesX: 0,
+          linesY: linesY
         )
       else { return 0 }
       return replacement.getIntegerValueField(.scrollWheelEventDeltaAxis1)
@@ -146,14 +145,13 @@ struct HotPathProfile {
       timebase: timebase,
       blackhole: &blackhole
     ) {
-      let input = makeRewriteInput(event: event, configuration: configuration)
       guard
-        let result = ScrollRewriteCore.rewrite(input),
+        let (linesX, linesY) = rewriteFromEvent(event, configuration: configuration),
         let replacement = synth.makeReplacement(
           location: event.location,
           flags: event.flags,
-          linesX: result.linesX,
-          linesY: result.linesY
+          linesX: linesX,
+          linesY: linesY
         )
       else { return 0 }
       return replacement.getIntegerValueField(.scrollWheelEventDeltaAxis1)
@@ -242,24 +240,30 @@ private func measure(
   return Summary(name: name, samples: samples, timebase: timebase)
 }
 
-private func makeRewriteInput(event: CGEvent, configuration: AppConfiguration) -> ScrollRewriteInput
-{
+private func rewriteFromEvent(
+  _ event: CGEvent,
+  configuration: AppConfiguration
+) -> (linesX: Int32, linesY: Int32)? {
   let originalFlags = event.flags
   let decision = ScrollRewriteCore.decidePrecision(
     isOptionHeld: originalFlags.contains(.maskAlternate),
     isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
     isTerminalOptimizationActive: false
   )
-
-  return ScrollRewriteInput(
-    deltaAxis1: Int32(
-      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1)),
-    deltaAxis2: Int32(
-      truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2)),
+  let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
+  let hasPhase =
+    event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
+    || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
+  let deltaAxis1 = Int32(
+    truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
+  let deltaAxis2 = Int32(
+    truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
+  return ScrollRewriteCore.rewrite(
+    deltaAxis1: deltaAxis1,
+    deltaAxis2: deltaAxis2,
     intensity: configuration.intensity,
-    isContinuous: event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0,
-    hasPhase: event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
-      || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0,
+    isContinuous: isContinuous,
+    hasPhase: hasPhase,
     isPrecision: decision.isPrecision,
     isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
   )

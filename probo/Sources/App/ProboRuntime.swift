@@ -8,46 +8,51 @@ final class ProboRuntime {
   private var configuration: AppConfiguration
   private(set) var accessibilityTrusted = false
   private(set) var startAtLoginEnabled = false
-  private var tapStatus = EventTapController.Status(isInstalled: false, isEnabled: false)
+  private var tapEnabled = false
 
   var isEnabled: Bool {
     get { configuration.isEnabled }
-    set { setEnabled(newValue) }
+    set {
+      guard update(\.isEnabled, newValue) else { return }
+      if newValue && !accessibilityTrusted {
+        requestAccessibilityAccess()
+      }
+    }
   }
 
   var intensity: ScrollIntensity {
     get { configuration.intensity }
-    set { updateConfiguration { $0.intensity = newValue } }
+    set { update(\.intensity, newValue) }
   }
 
   var isLookUpEnabled: Bool {
     get { configuration.isLookUpEnabled }
-    set { updateConfiguration { $0.isLookUpEnabled = newValue } }
+    set { update(\.isLookUpEnabled, newValue) }
   }
 
   var isOptionPrecisionEnabled: Bool {
     get { configuration.isOptionPrecisionEnabled }
-    set { updateConfiguration { $0.isOptionPrecisionEnabled = newValue } }
+    set { update(\.isOptionPrecisionEnabled, newValue) }
   }
 
   var isTerminalOptimizationEnabled: Bool {
     get { configuration.isTerminalOptimizationEnabled }
-    set { updateConfiguration { $0.isTerminalOptimizationEnabled = newValue } }
+    set { update(\.isTerminalOptimizationEnabled, newValue) }
   }
 
   var isTrackpadStyleScrollingEnabled: Bool {
     get { configuration.isTrackpadStyleScrollingEnabled }
-    set { updateConfiguration { $0.isTrackpadStyleScrollingEnabled = newValue } }
+    set { update(\.isTrackpadStyleScrollingEnabled, newValue) }
   }
 
   var preventsAutomaticSleep: Bool {
     get { configuration.preventsAutomaticSleep }
-    set { updateConfiguration { $0.preventsAutomaticSleep = newValue } }
+    set { update(\.preventsAutomaticSleep, newValue) }
   }
 
   var statusSymbolName: String {
     if configuration.isEnabled && !accessibilityTrusted { return "exclamationmark.triangle.fill" }
-    if configuration.isEnabled && tapStatus.isEnabled { return "computermouse.fill" }
+    if configuration.isEnabled && tapEnabled { return "computermouse.fill" }
     return "computermouse"
   }
 
@@ -72,8 +77,8 @@ final class ProboRuntime {
   }
 
   func start() {
-    eventTapController.onStatusChange = { [weak self] status in
-      self?.tapStatus = status
+    eventTapController.onTapEnabledChange = { [weak self] enabled in
+      self?.tapEnabled = enabled
     }
     refreshSystemState()
   }
@@ -84,63 +89,30 @@ final class ProboRuntime {
     reconcile()
   }
 
-  private func setEnabled(_ isEnabled: Bool) {
-    updateConfiguration { $0.isEnabled = isEnabled }
-    if isEnabled {
-      requestAccessibilityAccess()
-    } else {
-      accessibilityGrantTask?.cancel()
-      accessibilityGrantTask = nil
-    }
-  }
-
   func setStartAtLoginEnabled(_ isEnabled: Bool) {
     do {
       try LaunchAtLogin.setEnabled(isEnabled)
-      startAtLoginEnabled = LaunchAtLogin.isEnabled
     } catch {
       logger.error("failed to update launch at login: \(error.localizedDescription)")
-      startAtLoginEnabled = LaunchAtLogin.isEnabled
     }
+    startAtLoginEnabled = LaunchAtLogin.isEnabled
   }
 
   func requestAccessibilityAccess() {
     accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
     reconcile()
-    if accessibilityTrusted {
-      accessibilityGrantTask?.cancel()
-      accessibilityGrantTask = nil
-      return
-    }
-
-    waitForAccessibilityGrant()
   }
 
-  private func waitForAccessibilityGrant() {
-    accessibilityGrantTask?.cancel()
-    let stream = DistributedNotificationCenter.default()
-      .notifications(named: AccessibilityPermission.trustChangedNotification)
-    accessibilityGrantTask = Task { [weak self] in
-      for await _ in stream {
-        guard let self else { return }
-        accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
-        reconcile()
-        if accessibilityTrusted {
-          accessibilityGrantTask = nil
-          return
-        }
-      }
-    }
-  }
-
-  private func updateConfiguration(_ change: (inout AppConfiguration) -> Void) {
-    var next = configuration
-    change(&next)
-    guard next != configuration else { return }
-
-    configuration = next
+  @discardableResult
+  private func update<T: Equatable>(
+    _ keyPath: WritableKeyPath<AppConfiguration, T>,
+    _ value: T
+  ) -> Bool {
+    guard configuration[keyPath: keyPath] != value else { return false }
+    configuration[keyPath: keyPath] = value
     configurationStore.save(configuration)
     reconcile()
+    return true
   }
 
   private func reconcile() {
@@ -151,5 +123,27 @@ final class ProboRuntime {
     automaticSleepPreventionController.setEnabled(
       configuration.isEnabled && configuration.preventsAutomaticSleep
     )
+    // Watch grants whenever access isn't trusted: the settings form surfaces the request button
+    // and "Required" label even while disabled, so the UI must observe grants regardless of state.
+    if accessibilityTrusted {
+      accessibilityGrantTask?.cancel()
+      accessibilityGrantTask = nil
+    } else {
+      startAccessibilityGrantWatcher()
+    }
+  }
+
+  private func startAccessibilityGrantWatcher() {
+    guard accessibilityGrantTask == nil else { return }
+    let stream = DistributedNotificationCenter.default()
+      .notifications(named: AccessibilityPermission.trustChangedNotification)
+    accessibilityGrantTask = Task { [weak self] in
+      for await _ in stream {
+        guard let self else { return }
+        accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
+        reconcile()
+        if accessibilityTrusted { return }
+      }
+    }
   }
 }
