@@ -17,7 +17,7 @@ All options are exposed in the Settings window, which opens from the menu bar ic
 
 ## Requirements
 
-- macOS 26 or later
+- macOS 15 or later
 - Apple silicon (arm64)
 - Accessibility permission
 

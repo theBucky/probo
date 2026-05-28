@@ -6,7 +6,7 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps. AppKit status
 
 - Latest Swift; no legacy API or syntax
 - AppKit `NSStatusItem` + `NSMenu` for the status surface; `NSWindow` hosts the SwiftUI settings `Form` via `NSHostingController`
-- `swiftc` flags in [build.sh](scripts/build.sh) are the only Swift gate; target `macos26.0`, `-swift-version 6 -O`
+- `swiftc` flags in [build.sh](scripts/build.sh) are the only Swift gate; target `macos15.0`, `-swift-version 6 -O`
 
 ## Layout
 

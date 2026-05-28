@@ -10,7 +10,7 @@ app_binary_dir="$app_contents_dir/MacOS"
 app_resources_dir="$app_contents_dir/Resources"
 swift_dir="$root_dir/probo"
 sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
-swift_target="$(uname -m)-apple-macos26.0"
+swift_target="$(uname -m)-apple-macos15.0"
 swift_sources=()
 signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
 
