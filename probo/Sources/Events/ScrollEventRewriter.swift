@@ -9,7 +9,7 @@ struct ScrollEventRewriter {
   }
 
   // EventTapController filters self-synth re-entry; the core owns the drop decision.
-  func rewrite(event: CGEvent, configuration: AppConfiguration) -> Bool {
+  func rewrite(event: CGEvent, options: EventTapOptions) -> Bool {
     guard isMouseWheelEvent(event) else { return false }
 
     let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
@@ -24,19 +24,19 @@ struct ScrollEventRewriter {
     let originalFlags = event.flags
     let decision = ScrollRewriteCore.decidePrecision(
       isOptionHeld: originalFlags.contains(.maskAlternate),
-      isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
+      isOptionPrecisionEnabled: options.isOptionPrecisionEnabled,
       isTerminalOptimizationActive:
-        configuration.isTerminalOptimizationEnabled && isTerminalFrontmost(),
+        options.isTerminalOptimizationEnabled && isTerminalFrontmost(),
     )
     guard
       let (linesX, linesY) = ScrollRewriteCore.rewrite(
         deltaAxis1: deltaAxis1,
         deltaAxis2: deltaAxis2,
-        intensity: configuration.intensity,
+        intensity: options.intensity,
         isContinuous: isContinuous,
         hasPhase: hasPhase,
         isPrecision: decision.isPrecision,
-        isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
+        isTrackpadStyleScrollingEnabled: options.isTrackpadStyleScrollingEnabled
       )
     else { return false }
 

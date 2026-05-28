@@ -1,5 +1,3 @@
-import Foundation
-
 let automaticSleepPreventionControllerTests: [TestCase] = [
   TestCase(
     behavior:
@@ -46,60 +44,49 @@ let automaticSleepPreventionControllerTests: [TestCase] = [
 
   TestCase(
     behavior:
-      "given concurrent automatic sleep prevention enables then it creates one assertion"
+      "given automatic sleep prevention is active when deinitialized then it releases the assertion"
   ) {
-    let driver = PowerAssertionDriver(assertionID: 42, creationDelay: 0.01)
-    let controller = AutomaticSleepPreventionController(
-      createAssertion: { driver.create() },
-      releaseAssertion: { driver.release($0) }
-    )
-
-    DispatchQueue.concurrentPerform(iterations: 20) { _ in
+    let driver = PowerAssertionDriver(assertionID: 42)
+    do {
+      let controller = AutomaticSleepPreventionController(
+        createAssertion: { driver.create() },
+        releaseAssertion: { driver.release($0) }
+      )
       controller.setEnabled(true)
     }
 
-    try expectEqual(driver.createdCount, 1, "concurrent enables should create one assertion")
+    try expectEqual(driver.createdCount, 1, "active controller should create one assertion")
     try expectEqual(
       driver.releasedAssertions,
-      [],
-      "concurrent enables should keep the assertion active"
+      [42],
+      "deinitialized controller should release the active assertion"
     )
   },
 ]
 
-private final class PowerAssertionDriver: @unchecked Sendable {
+private final class PowerAssertionDriver {
   private let assertionID: UInt32
-  private let creationDelay: TimeInterval
-  private let lock = NSLock()
   private var mutableCreatedCount = 0
   private var mutableReleasedAssertions: [UInt32] = []
 
   var createdCount: Int {
-    lock.withLock { mutableCreatedCount }
+    mutableCreatedCount
   }
 
   var releasedAssertions: [UInt32] {
-    lock.withLock { mutableReleasedAssertions }
+    mutableReleasedAssertions
   }
 
-  init(assertionID: UInt32, creationDelay: TimeInterval = 0) {
+  init(assertionID: UInt32) {
     self.assertionID = assertionID
-    self.creationDelay = creationDelay
   }
 
   func create() -> UInt32? {
-    if creationDelay > 0 {
-      Thread.sleep(forTimeInterval: creationDelay)
-    }
-    lock.withLock {
-      mutableCreatedCount += 1
-    }
+    mutableCreatedCount += 1
     return assertionID
   }
 
   func release(_ assertionID: UInt32) {
-    lock.withLock {
-      mutableReleasedAssertions.append(assertionID)
-    }
+    mutableReleasedAssertions.append(assertionID)
   }
 }

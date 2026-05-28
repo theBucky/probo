@@ -1,21 +1,20 @@
 import Foundation
 import IOKit.pwr_mgt
-import Synchronization
 import os
 
-final class AutomaticSleepPreventionController: Sendable {
+final class AutomaticSleepPreventionController {
   typealias AssertionID = UInt32
 
   private static let logger = Logger(subsystem: "com.probo.app", category: "Power")
 
-  private let createAssertion: @Sendable () -> AssertionID?
-  private let releaseAssertion: @Sendable (AssertionID) -> Void
-  private let assertionID = Mutex<AssertionID?>(nil)
+  private let createAssertion: () -> AssertionID?
+  private let releaseAssertion: (AssertionID) -> Void
+  private var assertionID: AssertionID?
 
   init(
-    createAssertion: @escaping @Sendable () -> AssertionID? =
+    createAssertion: @escaping () -> AssertionID? =
       AutomaticSleepPreventionController.createSystemAssertion,
-    releaseAssertion: @escaping @Sendable (AssertionID) -> Void =
+    releaseAssertion: @escaping (AssertionID) -> Void =
       AutomaticSleepPreventionController.releaseSystemAssertion
   ) {
     self.createAssertion = createAssertion
@@ -23,25 +22,26 @@ final class AutomaticSleepPreventionController: Sendable {
   }
 
   deinit {
-    setEnabled(false)
+    if let assertionID {
+      releaseAssertion(assertionID)
+    }
   }
 
+  @MainActor
   func setEnabled(_ enabled: Bool) {
-    assertionID.withLock { storedAssertionID in
-      if enabled {
-        guard storedAssertionID == nil else { return }
-        guard let createdAssertionID = createAssertion() else {
-          Self.logger.error("failed to prevent automatic sleep")
-          return
-        }
-        storedAssertionID = createdAssertionID
+    if enabled {
+      guard assertionID == nil else { return }
+      guard let createdAssertionID = createAssertion() else {
+        Self.logger.error("failed to prevent automatic sleep")
         return
       }
-
-      guard let activeAssertionID = storedAssertionID else { return }
-      releaseAssertion(activeAssertionID)
-      storedAssertionID = nil
+      assertionID = createdAssertionID
+      return
     }
+
+    guard let activeAssertionID = assertionID else { return }
+    releaseAssertion(activeAssertionID)
+    assertionID = nil
   }
 
   private static func createSystemAssertion() -> AssertionID? {

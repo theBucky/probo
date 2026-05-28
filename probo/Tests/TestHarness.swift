@@ -1,8 +1,8 @@
 import Foundation
 
-struct TestCase: Sendable {
+struct TestCase {
   let behavior: String
-  let body: @Sendable () throws -> Void
+  let body: @MainActor () throws -> Void
 }
 
 struct TestFailure: Error, CustomStringConvertible {
@@ -43,6 +43,7 @@ func expectNotNil<T>(_ actual: T?, _ message: String) throws -> T {
 
 @main
 enum ProboTests {
+  @MainActor
   static func main() {
     let tests =
       scrollRewriteCoreTests + scrollEventSynthesizerTests + appConfigurationStoreTests
