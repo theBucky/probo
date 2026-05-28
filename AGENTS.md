@@ -1,35 +1,43 @@
 # Probo
 
-Menubar macOS app remapping mouse-wheel ticks to fixed line steps. AppKit status-item shell hosting a SwiftUI settings form, with a native Swift rewrite core.
+Menubar macOS app remapping mouse-wheel ticks to fixed line steps.
 
-## Stack
+## Project Map
 
-- Latest Swift; no legacy API or syntax
-- AppKit `NSStatusItem` + `NSMenu` for the status surface; `NSWindow` hosts the SwiftUI settings `Form` via `NSHostingController`
-- `swiftc` flags in [build.sh](scripts/build.sh) are the only Swift gate; target `macos15.0`, `-swift-version 6 -O`
+- `probo/Sources/App`: lifecycle and controller wiring; AppKit owns menu, window, activation, and app surface.
+- `probo/Sources/UI`: settings content; SwiftUI owns the `Form`, AppKit owns its window.
+- `probo/Sources/Core`: pure rewrite decisions; no AppKit, CoreGraphics, IOKit, persistence, or UI.
+- `probo/Sources/Events`: event tap, parsing, and synthesized output.
+- `probo/Sources/Configuration`: config model and `UserDefaults`.
+- `probo/Sources/System`: Accessibility, frontmost app, launch-at-login, power assertions.
+- `probo/Tests`: script-run Swift tests.
+- `refs/`: read-only inspiration. Do not edit or vendor from it.
 
-## Layout
+## Environment Requirements
 
-- [App](probo/Sources/App): app lifecycle and controller wiring
-- [Core](probo/Sources/Core): pure scroll rewrite hot path
-- [Events](probo/Sources/Events): event tap and synth
-- [Configuration](probo/Sources/Configuration): config model and persistence
-- [System](probo/Sources/System): permission and launch-at-login glue
-- [UI](probo/Sources/UI): status menu (AppKit) and settings form (SwiftUI)
+- Latest Swift syntax and idioms.
+- macOS 15.0 minimum deployment target.
+- Apple silicon target.
+- No SwiftPM manifest or Xcode project. `scripts/build.sh` is the gate.
+- `swiftc` flags stay explicit: `-target ...-apple-macos15.0`, `-swift-version 6`, `-O`.
 
-## Validation
+## Commands
 
-- format: `swift-format format -i -r probo/Sources probo/Tests`
-- test: `scripts/test.sh`
-- build: `scripts/build.sh`
+- Format: `swift-format format -i -r probo/Sources probo/Tests`
+- Test: `scripts/test.sh`
+- Build: `scripts/build.sh`
+- Run locally: `scripts/dev/run.sh`
+- Update LSP database: `scripts/dev/lsp.sh`
+- Hot-path profile: `scripts/profiling/hot-path.sh`
 
-## Invariants
+## General Coding Rules
 
-- Tap callback is hot; keep Swift core allocation-free
-- Rewrite core drops continuous, phased, diagonal, zero-delta events; extend, never loosen
-- No smoothing, momentum, acceleration, or gesture-phase output
-- Per-app behavior is limited to built-in ecosystem heuristics (e.g. terminal-aware precision); no user-configurable app lists
-
-## Local
-
-- [refs/](refs) is read-only inspiration; never edit or vendor from it
+- Use direct AppKit or SwiftUI APIs when they express the behavior. No adapters, wrappers, delayed tasks, mirrors, forwarding enums, or glue around one-step framework calls.
+- Keep framework bridges at system boundaries: event tap, menu bar, window, permission, launch-at-login, power assertion. Keep core framework-free.
+- Add helpers only for real invariants or repeated behavior. Delete one-use constants files, shims, compatibility layers, and pass-through abstractions.
+- Keep the tap callback allocation-free. No locks, lookups, persistence, logging, async work, or heap allocations in the scroll hot path.
+- Preserve rewrite drops: continuous, phased, diagonal, and zero-delta events. Only make drop policy stricter.
+- Do not add smoothing, momentum, acceleration, or gesture-phase output.
+- Keep per-app behavior to built-in ecosystem heuristics. No user-configurable app lists.
+- Validate external inputs at the boundary. Keep private code free of impossible-state defense.
+- Prefer fewer files with clear ownership over tiny forwarding files. Split only for a real boundary or independently testable behavior.
