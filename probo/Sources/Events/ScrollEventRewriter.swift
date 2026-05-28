@@ -3,6 +3,13 @@
 struct ScrollEventRewriter {
   private let synth = ScrollEventSynthesizer()
   private let isTerminalFrontmost: @Sendable () -> Bool
+  private static let leftOptionFlag = CGEventFlags(rawValue: 0x20)
+  private static let rightOptionFlag = CGEventFlags(rawValue: 0x40)
+  private static let allOptionFlags: CGEventFlags = [
+    .maskAlternate, leftOptionFlag, rightOptionFlag,
+  ]
+  private static let optionKey = CGKeyCode(0x3A)
+  private static let rightOptionKey = CGKeyCode(0x3D)
 
   init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
     self.isTerminalFrontmost = isTerminalFrontmost
@@ -77,10 +84,10 @@ struct ScrollEventRewriter {
     // so the target app sees option release before our event and restore after. The replacement
     // is required: skipping the sandwich on flagsChanged synthesis failure still beats passing
     // the original Option-bearing event through, which terminals would read as alt-scroll.
-    let flags = originalFlags.subtracting(.proboAllOption)
+    let flags = originalFlags.subtracting(Self.allOptionFlags)
     let optionKey: CGKeyCode =
-      originalFlags.contains(.proboRightOption)
-      ? KeyboardKeyCode.rightOption : KeyboardKeyCode.option
+      originalFlags.contains(Self.rightOptionFlag)
+      ? Self.rightOptionKey : Self.optionKey
     guard
       let replacement = synth.makeReplacement(
         location: location, flags: flags, linesX: linesX, linesY: linesY

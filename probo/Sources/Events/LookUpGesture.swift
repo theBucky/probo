@@ -2,7 +2,7 @@
 
 enum LookUpGesture {
   private static let buttonNumber: Int64 = 3
-  private static let keyCode = KeyboardKeyCode.d
+  private static let keyCode = CGKeyCode(0x02)
   private static let flags: CGEventFlags = [.maskCommand, .maskControl]
 
   static func consume(type: CGEventType, event: CGEvent) -> Bool {
