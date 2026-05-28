@@ -7,8 +7,6 @@ final class EventTapController: @unchecked Sendable {
   private struct TapState {
     var tap: CFMachPort?
     var installPending = false
-    var isActive = false
-    var lastEmittedEnabled = false
   }
 
   private enum InstallAction {
@@ -18,10 +16,12 @@ final class EventTapController: @unchecked Sendable {
   }
 
   private let scrollRewriter: ScrollEventRewriter
+  // Atomic, not lock-guarded, because the hot path reads it on every event.
   private let isActive = Atomic<Bool>(false)
   private let optionsRawValue = Atomic<UInt32>(
     EventTapOptions(configuration: .defaultValue).rawValue)
-  // CFMachPort is installed off-main and toggled from both main and tap callbacks.
+  // CFMachPort is created on the tap thread and toggled from main and the tap callback; the
+  // lock guards its lifecycle and the one-shot install flag, off the hot path.
   private let tapState = OSAllocatedUnfairLock(uncheckedState: TapState())
   var onTapEnabledChange: (@MainActor (Bool) -> Void)?
 
@@ -35,27 +35,22 @@ final class EventTapController: @unchecked Sendable {
       EventTapOptions(configuration: configuration).rawValue, ordering: .relaxed)
   }
 
-  // Install once on first enable, then toggle forever via CGEvent.tapEnable.
-  // The tap thread outlives setActive(false); process exit reaps it.
-  // installPending coalesces back-to-back enables so the in-flight install thread
-  // picks up the latest isActive at completion instead of spawning a duplicate tap.
+  // Install once on first enable, then toggle forever via CGEvent.tapEnable. The tap thread
+  // outlives setActive(false); process exit reaps it. installPending coalesces back-to-back
+  // enables so the in-flight install picks up the latest isActive instead of spawning a duplicate.
   @MainActor
-  func setActive(_ isActive: Bool) {
-    self.isActive.store(isActive, ordering: .relaxed)
+  func setActive(_ active: Bool) {
+    let wasActive = isActive.exchange(active, ordering: .relaxed)
     let action = tapState.withLock { state -> InstallAction in
-      let wasActive = state.isActive
-      state.isActive = isActive
-      if let tap = state.tap {
-        return wasActive == isActive ? .none : .toggle(tap)
-      }
-      if !isActive || state.installPending { return .none }
+      if let tap = state.tap { return wasActive == active ? .none : .toggle(tap) }
+      if !active || state.installPending { return .none }
       state.installPending = true
       return .install
     }
     switch action {
     case .toggle(let tap):
-      CGEvent.tapEnable(tap: tap, enable: isActive)
-      publishTapEnabledIfChanged()
+      CGEvent.tapEnable(tap: tap, enable: active)
+      publishTapEnabled()
     case .install:
       let thread = Thread { self.runTapLoop() }
       thread.name = "Probo Event Tap"
@@ -93,20 +88,18 @@ final class EventTapController: @unchecked Sendable {
 
     let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
     CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
-
-    let shouldEnable = tapState.withLock { state -> Bool in
-      state.tap = tap
-      state.installPending = false
-      return state.isActive
+    tapState.withLock {
+      $0.tap = tap
+      $0.installPending = false
     }
-    CGEvent.tapEnable(tap: tap, enable: shouldEnable)
+    CGEvent.tapEnable(tap: tap, enable: isActive.load(ordering: .relaxed))
     publishTapEnabledOnMain()
 
     CFRunLoopRun()
 
     // CFRunLoopRun only returns if the tap source is invalidated externally
     // (e.g. event service restart); drop the dead port so a future setActive
-    // retries the install instead of toggling a corpse.
+    // reinstalls instead of toggling a corpse.
     tapState.withLock { $0.tap = nil }
     publishTapEnabledOnMain()
   }
@@ -115,15 +108,15 @@ final class EventTapController: @unchecked Sendable {
     let pass = Unmanaged.passUnretained(event)
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      let (isActive, tap) = tapState.withLock { ($0.isActive, $0.tap) }
-      if let tap, isActive {
+      let tap = tapState.withLock { $0.tap }
+      if let tap, isActive.load(ordering: .relaxed) {
         CGEvent.tapEnable(tap: tap, enable: true)
       }
       return pass
     }
 
-    // Skip self-synth re-entry before the lock so option-strip sandwiches don't
-    // pay 3 lock acquisitions per click.
+    // Bail on our own synthesized events first so the option-strip sandwich
+    // doesn't re-enter the rewriter three times per click.
     if type == .scrollWheel,
       event.getIntegerValueField(.eventSourceUserData) == ScrollEventSynthesizer.marker
     {
@@ -145,17 +138,12 @@ final class EventTapController: @unchecked Sendable {
   }
 
   private func publishTapEnabledOnMain() {
-    Task { @MainActor in publishTapEnabledIfChanged() }
+    Task { @MainActor in publishTapEnabled() }
   }
 
   @MainActor
-  private func publishTapEnabledIfChanged() {
-    let next = tapState.withLock { state -> Bool? in
-      let next = state.isActive && state.tap != nil
-      guard state.lastEmittedEnabled != next else { return nil }
-      state.lastEmittedEnabled = next
-      return next
-    }
-    if let next { onTapEnabledChange?(next) }
+  private func publishTapEnabled() {
+    let installed = tapState.withLock { $0.tap != nil }
+    onTapEnabledChange?(isActive.load(ordering: .relaxed) && installed)
   }
 }
