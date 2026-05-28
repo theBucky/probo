@@ -74,32 +74,31 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
   private func openSettings() {
     runtime.refreshSystemState()
-    if settingsWindow == nil {
+    // Status-item apps start as accessory apps. Promote before creating/showing
+    // the settings window so AppKit orders it like a normal foreground window.
+    NSApp.setActivationPolicy(.regular)
+
+    let window: NSWindow
+    if let settingsWindow {
+      window = settingsWindow
+    } else {
       let controller = NSHostingController(
         rootView: ProboSettingsView(runtime: runtime))
       // SwiftUI Form has no intrinsic size until it lays out; preferredContentSize
       // pipes the layout result into the window so it doesn't open at 0x0.
       controller.sizingOptions = .preferredContentSize
-      let window = NSWindow(contentViewController: controller)
-      window.styleMask = [.titled, .closable]
-      window.title = "Probo"
-      window.isReleasedWhenClosed = false
-      window.delegate = self
-      window.center()
-      settingsWindow = window
+      let createdWindow = NSWindow(contentViewController: controller)
+      createdWindow.styleMask = [.titled, .closable]
+      createdWindow.title = "Probo"
+      createdWindow.isReleasedWhenClosed = false
+      createdWindow.delegate = self
+      createdWindow.center()
+      settingsWindow = createdWindow
+      window = createdWindow
     }
-    // An accessory app is a background utility; macOS only raises windows
-    // reliably for apps that own a Dock icon. Promote to .regular while the
-    // settings window is visible, then revert in windowWillClose.
-    NSApp.setActivationPolicy(.regular)
-    Task { @MainActor in
-      // Let the policy change register before activating, otherwise the
-      // activation lands before the app is a foreground citizen.
-      try? await Task.sleep(for: .milliseconds(50))
-      NSApp.activate()
-      settingsWindow?.makeKeyAndOrderFront(nil)
-      settingsWindow?.orderFrontRegardless()
-    }
+
+    NSApp.activate(ignoringOtherApps: true)
+    window.makeKeyAndOrderFront(nil)
   }
 
   // Settings window closed: drop back to a menu-bar-only background app.
