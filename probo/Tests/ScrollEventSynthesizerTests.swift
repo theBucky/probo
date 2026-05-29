@@ -47,6 +47,40 @@ let scrollEventSynthesizerTests: [TestCase] = [
 
   TestCase(
     behavior:
+      "given an existing scroll event when applying replacement lines then it matches synthesized wheel fields"
+  ) {
+    let location = CGPoint(x: 21, y: 43)
+    let flags: CGEventFlags = [.maskShift]
+    let event = try inputScrollEvent(location: location)
+    event.setIntegerValueField(.eventSourceUserData, value: 123)
+
+    ScrollEventSynthesizer().applyReplacement(
+      to: event,
+      location: location,
+      flags: flags,
+      linesX: 3,
+      linesY: -2
+    )
+    let replacement = try replacementEvent(location: location, flags: flags, linesX: 3, linesY: -2)
+
+    for (fieldName, field) in wheelFields {
+      try expectEqual(
+        event.getIntegerValueField(field),
+        replacement.getIntegerValueField(field),
+        "applied replacement should match synthesized \(fieldName)"
+      )
+    }
+    try expectEqual(
+      event.getIntegerValueField(.eventSourceUserData),
+      123,
+      "applied replacement should preserve event source user data"
+    )
+    try expectEqual(event.location, location, "applied replacement should preserve location")
+    try expect(event.flags.contains(.maskShift), "applied replacement should preserve flags")
+  },
+
+  TestCase(
+    behavior:
       "given modifier restoration when synthesizing then it emits a tagged flags-changed event"
   ) {
     let event = try flagsChangedEvent(flags: [.maskCommand], keyCode: 58)
@@ -64,6 +98,22 @@ let scrollEventSynthesizerTests: [TestCase] = [
       "modifier event should carry the synth marker"
     )
   },
+]
+
+private let wheelFields: [(String, CGEventField)] = [
+  ("delta axis 1", .scrollWheelEventDeltaAxis1),
+  ("delta axis 2", .scrollWheelEventDeltaAxis2),
+  ("delta axis 3", .scrollWheelEventDeltaAxis3),
+  ("fixed axis 1", .scrollWheelEventFixedPtDeltaAxis1),
+  ("fixed axis 2", .scrollWheelEventFixedPtDeltaAxis2),
+  ("fixed axis 3", .scrollWheelEventFixedPtDeltaAxis3),
+  ("point axis 1", .scrollWheelEventPointDeltaAxis1),
+  ("point axis 2", .scrollWheelEventPointDeltaAxis2),
+  ("point axis 3", .scrollWheelEventPointDeltaAxis3),
+  ("scroll count", .scrollWheelEventScrollCount),
+  ("continuous", .scrollWheelEventIsContinuous),
+  ("phase", .scrollWheelEventScrollPhase),
+  ("momentum", .scrollWheelEventMomentumPhase),
 ]
 
 private func replacementEvent(
@@ -85,4 +135,22 @@ private func flagsChangedEvent(flags: CGEventFlags, keyCode: CGKeyCode) throws -
     ScrollEventSynthesizer().makeFlagsChanged(flags: flags, keyCode: keyCode),
     "flags-changed event should be created"
   )
+}
+
+private func inputScrollEvent(location: CGPoint) throws -> CGEvent {
+  let source = CGEventSource(stateID: .hidSystemState)
+  source?.pixelsPerLine = 16.0
+  let event = try expectNotNil(
+    CGEvent(
+      scrollWheelEvent2Source: source,
+      units: .line,
+      wheelCount: 1,
+      wheel1: 42,
+      wheel2: 0,
+      wheel3: 0
+    ),
+    "input scroll should be created"
+  )
+  event.location = location
+  return event
 }

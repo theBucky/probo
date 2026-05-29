@@ -3,10 +3,11 @@ import ApplicationServices
 struct ScrollEventSynthesizer {
   // ASCII "PROBO" — tags synthesized events so the tap can skip its own output.
   static let marker: Int64 = 0x50_524F_424F
+  private static let pixelsPerLine: Int64 = 16
 
   private let source: CGEventSource? = {
     let source = CGEventSource(stateID: .hidSystemState)
-    source?.pixelsPerLine = 16.0
+    source?.pixelsPerLine = Double(Self.pixelsPerLine)
     return source
   }()
 
@@ -27,12 +28,34 @@ struct ScrollEventSynthesizer {
       return nil
     }
 
-    replacement.location = location
-    replacement.flags = flags
-    // synthesized events default ScrollCount to 0; real HID notches send 1.
-    replacement.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
+    applyReplacement(
+      to: replacement, location: location, flags: flags, linesX: linesX, linesY: linesY)
     replacement.setIntegerValueField(.eventSourceUserData, value: Self.marker)
     return replacement
+  }
+
+  func applyReplacement(
+    to event: CGEvent,
+    location: CGPoint,
+    flags: CGEventFlags,
+    linesX: Int32,
+    linesY: Int32
+  ) {
+    event.location = location
+    event.flags = flags
+    event.setIntegerValueField(.scrollWheelEventDeltaAxis1, value: Int64(linesY))
+    event.setIntegerValueField(.scrollWheelEventDeltaAxis2, value: Int64(linesX))
+    event.setIntegerValueField(.scrollWheelEventDeltaAxis3, value: 0)
+    event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis1, value: fixedDelta(linesY))
+    event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis2, value: fixedDelta(linesX))
+    event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis3, value: 0)
+    event.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: pointDelta(linesY))
+    event.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: pointDelta(linesX))
+    event.setIntegerValueField(.scrollWheelEventPointDeltaAxis3, value: 0)
+    event.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
+    event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 0)
+    event.setIntegerValueField(.scrollWheelEventScrollPhase, value: 0)
+    event.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 0)
   }
 
   func makeFlagsChanged(flags: CGEventFlags, keyCode: CGKeyCode) -> CGEvent? {
@@ -42,5 +65,13 @@ struct ScrollEventSynthesizer {
     event.setIntegerValueField(.keyboardEventKeycode, value: Int64(keyCode))
     event.setIntegerValueField(.eventSourceUserData, value: Self.marker)
     return event
+  }
+
+  private func fixedDelta(_ lines: Int32) -> Int64 {
+    Int64(lines) * 65_536
+  }
+
+  private func pointDelta(_ lines: Int32) -> Int64 {
+    Int64(lines) * Self.pixelsPerLine
   }
 }

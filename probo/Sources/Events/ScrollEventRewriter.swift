@@ -16,8 +16,8 @@ struct ScrollEventRewriter {
   }
 
   // EventTapController filters self-synth re-entry; the core owns the drop decision.
-  func rewrite(event: CGEvent, options: EventTapOptions) -> Bool {
-    guard isMouseWheelEvent(event) else { return false }
+  func rewrite(event: CGEvent, options: EventTapOptions) -> CGEvent? {
+    guard isMouseWheelEvent(event) else { return event }
 
     let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
     let hasPhase =
@@ -45,39 +45,12 @@ struct ScrollEventRewriter {
         isPrecision: decision.isPrecision,
         isTrackpadStyleScrollingEnabled: options.isTrackpadStyleScrollingEnabled
       )
-    else { return false }
+    else { return event }
 
-    return post(
-      location: event.location,
-      originalFlags: originalFlags,
-      linesX: linesX,
-      linesY: linesY,
-      stripOption: decision.stripOption
-    )
-  }
-
-  private func isMouseWheelEvent(_ event: CGEvent) -> Bool {
-    let subtype = CGEventMouseSubtype(
-      rawValue: UInt32(event.getIntegerValueField(.mouseEventSubtype)))
-    if subtype != .defaultType { return false }
-    return event.getIntegerValueField(.tabletEventDeviceID) == 0
-  }
-
-  private func post(
-    location: CGPoint,
-    originalFlags: CGEventFlags,
-    linesX: Int32,
-    linesY: Int32,
-    stripOption: Bool
-  ) -> Bool {
-    if !stripOption {
-      guard
-        let replacement = synth.makeReplacement(
-          location: location, flags: originalFlags, linesX: linesX, linesY: linesY
-        )
-      else { return false }
-      replacement.post(tap: .cgSessionEventTap)
-      return true
+    if !decision.stripOption {
+      synth.applyReplacement(
+        to: event, location: event.location, flags: originalFlags, linesX: linesX, linesY: linesY)
+      return event
     }
 
     // stripOption implies option was held; sandwich the stripped replacement with flagsChanged
@@ -90,9 +63,9 @@ struct ScrollEventRewriter {
       ? Self.rightOptionKey : Self.optionKey
     guard
       let replacement = synth.makeReplacement(
-        location: location, flags: flags, linesX: linesX, linesY: linesY
+        location: event.location, flags: flags, linesX: linesX, linesY: linesY
       )
-    else { return false }
+    else { return event }
 
     let releaseOption = synth.makeFlagsChanged(flags: flags, keyCode: optionKey)
     let restoreOption = synth.makeFlagsChanged(flags: originalFlags, keyCode: optionKey)
@@ -100,6 +73,13 @@ struct ScrollEventRewriter {
     releaseOption?.post(tap: .cgSessionEventTap)
     replacement.post(tap: .cgSessionEventTap)
     restoreOption?.post(tap: .cgSessionEventTap)
-    return true
+    return nil
+  }
+
+  private func isMouseWheelEvent(_ event: CGEvent) -> Bool {
+    let subtype = CGEventMouseSubtype(
+      rawValue: UInt32(event.getIntegerValueField(.mouseEventSubtype)))
+    if subtype != .defaultType { return false }
+    return event.getIntegerValueField(.tabletEventDeviceID) == 0
   }
 }

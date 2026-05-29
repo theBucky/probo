@@ -74,7 +74,10 @@ struct HotPathProfile {
     }
 
     let configuration = AppConfiguration.defaultValue
+    let tapOptions = EventTapOptions(configuration: configuration)
+    let tapOptionsRawValue = tapOptions.rawValue
     let synth = ScrollEventSynthesizer()
+    let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
     let linesY = configuration.intensity.lines
     var blackhole: Int64 = 0
 
@@ -140,6 +143,22 @@ struct HotPathProfile {
     }.print()
 
     measure(
+      "apply replacement",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole
+    ) {
+      synth.applyReplacement(
+        to: event,
+        location: event.location,
+        flags: event.flags,
+        linesX: 0,
+        linesY: linesY
+      )
+      return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+    }.print()
+
+    measure(
       "pipeline no post",
       options: options,
       timebase: timebase,
@@ -155,6 +174,55 @@ struct HotPathProfile {
         )
       else { return 0 }
       return replacement.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+    }.print()
+
+    measure(
+      "pipeline mutate",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole
+    ) {
+      guard let (linesX, linesY) = rewriteFromEvent(event, configuration: configuration)
+      else { return 0 }
+      synth.applyReplacement(
+        to: event,
+        location: event.location,
+        flags: event.flags,
+        linesX: linesX,
+        linesY: linesY
+      )
+      return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+    }.print()
+
+    measure(
+      "options decode",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole
+    ) {
+      let decoded = EventTapOptions(rawValue: tapOptionsRawValue)
+      return decoded.isTerminalOptimizationEnabled ? 1 : 0
+    }.print()
+
+    measure(
+      "rewriter mutate",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole
+    ) {
+      rewriter.rewrite(event: event, options: tapOptions)?
+        .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
+    }.print()
+
+    measure(
+      "rewriter + decode",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole
+    ) {
+      let decoded = EventTapOptions(rawValue: tapOptionsRawValue)
+      return rewriter.rewrite(event: event, options: decoded)?
+        .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
     }.print()
 
     if options.postEvents > 0 {

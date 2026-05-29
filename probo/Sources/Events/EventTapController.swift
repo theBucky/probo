@@ -129,7 +129,7 @@ final class EventTapController: @unchecked Sendable {
       guard options.isLookUpEnabled else { return pass }
       return LookUpGesture.consume(type: type, event: event) ? nil : pass
     case .scrollWheel:
-      return scrollRewriter.rewrite(event: event, options: options) ? nil : pass
+      return scrollRewriter.rewrite(event: event, options: options).map(Unmanaged.passUnretained)
     default:
       return pass
     }
