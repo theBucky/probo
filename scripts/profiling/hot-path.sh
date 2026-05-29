@@ -61,6 +61,8 @@ xcrun swiftc \
   "$swift_dir/Sources/Core/ScrollIntensity.swift" \
   "$swift_dir/Sources/Core/ScrollRewriteCore.swift" \
   "$swift_dir/Sources/Configuration/AppConfiguration.swift" \
+  "$swift_dir/Sources/Events/EventTapOptions.swift" \
+  "$swift_dir/Sources/Events/ScrollEventRewriter.swift" \
   "$swift_dir/Sources/Events/ScrollEventSynthesizer.swift" \
   "$probe_source" \
   -o "$probe_binary"

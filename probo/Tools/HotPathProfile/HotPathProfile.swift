@@ -74,8 +74,12 @@ struct HotPathProfile {
     }
 
     let configuration = AppConfiguration.defaultValue
+    let tapOptions = EventTapOptions(configuration: configuration)
+    let tapOptionsRawValue = tapOptions.rawValue
     let synth = ScrollEventSynthesizer()
+    let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
     let linesY = configuration.intensity.lines
+    let resetEvent = { resetInputEvent(event, synth: synth) }
     var blackhole: Int64 = 0
 
     Swift.print("synthetic input: discrete line-unit CGEvent, no HID driver, no device coalescing")
@@ -115,7 +119,8 @@ struct HotPathProfile {
       "cg extract + core",
       options: options,
       timebase: timebase,
-      blackhole: &blackhole
+      blackhole: &blackhole,
+      prepare: resetEvent
     ) {
       guard let (_, linesY) = rewriteFromEvent(event, configuration: configuration)
       else { return 0 }
@@ -126,7 +131,8 @@ struct HotPathProfile {
       "synth make event",
       options: options,
       timebase: timebase,
-      blackhole: &blackhole
+      blackhole: &blackhole,
+      prepare: resetEvent
     ) {
       guard
         let replacement = synth.makeReplacement(
@@ -140,10 +146,28 @@ struct HotPathProfile {
     }.print()
 
     measure(
+      "apply replacement",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole,
+      prepare: resetEvent
+    ) {
+      synth.applyReplacement(
+        to: event,
+        location: event.location,
+        flags: event.flags,
+        linesX: 0,
+        linesY: linesY
+      )
+      return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+    }.print()
+
+    measure(
       "pipeline no post",
       options: options,
       timebase: timebase,
-      blackhole: &blackhole
+      blackhole: &blackhole,
+      prepare: resetEvent
     ) {
       guard
         let (linesX, linesY) = rewriteFromEvent(event, configuration: configuration),
@@ -155,6 +179,58 @@ struct HotPathProfile {
         )
       else { return 0 }
       return replacement.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+    }.print()
+
+    measure(
+      "pipeline mutate",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole,
+      prepare: resetEvent
+    ) {
+      guard let (linesX, linesY) = rewriteFromEvent(event, configuration: configuration)
+      else { return 0 }
+      synth.applyReplacement(
+        to: event,
+        location: event.location,
+        flags: event.flags,
+        linesX: linesX,
+        linesY: linesY
+      )
+      return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+    }.print()
+
+    measure(
+      "options decode",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole
+    ) {
+      let decoded = EventTapOptions(rawValue: tapOptionsRawValue)
+      return decoded.isTerminalOptimizationEnabled ? 1 : 0
+    }.print()
+
+    measure(
+      "rewriter mutate",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole,
+      prepare: resetEvent
+    ) {
+      rewriter.rewrite(event: event, options: tapOptions)?
+        .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
+    }.print()
+
+    measure(
+      "rewriter + decode",
+      options: options,
+      timebase: timebase,
+      blackhole: &blackhole,
+      prepare: resetEvent
+    ) {
+      let decoded = EventTapOptions(rawValue: tapOptionsRawValue)
+      return rewriter.rewrite(event: event, options: decoded)?
+        .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
     }.print()
 
     if options.postEvents > 0 {
@@ -224,14 +300,17 @@ private func measure(
   options: Options,
   timebase: Timebase,
   blackhole: inout Int64,
+  prepare: () -> Void = {},
   operation: () -> Int64
 ) -> Summary {
   for _ in 0..<options.warmup {
+    prepare()
     blackhole &+= operation()
   }
 
   var samples = [UInt64](repeating: 0, count: options.iterations)
   for index in 0..<options.iterations {
+    prepare()
     let start = mach_continuous_time()
     blackhole &+= operation()
     samples[index] = mach_continuous_time() - start
@@ -292,6 +371,12 @@ private func makeInputEvent(
   event.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
   event.setIntegerValueField(.eventSourceUserData, value: 0)
   return event
+}
+
+private func resetInputEvent(_ event: CGEvent, synth: ScrollEventSynthesizer) {
+  synth.applyReplacement(
+    to: event, location: CGPoint(x: 100, y: 100), flags: [], linesX: 0, linesY: 1)
+  event.setIntegerValueField(.eventSourceUserData, value: 0)
 }
 
 private func postInputEvents(options: Options, source: CGEventSource?) throws {
