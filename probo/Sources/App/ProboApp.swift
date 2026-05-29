@@ -19,7 +19,7 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
   private var settingsWindow: NSWindow?
   private var lastSymbolName: String?
 
-  func applicationDidFinishLaunching(_ notification: Notification) {
+  func applicationDidFinishLaunching(_ _: Notification) {
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusMenu = ProboStatusMenu(runtime: runtime) { [weak self] in
       self?.openSettings()
@@ -78,31 +78,29 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // the settings window so AppKit orders it like a normal foreground window.
     NSApp.setActivationPolicy(.regular)
 
-    let window: NSWindow
-    if let settingsWindow {
-      window = settingsWindow
-    } else {
-      let controller = NSHostingController(
-        rootView: ProboSettingsView(runtime: runtime))
-      // SwiftUI Form has no intrinsic size until it lays out; preferredContentSize
-      // pipes the layout result into the window so it doesn't open at 0x0.
-      controller.sizingOptions = .preferredContentSize
-      let createdWindow = NSWindow(contentViewController: controller)
-      createdWindow.styleMask = [.titled, .closable]
-      createdWindow.title = "Probo"
-      createdWindow.isReleasedWhenClosed = false
-      createdWindow.delegate = self
-      createdWindow.center()
-      settingsWindow = createdWindow
-      window = createdWindow
-    }
-
+    let window = settingsWindow ?? makeSettingsWindow()
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
   }
 
+  private func makeSettingsWindow() -> NSWindow {
+    let controller = NSHostingController(rootView: ProboSettingsView(runtime: runtime))
+    // SwiftUI Form has no intrinsic size until it lays out; preferredContentSize
+    // pipes the layout result into the window so it doesn't open at 0x0.
+    controller.sizingOptions = .preferredContentSize
+
+    let window = NSWindow(contentViewController: controller)
+    window.styleMask = [.titled, .closable]
+    window.title = "Probo"
+    window.isReleasedWhenClosed = false
+    window.delegate = self
+    window.center()
+    settingsWindow = window
+    return window
+  }
+
   // Settings window closed: drop back to a menu-bar-only background app.
-  func windowWillClose(_ notification: Notification) {
+  func windowWillClose(_ _: Notification) {
     NSApp.setActivationPolicy(.accessory)
   }
 }

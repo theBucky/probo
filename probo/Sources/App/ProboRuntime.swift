@@ -3,8 +3,58 @@ import Observation
 import os
 
 @MainActor
+struct ProboRuntimeEnvironment {
+  let loadConfiguration: () -> AppConfiguration
+  let saveConfiguration: (AppConfiguration) -> Void
+  let isAccessibilityTrusted: (_ prompt: Bool) -> Bool
+  let isStartAtLoginEnabled: () -> Bool
+  let setStartAtLoginEnabled: (Bool) throws -> Void
+  let setFrontmostMonitorActive: (Bool) -> Void
+  let startEventTap: (@escaping @MainActor (Bool) -> Void) -> Void
+  let setEventTapConfiguration: (AppConfiguration) -> Void
+  let setEventTapActive: (Bool) -> Void
+  let setAutomaticSleepPreventionEnabled: (Bool) -> Void
+  let makeAccessibilityGrantTask: (@escaping @MainActor () -> Void) -> Task<Void, Never>
+
+  static func live() -> Self {
+    let configurationStore = AppConfigurationStore()
+    let frontmostMonitor = FrontmostAppMonitor()
+    let eventTapController = EventTapController(
+      isTerminalFrontmost: { [frontmostMonitor] in frontmostMonitor.isTerminalFrontmost() }
+    )
+    let automaticSleepPreventionController = AutomaticSleepPreventionController()
+
+    return Self(
+      loadConfiguration: { configurationStore.load() },
+      saveConfiguration: { configurationStore.save($0) },
+      isAccessibilityTrusted: { AccessibilityPermission.isTrusted(prompt: $0) },
+      isStartAtLoginEnabled: { LaunchAtLogin.isEnabled },
+      setStartAtLoginEnabled: { try LaunchAtLogin.setEnabled($0) },
+      setFrontmostMonitorActive: { frontmostMonitor.setActive($0) },
+      startEventTap: { eventTapController.onTapEnabledChange = $0 },
+      setEventTapConfiguration: { eventTapController.setConfiguration($0) },
+      setEventTapActive: { eventTapController.setActive($0) },
+      setAutomaticSleepPreventionEnabled: {
+        automaticSleepPreventionController.setEnabled($0)
+      },
+      makeAccessibilityGrantTask: { onChange in
+        Task { @MainActor in
+          let stream = DistributedNotificationCenter.default()
+            .notifications(named: AccessibilityPermission.trustChangedNotification)
+          for await _ in stream {
+            onChange()
+          }
+        }
+      }
+    )
+  }
+}
+
+@MainActor
 @Observable
 final class ProboRuntime {
+  @ObservationIgnored
+  private let environment: ProboRuntimeEnvironment
   private var configuration: AppConfiguration
   private(set) var accessibilityTrusted = false
   private(set) var startAtLoginEnabled = false
@@ -57,49 +107,43 @@ final class ProboRuntime {
   }
 
   @ObservationIgnored
-  private let frontmostMonitor = FrontmostAppMonitor()
-  @ObservationIgnored
-  private let eventTapController: EventTapController
-  @ObservationIgnored
-  private let automaticSleepPreventionController = AutomaticSleepPreventionController()
-  @ObservationIgnored
-  private let configurationStore = AppConfigurationStore()
-  @ObservationIgnored
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
   @ObservationIgnored
   private var accessibilityGrantTask: Task<Void, Never>?
 
-  init() {
-    configuration = configurationStore.load()
-    eventTapController = EventTapController(
-      isTerminalFrontmost: { [frontmostMonitor] in frontmostMonitor.isTerminalFrontmost() }
-    )
+  convenience init() {
+    self.init(environment: .live())
+  }
+
+  init(environment: ProboRuntimeEnvironment) {
+    self.environment = environment
+    configuration = environment.loadConfiguration()
   }
 
   func start() {
-    eventTapController.onTapEnabledChange = { [weak self] enabled in
+    environment.startEventTap { [weak self] enabled in
       self?.tapEnabled = enabled
     }
     refreshSystemState()
   }
 
   func refreshSystemState() {
-    accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
-    startAtLoginEnabled = LaunchAtLogin.isEnabled
+    accessibilityTrusted = environment.isAccessibilityTrusted(false)
+    startAtLoginEnabled = environment.isStartAtLoginEnabled()
     reconcile()
   }
 
   func setStartAtLoginEnabled(_ isEnabled: Bool) {
     do {
-      try LaunchAtLogin.setEnabled(isEnabled)
+      try environment.setStartAtLoginEnabled(isEnabled)
     } catch {
       logger.error("failed to update launch at login: \(error.localizedDescription)")
     }
-    startAtLoginEnabled = LaunchAtLogin.isEnabled
+    startAtLoginEnabled = environment.isStartAtLoginEnabled()
   }
 
   func requestAccessibilityAccess() {
-    accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: true)
+    accessibilityTrusted = environment.isAccessibilityTrusted(true)
     reconcile()
   }
 
@@ -110,40 +154,35 @@ final class ProboRuntime {
   ) -> Bool {
     guard configuration[keyPath: keyPath] != value else { return false }
     configuration[keyPath: keyPath] = value
-    configurationStore.save(configuration)
+    environment.saveConfiguration(configuration)
     reconcile()
     return true
   }
 
   private func reconcile() {
     let tapActive = configuration.isEnabled && accessibilityTrusted
-    frontmostMonitor.setActive(tapActive && configuration.isTerminalOptimizationEnabled)
-    eventTapController.setConfiguration(configuration)
-    eventTapController.setActive(tapActive)
-    automaticSleepPreventionController.setEnabled(
+    environment.setFrontmostMonitorActive(tapActive && configuration.isTerminalOptimizationEnabled)
+    environment.setEventTapConfiguration(configuration)
+    environment.setEventTapActive(tapActive)
+    environment.setAutomaticSleepPreventionEnabled(
       configuration.isEnabled && configuration.preventsAutomaticSleep
     )
-    // Watch grants whenever access isn't trusted: the settings form surfaces the request button
-    // and "Required" label even while disabled, so the UI must observe grants regardless of state.
-    if accessibilityTrusted {
-      accessibilityGrantTask?.cancel()
-      accessibilityGrantTask = nil
-    } else {
-      startAccessibilityGrantWatcher()
-    }
+    accessibilityTrusted ? stopAccessibilityGrantWatcher() : startAccessibilityGrantWatcher()
   }
 
   private func startAccessibilityGrantWatcher() {
     guard accessibilityGrantTask == nil else { return }
-    let stream = DistributedNotificationCenter.default()
-      .notifications(named: AccessibilityPermission.trustChangedNotification)
-    accessibilityGrantTask = Task { [weak self] in
-      for await _ in stream {
-        guard let self else { return }
-        accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: false)
-        reconcile()
-        if accessibilityTrusted { return }
-      }
+    accessibilityGrantTask = environment.makeAccessibilityGrantTask { [weak self] in
+      self?.refreshSystemState()
     }
+  }
+
+  private func stopAccessibilityGrantWatcher() {
+    accessibilityGrantTask?.cancel()
+    accessibilityGrantTask = nil
+  }
+
+  deinit {
+    accessibilityGrantTask?.cancel()
   }
 }

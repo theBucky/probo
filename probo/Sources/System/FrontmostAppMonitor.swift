@@ -48,7 +48,6 @@ final class FrontmostAppMonitor {
       .notifications(named: NSWorkspace.didActivateApplicationNotification)
     activationTask = Task { [weak self] in
       for await _ in stream {
-        if Task.isCancelled { return }
         guard let self else { return }
         refresh()
       }

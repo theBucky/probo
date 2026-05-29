@@ -47,7 +47,7 @@ enum ProboTests {
   static func main() {
     let tests =
       scrollRewriteCoreTests + scrollEventSynthesizerTests + appConfigurationStoreTests
-      + automaticSleepPreventionControllerTests
+      + automaticSleepPreventionControllerTests + proboRuntimeTests
     var failures = 0
 
     for test in tests {

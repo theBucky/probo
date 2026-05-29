@@ -7,19 +7,15 @@ build_dir="$root_dir/build/tests"
 swift_dir="$root_dir/probo"
 sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
 swift_target="$(uname -m)-apple-macos15.0"
-swift_sources=(
-  "$swift_dir/Sources/Events/EventTapOptions.swift"
-  "$swift_dir/Sources/Events/ScrollEventSynthesizer.swift"
-)
+swift_sources=()
 test_sources=()
 
-for source_root in Core Configuration; do
+for source_root in App Core Configuration Events System; do
   while IFS= read -r source; do
+    [[ "$(basename "$source")" == "ProboApp.swift" ]] && continue
     swift_sources+=("$source")
   done < <(find "$swift_dir/Sources/$source_root" -type f -name '*.swift' | sort)
 done
-
-swift_sources+=("$swift_dir/Sources/System/AutomaticSleepPreventionController.swift")
 
 while IFS= read -r source; do
   test_sources+=("$source")
@@ -32,8 +28,10 @@ xcrun swiftc \
   -target "$swift_target" \
   -swift-version 6 \
   -O \
+  -framework AppKit \
   -framework ApplicationServices \
   -framework IOKit \
+  -framework ServiceManagement \
   "${swift_sources[@]}" \
   "${test_sources[@]}" \
   -o "$build_dir/ProboTests"

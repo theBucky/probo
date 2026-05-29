@@ -20,9 +20,7 @@ final class EventTapController: @unchecked Sendable {
   private let isActive = Atomic<Bool>(false)
   private let optionsRawValue = Atomic<UInt32>(
     EventTapOptions(configuration: .defaultValue).rawValue)
-  // CFMachPort is created on the tap thread and toggled from main and the tap callback; the
-  // lock guards its lifecycle and the one-shot install flag, off the hot path.
-  private let tapState = OSAllocatedUnfairLock(uncheckedState: TapState())
+  private let tapState = Mutex(TapState())
   var onTapEnabledChange: (@MainActor (Bool) -> Void)?
 
   init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
