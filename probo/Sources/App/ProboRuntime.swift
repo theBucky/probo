@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 import os
 
 @MainActor
@@ -51,14 +50,13 @@ struct ProboRuntimeEnvironment {
 }
 
 @MainActor
-@Observable
 final class ProboRuntime {
-  @ObservationIgnored
   private let environment: ProboRuntimeEnvironment
   private var configuration: AppConfiguration
   private(set) var accessibilityTrusted = false
   private(set) var startAtLoginEnabled = false
   private var tapEnabled = false
+  var onChange: (() -> Void)?
 
   var isEnabled: Bool {
     get { configuration.isEnabled }
@@ -106,9 +104,7 @@ final class ProboRuntime {
     return "computermouse"
   }
 
-  @ObservationIgnored
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
-  @ObservationIgnored
   private var accessibilityGrantTask: Task<Void, Never>?
 
   convenience init() {
@@ -123,6 +119,7 @@ final class ProboRuntime {
   func start() {
     environment.startEventTap { [weak self] enabled in
       self?.tapEnabled = enabled
+      self?.onChange?()
     }
     refreshSystemState()
   }
@@ -131,6 +128,7 @@ final class ProboRuntime {
     accessibilityTrusted = environment.isAccessibilityTrusted(false)
     startAtLoginEnabled = environment.isStartAtLoginEnabled()
     reconcile()
+    onChange?()
   }
 
   func setStartAtLoginEnabled(_ isEnabled: Bool) {
@@ -140,11 +138,13 @@ final class ProboRuntime {
       logger.error("failed to update launch at login: \(error.localizedDescription)")
     }
     startAtLoginEnabled = environment.isStartAtLoginEnabled()
+    onChange?()
   }
 
   func requestAccessibilityAccess() {
     accessibilityTrusted = environment.isAccessibilityTrusted(true)
     reconcile()
+    onChange?()
   }
 
   @discardableResult
@@ -156,6 +156,7 @@ final class ProboRuntime {
     configuration[keyPath: keyPath] = value
     environment.saveConfiguration(configuration)
     reconcile()
+    onChange?()
     return true
   }
 

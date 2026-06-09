@@ -34,7 +34,6 @@ xcrun swiftc \
   -framework ApplicationServices \
   -framework IOKit \
   -framework ServiceManagement \
-  -framework SwiftUI \
   "${swift_sources[@]}" \
   -o "$app_binary_dir/Probo"
 

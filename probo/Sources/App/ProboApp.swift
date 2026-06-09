@@ -1,6 +1,4 @@
 import AppKit
-import Observation
-import SwiftUI
 
 @MainActor
 @main
@@ -18,6 +16,7 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
   private var statusMenu: ProboStatusMenu!
   private var settingsWindow: NSWindow?
   private var lastSymbolName: String?
+  private var lastAccessibilityTrusted: Bool?
 
   func applicationDidFinishLaunching(_ _: Notification) {
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -26,8 +25,12 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     statusItem.menu = statusMenu.menu
     installMainMenu()
+    runtime.onChange = { [weak self] in
+      guard let self else { return }
+      setStatusIcon(runtime.statusSymbolName)
+      reloadSettingsIfAccessibilityChanged()
+    }
     runtime.start()
-    observeStatusIcon()
   }
 
   // Accessory apps show no menu bar, but NSApp dispatches key equivalents
@@ -62,16 +65,6 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     statusItem.button?.image = image
   }
 
-  private func observeStatusIcon() {
-    withObservationTracking {
-      setStatusIcon(runtime.statusSymbolName)
-    } onChange: { [weak self] in
-      Task { @MainActor in
-        self?.observeStatusIcon()
-      }
-    }
-  }
-
   private func openSettings() {
     runtime.refreshSystemState()
     // Status-item apps start as accessory apps. Promote before creating/showing
@@ -83,16 +76,23 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     window.makeKeyAndOrderFront(nil)
   }
 
-  private func makeSettingsWindow() -> NSWindow {
-    let controller = NSHostingController(rootView: ProboSettingsView(runtime: runtime))
-    // SwiftUI Form has no intrinsic size until it lays out; preferredContentSize
-    // pipes the layout result into the window so it doesn't open at 0x0.
-    controller.sizingOptions = .preferredContentSize
+  private func reloadSettingsIfAccessibilityChanged() {
+    let accessibilityTrusted = runtime.accessibilityTrusted
+    guard lastAccessibilityTrusted != accessibilityTrusted else { return }
+    lastAccessibilityTrusted = accessibilityTrusted
+    settingsViewController?.reload()
+  }
 
+  private var settingsViewController: ProboSettingsViewController?
+
+  private func makeSettingsWindow() -> NSWindow {
+    let controller = ProboSettingsViewController(runtime: runtime)
+    settingsViewController = controller
     let window = NSWindow(contentViewController: controller)
     window.styleMask = [.titled, .closable]
     window.title = "Probo"
     window.isReleasedWhenClosed = false
+    window.setContentSize(controller.preferredContentSize)
     window.delegate = self
     window.center()
     settingsWindow = window

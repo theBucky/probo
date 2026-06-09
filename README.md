@@ -44,7 +44,7 @@ Writes `build/Probo.app` and relaunches it. Set `PROBO_CODESIGN_IDENTITY=-` for 
 
 ## Architecture
 
-AppKit `NSStatusItem` shell hosts a SwiftUI settings form over a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when needed. Hot path is allocation-free.
+AppKit owns the menu bar item, status menu, settings window, and settings controls over a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when needed. Hot path is allocation-free.
 
 | Layer | Path | Role |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ AppKit `NSStatusItem` shell hosts a SwiftUI settings form over a native Swift re
 | Events | `probo/Sources/Events` | Event tap, scroll synthesis |
 | Configuration | `probo/Sources/Configuration` | Settings model, persistence |
 | System | `probo/Sources/System` | Accessibility, frontmost app, sleep, login |
-| UI | `probo/Sources/UI` | Menu bar (AppKit), Settings (SwiftUI) |
+| UI | `probo/Sources/UI` | Status menu and settings controls |
 | Tools | `probo/Tools` | Probes, diagnostics |
 
 ## Development

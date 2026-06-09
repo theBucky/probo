@@ -48,6 +48,7 @@ enum ProboTests {
     let tests =
       scrollRewriteCoreTests + scrollEventSynthesizerTests + appConfigurationStoreTests
       + automaticSleepPreventionControllerTests + proboRuntimeTests
+      + proboSettingsViewControllerTests
     var failures = 0
 
     for test in tests {

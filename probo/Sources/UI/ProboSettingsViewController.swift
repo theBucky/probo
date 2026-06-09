@@ -1,0 +1,306 @@
+import AppKit
+
+@MainActor
+final class ProboSettingsViewController: NSViewController {
+  private enum ToggleSetting: Int {
+    case optionPrecision
+    case terminalOptimization
+    case naturalDirection
+    case lookUp
+    case preventAutomaticSleep
+
+    var title: String {
+      switch self {
+      case .optionPrecision: "Option Precision"
+      case .terminalOptimization: "Terminal Optimization"
+      case .naturalDirection: "Natural Direction"
+      case .lookUp: "Look Up"
+      case .preventAutomaticSleep: "Prevent Automatic Sleep"
+      }
+    }
+
+    var description: String {
+      switch self {
+      case .optionPrecision:
+        "Hold Option to emit one line per notch."
+      case .terminalOptimization:
+        "In terminal apps, emit one line per notch; hold Option for your wheel step."
+      case .naturalDirection:
+        "Match trackpad scrolling direction."
+      case .lookUp:
+        "Map mouse button 4 to Look Up."
+      case .preventAutomaticSleep:
+        "Keep your Mac awake while Probo is enabled. Display sleep, lid close, and manual sleep are still allowed."
+      }
+    }
+
+    var identifier: String {
+      switch self {
+      case .optionPrecision: "option-precision"
+      case .terminalOptimization: "terminal-optimization"
+      case .naturalDirection: "natural-direction"
+      case .lookUp: "look-up"
+      case .preventAutomaticSleep: "prevent-automatic-sleep"
+      }
+    }
+
+    @MainActor
+    func isOn(in runtime: ProboRuntime) -> Bool {
+      switch self {
+      case .optionPrecision: runtime.isOptionPrecisionEnabled
+      case .terminalOptimization: runtime.isTerminalOptimizationEnabled
+      case .naturalDirection: runtime.isTrackpadStyleScrollingEnabled
+      case .lookUp: runtime.isLookUpEnabled
+      case .preventAutomaticSleep: runtime.preventsAutomaticSleep
+      }
+    }
+
+    @MainActor
+    func set(_ isOn: Bool, in runtime: ProboRuntime) {
+      switch self {
+      case .optionPrecision: runtime.isOptionPrecisionEnabled = isOn
+      case .terminalOptimization: runtime.isTerminalOptimizationEnabled = isOn
+      case .naturalDirection: runtime.isTrackpadStyleScrollingEnabled = isOn
+      case .lookUp: runtime.isLookUpEnabled = isOn
+      case .preventAutomaticSleep: runtime.preventsAutomaticSleep = isOn
+      }
+    }
+  }
+
+  private let runtime: ProboRuntime
+  private let sectionWidth: CGFloat = 380
+  private let controlWidth: CGFloat = 126
+  private let contentInset: CGFloat = 20
+
+  init(runtime: ProboRuntime) {
+    self.runtime = runtime
+    super.init(nibName: nil, bundle: nil)
+  }
+
+  @available(*, unavailable)
+  required init?(coder _: NSCoder) {
+    fatalError("init(coder:) is unavailable")
+  }
+
+  override func loadView() {
+    installView()
+  }
+
+  func reload() {
+    let windowFrame = view.window?.frame
+    installView()
+    if let windowFrame {
+      view.window?.setFrame(windowFrame, display: true)
+    }
+  }
+
+  private func installView() {
+    let contentView = makeView()
+    view = contentView
+    preferredContentSize = contentView.fittingSize
+  }
+
+  private func makeView() -> NSView {
+    let stack = NSStackView()
+    stack.orientation = .vertical
+    stack.alignment = .leading
+    stack.spacing = 16
+    stack.translatesAutoresizingMaskIntoConstraints = false
+
+    stack.addArrangedSubview(
+      section(
+        title: "Scrolling",
+        rows: [
+          row(
+            title: "Wheel Step",
+            description: "Lines emitted per mouse-wheel notch.",
+            control: wheelStepPopup()),
+          toggleRow(.optionPrecision),
+          toggleRow(.terminalOptimization),
+          toggleRow(.naturalDirection),
+        ]))
+
+    stack.addArrangedSubview(
+      section(
+        title: "Input",
+        rows: [
+          toggleRow(.lookUp)
+        ]))
+
+    stack.addArrangedSubview(
+      section(
+        title: "Power",
+        rows: [
+          toggleRow(.preventAutomaticSleep)
+        ]))
+
+    var accessibilityRows = [
+      row(title: "Permission", control: accessibilityStatus())
+    ]
+
+    if !runtime.accessibilityTrusted {
+      accessibilityRows.append(
+        row(
+          title: "Accessibility Access",
+          description: "Open System Settings to grant event monitoring access.",
+          control: requestAccessButton()))
+    }
+
+    stack.addArrangedSubview(section(title: "Accessibility", rows: accessibilityRows))
+
+    let container = NSView()
+    container.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(stack)
+
+    NSLayoutConstraint.activate([
+      container.widthAnchor.constraint(equalToConstant: sectionWidth + contentInset * 2),
+      stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: contentInset),
+      stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -contentInset),
+      stack.topAnchor.constraint(equalTo: container.topAnchor, constant: contentInset),
+      stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -contentInset),
+    ])
+
+    return container
+  }
+
+  private func section(title: String, rows: [NSView]) -> NSView {
+    let label = NSTextField(labelWithString: title)
+    label.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
+    label.textColor = .secondaryLabelColor
+
+    let stack = NSStackView()
+    stack.orientation = .vertical
+    stack.alignment = .leading
+    stack.spacing = 8
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    rows.forEach(stack.addArrangedSubview)
+
+    let sectionStack = NSStackView(views: [label, stack])
+    sectionStack.orientation = .vertical
+    sectionStack.alignment = .leading
+    sectionStack.spacing = 8
+    sectionStack.translatesAutoresizingMaskIntoConstraints = false
+
+    NSLayoutConstraint.activate([
+      sectionStack.widthAnchor.constraint(equalToConstant: sectionWidth),
+      stack.widthAnchor.constraint(equalTo: sectionStack.widthAnchor),
+    ])
+
+    return sectionStack
+  }
+
+  private func row(title: String, description: String? = nil, control: NSView) -> NSView {
+    let titleLabel = NSTextField(labelWithString: title)
+    titleLabel.font = .systemFont(ofSize: NSFont.systemFontSize)
+    titleLabel.lineBreakMode = .byWordWrapping
+    titleLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+
+    let textStack = NSStackView(views: [titleLabel])
+    textStack.orientation = .vertical
+    textStack.alignment = .leading
+    textStack.spacing = 2
+
+    if let description {
+      let descriptionLabel = NSTextField(wrappingLabelWithString: description)
+      descriptionLabel.font = .preferredFont(forTextStyle: .caption1)
+      descriptionLabel.textColor = .secondaryLabelColor
+      descriptionLabel.maximumNumberOfLines = 0
+      descriptionLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+      textStack.addArrangedSubview(descriptionLabel)
+    }
+
+    let row = NSView()
+    let controlSlot = NSView()
+    row.translatesAutoresizingMaskIntoConstraints = false
+    textStack.translatesAutoresizingMaskIntoConstraints = false
+    controlSlot.translatesAutoresizingMaskIntoConstraints = false
+    control.translatesAutoresizingMaskIntoConstraints = false
+    row.addSubview(textStack)
+    row.addSubview(controlSlot)
+    controlSlot.addSubview(control)
+
+    NSLayoutConstraint.activate([
+      row.widthAnchor.constraint(equalToConstant: sectionWidth),
+      textStack.leadingAnchor.constraint(equalTo: row.leadingAnchor),
+      textStack.topAnchor.constraint(equalTo: row.topAnchor),
+      textStack.bottomAnchor.constraint(equalTo: row.bottomAnchor),
+      textStack.trailingAnchor.constraint(equalTo: controlSlot.leadingAnchor, constant: -16),
+      controlSlot.trailingAnchor.constraint(equalTo: row.trailingAnchor),
+      controlSlot.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+      controlSlot.widthAnchor.constraint(equalToConstant: controlWidth),
+      controlSlot.heightAnchor.constraint(greaterThanOrEqualTo: control.heightAnchor),
+      control.trailingAnchor.constraint(equalTo: controlSlot.trailingAnchor),
+      control.centerYAnchor.constraint(equalTo: controlSlot.centerYAnchor),
+    ])
+
+    return row
+  }
+
+  private func toggleRow(_ setting: ToggleSetting) -> NSView {
+    let control = NSButton(
+      checkboxWithTitle: "", target: self, action: #selector(toggleSetting(_:)))
+    control.identifier = NSUserInterfaceItemIdentifier(setting.identifier)
+    control.setAccessibilityLabel(setting.title)
+    control.state = setting.isOn(in: runtime) ? .on : .off
+    control.tag = setting.rawValue
+    control.setContentHuggingPriority(.required, for: .horizontal)
+    return row(title: setting.title, description: setting.description, control: control)
+  }
+
+  private func wheelStepPopup() -> NSPopUpButton {
+    let popup = NSPopUpButton()
+    popup.identifier = NSUserInterfaceItemIdentifier("wheel-step")
+    for intensity in ScrollIntensity.allCases {
+      popup.addItem(withTitle: intensity.title)
+      popup.lastItem?.tag = intensity.rawValue
+    }
+    popup.selectItem(withTag: runtime.intensity.rawValue)
+    popup.target = self
+    popup.action = #selector(changeWheelStep(_:))
+    popup.setContentHuggingPriority(.required, for: .horizontal)
+    popup.controlSize = .regular
+    popup.widthAnchor.constraint(equalToConstant: controlWidth).isActive = true
+    return popup
+  }
+
+  private func accessibilityStatus() -> NSView {
+    let symbolName = runtime.accessibilityTrusted ? "checkmark.circle.fill" : "xmark.circle.fill"
+    let imageView = NSImageView(
+      image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) ?? NSImage())
+    imageView.contentTintColor = runtime.accessibilityTrusted ? .systemGreen : .systemRed
+    imageView.symbolConfiguration = .init(pointSize: 14, weight: .semibold)
+
+    let label = NSTextField(labelWithString: runtime.accessibilityTrusted ? "Granted" : "Required")
+    label.identifier = NSUserInterfaceItemIdentifier("accessibility-permission")
+    label.textColor = runtime.accessibilityTrusted ? .systemGreen : .systemRed
+
+    let stack = NSStackView(views: [imageView, label])
+    stack.orientation = .horizontal
+    stack.alignment = .centerY
+    stack.spacing = 5
+    stack.setContentHuggingPriority(.required, for: .horizontal)
+    return stack
+  }
+
+  private func requestAccessButton() -> NSButton {
+    let button = NSButton(
+      title: "Request Access...", target: self, action: #selector(requestAccess))
+    button.identifier = NSUserInterfaceItemIdentifier("request-access")
+    button.bezelStyle = .rounded
+    button.setContentHuggingPriority(.required, for: .horizontal)
+    return button
+  }
+
+  @objc private func changeWheelStep(_ sender: NSPopUpButton) {
+    runtime.intensity = ScrollIntensity(rawValue: sender.selectedTag())!
+  }
+
+  @objc private func toggleSetting(_ sender: NSButton) {
+    let setting = ToggleSetting(rawValue: sender.tag)!
+    setting.set(sender.state == .on, in: runtime)
+  }
+
+  @objc private func requestAccess() {
+    runtime.requestAccessibilityAccess()
+  }
+}

@@ -5,7 +5,7 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps.
 ## Project Map
 
 - `probo/Sources/App`: lifecycle and controller wiring; AppKit owns menu, window, activation, and app surface.
-- `probo/Sources/UI`: settings content; SwiftUI owns the `Form`, AppKit owns its window.
+- `probo/Sources/UI`: status menu and settings content; AppKit owns all UI.
 - `probo/Sources/Core`: pure rewrite decisions; no AppKit, CoreGraphics, IOKit, persistence, or UI.
 - `probo/Sources/Events`: event tap, parsing, and synthesized output.
 - `probo/Sources/Configuration`: config model and `UserDefaults`.
@@ -32,7 +32,7 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps.
 
 ## General Coding Rules
 
-- Use direct AppKit or SwiftUI APIs when they express the behavior. No adapters, wrappers, delayed tasks, mirrors, forwarding enums, or glue around one-step framework calls.
+- Use direct AppKit APIs when they express the behavior. No adapters, wrappers, delayed tasks, mirrors, forwarding enums, or glue around one-step framework calls.
 - Keep framework bridges at system boundaries: event tap, menu bar, window, permission, launch-at-login, power assertion. Keep core framework-free.
 - Add helpers only for real invariants or repeated behavior. Delete one-use constants files, shims, compatibility layers, and pass-through abstractions.
 - Keep the tap callback allocation-free. No locks, lookups, persistence, logging, async work, or heap allocations in the scroll hot path.

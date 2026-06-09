@@ -10,7 +10,7 @@ swift_target="$(uname -m)-apple-macos15.0"
 swift_sources=()
 test_sources=()
 
-for source_root in App Core Configuration Events System; do
+for source_root in App Core Configuration Events System UI; do
   while IFS= read -r source; do
     [[ "$(basename "$source")" == "ProboApp.swift" ]] && continue
     swift_sources+=("$source")
