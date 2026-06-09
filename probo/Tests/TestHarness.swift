@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 struct TestCase {
@@ -46,6 +47,9 @@ enum ProboTests {
   @MainActor
   static func main() {
     setvbuf(stdout, nil, _IONBF, 0)
+    // Settings tests route through NSApp.sendAction; initialize the shared app so the
+    // implicitly-unwrapped NSApp global is non-nil before any test touches it.
+    _ = NSApplication.shared
     let tests =
       scrollRewriteCoreTests + scrollEventSynthesizerTests + appConfigurationStoreTests
       + automaticSleepPreventionControllerTests + proboRuntimeTests
