@@ -45,6 +45,7 @@ func expectNotNil<T>(_ actual: T?, _ message: String) throws -> T {
 enum ProboTests {
   @MainActor
   static func main() {
+    setvbuf(stdout, nil, _IONBF, 0)
     let tests =
       scrollRewriteCoreTests + scrollEventSynthesizerTests + appConfigurationStoreTests
       + automaticSleepPreventionControllerTests + proboRuntimeTests
