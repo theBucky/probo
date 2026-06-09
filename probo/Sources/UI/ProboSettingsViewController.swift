@@ -68,9 +68,12 @@ final class ProboSettingsViewController: NSViewController {
   }
 
   private let runtime: ProboRuntime
-  private let sectionWidth: CGFloat = 380
+  private let cardWidth: CGFloat = 380
   private let controlWidth: CGFloat = 126
   private let contentInset: CGFloat = 20
+  private let cardCornerRadius: CGFloat = 10
+  private let rowInsetX: CGFloat = 14
+  private let rowInsetY: CGFloat = 10
 
   init(runtime: ProboRuntime) {
     self.runtime = runtime
@@ -104,7 +107,7 @@ final class ProboSettingsViewController: NSViewController {
     let stack = NSStackView()
     stack.orientation = .vertical
     stack.alignment = .leading
-    stack.spacing = 16
+    stack.spacing = 20
     stack.translatesAutoresizingMaskIntoConstraints = false
 
     stack.addArrangedSubview(
@@ -153,7 +156,7 @@ final class ProboSettingsViewController: NSViewController {
     container.addSubview(stack)
 
     NSLayoutConstraint.activate([
-      container.widthAnchor.constraint(equalToConstant: sectionWidth + contentInset * 2),
+      container.widthAnchor.constraint(equalToConstant: cardWidth + contentInset * 2),
       stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: contentInset),
       stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -contentInset),
       stack.topAnchor.constraint(equalTo: container.topAnchor, constant: contentInset),
@@ -164,29 +167,79 @@ final class ProboSettingsViewController: NSViewController {
   }
 
   private func section(title: String, rows: [NSView]) -> NSView {
-    let label = NSTextField(labelWithString: title)
-    label.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
-    label.textColor = .secondaryLabelColor
+    let header = NSTextField(labelWithString: title)
+    header.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
+    header.textColor = .secondaryLabelColor
+    header.translatesAutoresizingMaskIntoConstraints = false
 
-    let stack = NSStackView()
-    stack.orientation = .vertical
-    stack.alignment = .leading
-    stack.spacing = 8
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    rows.forEach(stack.addArrangedSubview)
+    let rowsStack = NSStackView()
+    rowsStack.orientation = .vertical
+    rowsStack.alignment = .leading
+    rowsStack.spacing = 0
+    rowsStack.translatesAutoresizingMaskIntoConstraints = false
 
-    let sectionStack = NSStackView(views: [label, stack])
-    sectionStack.orientation = .vertical
-    sectionStack.alignment = .leading
-    sectionStack.spacing = 8
-    sectionStack.translatesAutoresizingMaskIntoConstraints = false
+    for (index, rowView) in rows.enumerated() {
+      if index > 0 {
+        let divider = separator()
+        rowsStack.addArrangedSubview(divider)
+        divider.trailingAnchor.constraint(equalTo: rowsStack.trailingAnchor).isActive = true
+      }
+      rowsStack.addArrangedSubview(rowView)
+      rowView.trailingAnchor.constraint(equalTo: rowsStack.trailingAnchor).isActive = true
+    }
+
+    let card = CardView(cornerRadius: cardCornerRadius)
+    card.translatesAutoresizingMaskIntoConstraints = false
+    card.addSubview(rowsStack)
+
+    let group = NSStackView(views: [header, card])
+    group.orientation = .vertical
+    group.alignment = .leading
+    group.spacing = 6
+    group.translatesAutoresizingMaskIntoConstraints = false
 
     NSLayoutConstraint.activate([
-      sectionStack.widthAnchor.constraint(equalToConstant: sectionWidth),
-      stack.widthAnchor.constraint(equalTo: sectionStack.widthAnchor),
+      card.widthAnchor.constraint(equalToConstant: cardWidth),
+      rowsStack.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+      rowsStack.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+      rowsStack.topAnchor.constraint(equalTo: card.topAnchor),
+      rowsStack.bottomAnchor.constraint(equalTo: card.bottomAnchor),
     ])
 
-    return sectionStack
+    return group
+  }
+
+  private func separator() -> NSBox {
+    let divider = NSBox()
+    divider.boxType = .separator
+    divider.translatesAutoresizingMaskIntoConstraints = false
+    return divider
+  }
+
+  private final class CardView: NSView {
+    private let cornerRadius: CGFloat
+
+    init(cornerRadius: CGFloat) {
+      self.cornerRadius = cornerRadius
+      super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+      fatalError("init(coder:) is unavailable")
+    }
+
+    override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+      let path = NSBezierPath(
+        roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: cornerRadius, yRadius: cornerRadius)
+      NSColor.controlBackgroundColor.setFill()
+      path.fill()
+      NSColor.separatorColor.setStroke()
+      path.lineWidth = 1
+      path.stroke()
+    }
   }
 
   private func row(title: String, description: String? = nil, control: NSView) -> NSView {
@@ -210,27 +263,21 @@ final class ProboSettingsViewController: NSViewController {
     }
 
     let row = NSView()
-    let controlSlot = NSView()
     row.translatesAutoresizingMaskIntoConstraints = false
     textStack.translatesAutoresizingMaskIntoConstraints = false
-    controlSlot.translatesAutoresizingMaskIntoConstraints = false
     control.translatesAutoresizingMaskIntoConstraints = false
     row.addSubview(textStack)
-    row.addSubview(controlSlot)
-    controlSlot.addSubview(control)
+    row.addSubview(control)
 
+    // Controls right-align in a fixed-width column so titles share one trailing edge across rows.
     NSLayoutConstraint.activate([
-      row.widthAnchor.constraint(equalToConstant: sectionWidth),
-      textStack.leadingAnchor.constraint(equalTo: row.leadingAnchor),
-      textStack.topAnchor.constraint(equalTo: row.topAnchor),
-      textStack.bottomAnchor.constraint(equalTo: row.bottomAnchor),
-      textStack.trailingAnchor.constraint(equalTo: controlSlot.leadingAnchor, constant: -16),
-      controlSlot.trailingAnchor.constraint(equalTo: row.trailingAnchor),
-      controlSlot.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-      controlSlot.widthAnchor.constraint(equalToConstant: controlWidth),
-      controlSlot.heightAnchor.constraint(greaterThanOrEqualTo: control.heightAnchor),
-      control.trailingAnchor.constraint(equalTo: controlSlot.trailingAnchor),
-      control.centerYAnchor.constraint(equalTo: controlSlot.centerYAnchor),
+      textStack.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: rowInsetX),
+      textStack.topAnchor.constraint(equalTo: row.topAnchor, constant: rowInsetY),
+      textStack.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -rowInsetY),
+      textStack.trailingAnchor.constraint(
+        equalTo: row.trailingAnchor, constant: -(rowInsetX + controlWidth + 16)),
+      control.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -rowInsetX),
+      control.centerYAnchor.constraint(equalTo: row.centerYAnchor),
     ])
 
     return row
@@ -258,7 +305,6 @@ final class ProboSettingsViewController: NSViewController {
     popup.target = self
     popup.action = #selector(changeWheelStep(_:))
     popup.setContentHuggingPriority(.required, for: .horizontal)
-    popup.controlSize = .regular
     popup.widthAnchor.constraint(equalToConstant: controlWidth).isActive = true
     return popup
   }
@@ -266,7 +312,7 @@ final class ProboSettingsViewController: NSViewController {
   private func accessibilityStatus() -> NSView {
     let symbolName = runtime.accessibilityTrusted ? "checkmark.circle.fill" : "xmark.circle.fill"
     let imageView = NSImageView(
-      image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) ?? NSImage())
+      image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)!)
     imageView.contentTintColor = runtime.accessibilityTrusted ? .systemGreen : .systemRed
     imageView.symbolConfiguration = .init(pointSize: 14, weight: .semibold)
 
