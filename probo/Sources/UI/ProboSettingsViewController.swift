@@ -311,8 +311,9 @@ final class ProboSettingsViewController: NSViewController {
 
   private func accessibilityStatus() -> NSView {
     let symbolName = runtime.accessibilityTrusted ? "checkmark.circle.fill" : "xmark.circle.fill"
+    // systemSymbolName resolves to nil under headless rendering (CI); fall back to an empty image.
     let imageView = NSImageView(
-      image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)!)
+      image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) ?? NSImage())
     imageView.contentTintColor = runtime.accessibilityTrusted ? .systemGreen : .systemRed
     imageView.symbolConfiguration = .init(pointSize: 14, weight: .semibold)
 
