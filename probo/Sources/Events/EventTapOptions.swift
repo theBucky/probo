@@ -1,3 +1,5 @@
+// Atomic-friendly configuration snapshot for the tap callback. Backed by a raw
+// bit field so the hot path stores/loads one UInt32 and reads only the bits it needs.
 struct EventTapOptions: Sendable {
   private static let lookUpBit: UInt32 = 1 << 0
   private static let optionPrecisionBit: UInt32 = 1 << 1
@@ -5,35 +7,25 @@ struct EventTapOptions: Sendable {
   private static let trackpadStyleScrollingBit: UInt32 = 1 << 3
   private static let mediumIntensityBit: UInt32 = 1 << 4
 
-  let isLookUpEnabled: Bool
-  let isOptionPrecisionEnabled: Bool
-  let isTerminalOptimizationEnabled: Bool
-  let isTrackpadStyleScrollingEnabled: Bool
-  let intensity: ScrollIntensity
-
-  init(configuration: AppConfiguration) {
-    isLookUpEnabled = configuration.isLookUpEnabled
-    isOptionPrecisionEnabled = configuration.isOptionPrecisionEnabled
-    isTerminalOptimizationEnabled = configuration.isTerminalOptimizationEnabled
-    isTrackpadStyleScrollingEnabled = configuration.isTrackpadStyleScrollingEnabled
-    intensity = configuration.intensity
-  }
+  let rawValue: UInt32
 
   init(rawValue: UInt32) {
-    isLookUpEnabled = rawValue & Self.lookUpBit != 0
-    isOptionPrecisionEnabled = rawValue & Self.optionPrecisionBit != 0
-    isTerminalOptimizationEnabled = rawValue & Self.terminalOptimizationBit != 0
-    isTrackpadStyleScrollingEnabled = rawValue & Self.trackpadStyleScrollingBit != 0
-    intensity = rawValue & Self.mediumIntensityBit == 0 ? .slow : .medium
+    self.rawValue = rawValue
   }
 
-  var rawValue: UInt32 {
+  init(configuration: AppConfiguration) {
     var value: UInt32 = 0
-    if isLookUpEnabled { value |= Self.lookUpBit }
-    if isOptionPrecisionEnabled { value |= Self.optionPrecisionBit }
-    if isTerminalOptimizationEnabled { value |= Self.terminalOptimizationBit }
-    if isTrackpadStyleScrollingEnabled { value |= Self.trackpadStyleScrollingBit }
-    if intensity == .medium { value |= Self.mediumIntensityBit }
-    return value
+    if configuration.isLookUpEnabled { value |= Self.lookUpBit }
+    if configuration.isOptionPrecisionEnabled { value |= Self.optionPrecisionBit }
+    if configuration.isTerminalOptimizationEnabled { value |= Self.terminalOptimizationBit }
+    if configuration.isTrackpadStyleScrollingEnabled { value |= Self.trackpadStyleScrollingBit }
+    if configuration.intensity == .medium { value |= Self.mediumIntensityBit }
+    rawValue = value
   }
+
+  var isLookUpEnabled: Bool { rawValue & Self.lookUpBit != 0 }
+  var isOptionPrecisionEnabled: Bool { rawValue & Self.optionPrecisionBit != 0 }
+  var isTerminalOptimizationEnabled: Bool { rawValue & Self.terminalOptimizationBit != 0 }
+  var isTrackpadStyleScrollingEnabled: Bool { rawValue & Self.trackpadStyleScrollingBit != 0 }
+  var intensity: ScrollIntensity { rawValue & Self.mediumIntensityBit == 0 ? .slow : .medium }
 }

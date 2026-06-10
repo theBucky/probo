@@ -9,7 +9,7 @@ struct ProboRuntimeEnvironment {
   let isStartAtLoginEnabled: () -> Bool
   let setStartAtLoginEnabled: (Bool) throws -> Void
   let setFrontmostMonitorActive: (Bool) -> Void
-  let startEventTap: (@escaping @MainActor (Bool) -> Void) -> Void
+  let setTapEnabledHandler: (@escaping @MainActor (Bool) -> Void) -> Void
   let setEventTapConfiguration: (AppConfiguration) -> Void
   let setEventTapActive: (Bool) -> Void
   let setAutomaticSleepPreventionEnabled: (Bool) -> Void
@@ -30,7 +30,7 @@ struct ProboRuntimeEnvironment {
       isStartAtLoginEnabled: { LaunchAtLogin.isEnabled },
       setStartAtLoginEnabled: { try LaunchAtLogin.setEnabled($0) },
       setFrontmostMonitorActive: { frontmostMonitor.setActive($0) },
-      startEventTap: { eventTapController.onTapEnabledChange = $0 },
+      setTapEnabledHandler: { eventTapController.onTapEnabledChange = $0 },
       setEventTapConfiguration: { eventTapController.setConfiguration($0) },
       setEventTapActive: { eventTapController.setActive($0) },
       setAutomaticSleepPreventionEnabled: {
@@ -73,29 +73,11 @@ final class ProboRuntime {
     set { update(\.intensity, newValue) }
   }
 
-  var isLookUpEnabled: Bool {
-    get { configuration.isLookUpEnabled }
-    set { update(\.isLookUpEnabled, newValue) }
-  }
-
-  var isOptionPrecisionEnabled: Bool {
-    get { configuration.isOptionPrecisionEnabled }
-    set { update(\.isOptionPrecisionEnabled, newValue) }
-  }
-
-  var isTerminalOptimizationEnabled: Bool {
-    get { configuration.isTerminalOptimizationEnabled }
-    set { update(\.isTerminalOptimizationEnabled, newValue) }
-  }
-
-  var isTrackpadStyleScrollingEnabled: Bool {
-    get { configuration.isTrackpadStyleScrollingEnabled }
-    set { update(\.isTrackpadStyleScrollingEnabled, newValue) }
-  }
-
-  var preventsAutomaticSleep: Bool {
-    get { configuration.preventsAutomaticSleep }
-    set { update(\.preventsAutomaticSleep, newValue) }
+  // Plain on/off settings with no side effects beyond persist-and-reconcile;
+  // isEnabled stays a named property because enabling can prompt for accessibility.
+  subscript(toggle keyPath: WritableKeyPath<AppConfiguration, Bool>) -> Bool {
+    get { configuration[keyPath: keyPath] }
+    set { update(keyPath, newValue) }
   }
 
   var statusSymbolName: String {
@@ -107,17 +89,13 @@ final class ProboRuntime {
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
   private var accessibilityGrantTask: Task<Void, Never>?
 
-  convenience init() {
-    self.init(environment: .live())
-  }
-
   init(environment: ProboRuntimeEnvironment) {
     self.environment = environment
     configuration = environment.loadConfiguration()
   }
 
   func start() {
-    environment.startEventTap { [weak self] enabled in
+    environment.setTapEnabledHandler { [weak self] enabled in
       self?.tapEnabled = enabled
       self?.onChange?()
     }
@@ -168,19 +146,14 @@ final class ProboRuntime {
     environment.setAutomaticSleepPreventionEnabled(
       configuration.isEnabled && configuration.preventsAutomaticSleep
     )
-    accessibilityTrusted ? stopAccessibilityGrantWatcher() : startAccessibilityGrantWatcher()
-  }
-
-  private func startAccessibilityGrantWatcher() {
-    guard accessibilityGrantTask == nil else { return }
-    accessibilityGrantTask = environment.makeAccessibilityGrantTask { [weak self] in
-      self?.refreshSystemState()
+    if accessibilityTrusted {
+      accessibilityGrantTask?.cancel()
+      accessibilityGrantTask = nil
+    } else if accessibilityGrantTask == nil {
+      accessibilityGrantTask = environment.makeAccessibilityGrantTask { [weak self] in
+        self?.refreshSystemState()
+      }
     }
-  }
-
-  private func stopAccessibilityGrantWatcher() {
-    accessibilityGrantTask?.cancel()
-    accessibilityGrantTask = nil
   }
 
   deinit {

@@ -110,7 +110,7 @@ private final class ProboRuntimeDriver {
       isStartAtLoginEnabled: { false },
       setStartAtLoginEnabled: { _ in },
       setFrontmostMonitorActive: { self.frontmostActiveStates.append($0) },
-      startEventTap: { self.tapEnabledHandler = $0 },
+      setTapEnabledHandler: { self.tapEnabledHandler = $0 },
       setEventTapConfiguration: { _ in },
       setEventTapActive: { self.eventTapActiveStates.append($0) },
       setAutomaticSleepPreventionEnabled: { self.sleepPreventionStates.append($0) },

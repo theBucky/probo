@@ -44,25 +44,13 @@ final class ProboSettingsViewController: NSViewController {
       }
     }
 
-    @MainActor
-    func isOn(in runtime: ProboRuntime) -> Bool {
+    var keyPath: WritableKeyPath<AppConfiguration, Bool> {
       switch self {
-      case .optionPrecision: runtime.isOptionPrecisionEnabled
-      case .terminalOptimization: runtime.isTerminalOptimizationEnabled
-      case .naturalDirection: runtime.isTrackpadStyleScrollingEnabled
-      case .lookUp: runtime.isLookUpEnabled
-      case .preventAutomaticSleep: runtime.preventsAutomaticSleep
-      }
-    }
-
-    @MainActor
-    func set(_ isOn: Bool, in runtime: ProboRuntime) {
-      switch self {
-      case .optionPrecision: runtime.isOptionPrecisionEnabled = isOn
-      case .terminalOptimization: runtime.isTerminalOptimizationEnabled = isOn
-      case .naturalDirection: runtime.isTrackpadStyleScrollingEnabled = isOn
-      case .lookUp: runtime.isLookUpEnabled = isOn
-      case .preventAutomaticSleep: runtime.preventsAutomaticSleep = isOn
+      case .optionPrecision: \.isOptionPrecisionEnabled
+      case .terminalOptimization: \.isTerminalOptimizationEnabled
+      case .naturalDirection: \.isTrackpadStyleScrollingEnabled
+      case .lookUp: \.isLookUpEnabled
+      case .preventAutomaticSleep: \.preventsAutomaticSleep
       }
     }
   }
@@ -229,8 +217,6 @@ final class ProboSettingsViewController: NSViewController {
       fatalError("init(coder:) is unavailable")
     }
 
-    override var isFlipped: Bool { true }
-
     override func draw(_ dirtyRect: NSRect) {
       let path = NSBezierPath(
         roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: cornerRadius, yRadius: cornerRadius)
@@ -288,7 +274,7 @@ final class ProboSettingsViewController: NSViewController {
       checkboxWithTitle: "", target: self, action: #selector(toggleSetting(_:)))
     control.identifier = NSUserInterfaceItemIdentifier(setting.identifier)
     control.setAccessibilityLabel(setting.title)
-    control.state = setting.isOn(in: runtime) ? .on : .off
+    control.state = runtime[toggle: setting.keyPath] ? .on : .off
     control.tag = setting.rawValue
     control.setContentHuggingPriority(.required, for: .horizontal)
     return row(title: setting.title, description: setting.description, control: control)
@@ -344,7 +330,7 @@ final class ProboSettingsViewController: NSViewController {
 
   @objc private func toggleSetting(_ sender: NSButton) {
     let setting = ToggleSetting(rawValue: sender.tag)!
-    setting.set(sender.state == .on, in: runtime)
+    runtime[toggle: setting.keyPath] = sender.state == .on
   }
 
   @objc private func requestAccess() {

@@ -66,27 +66,19 @@ let automaticSleepPreventionControllerTests: [TestCase] = [
 
 private final class PowerAssertionDriver {
   private let assertionID: UInt32
-  private var mutableCreatedCount = 0
-  private var mutableReleasedAssertions: [UInt32] = []
-
-  var createdCount: Int {
-    mutableCreatedCount
-  }
-
-  var releasedAssertions: [UInt32] {
-    mutableReleasedAssertions
-  }
+  private(set) var createdCount = 0
+  private(set) var releasedAssertions: [UInt32] = []
 
   init(assertionID: UInt32) {
     self.assertionID = assertionID
   }
 
   func create() -> UInt32? {
-    mutableCreatedCount += 1
+    createdCount += 1
     return assertionID
   }
 
   func release(_ assertionID: UInt32) {
-    mutableReleasedAssertions.append(assertionID)
+    releasedAssertions.append(assertionID)
   }
 }

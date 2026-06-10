@@ -47,27 +47,35 @@ let scrollEventSynthesizerTests: [TestCase] = [
 
   TestCase(
     behavior:
-      "given an existing scroll event when applying replacement lines then it matches synthesized wheel fields"
+      "given an existing scroll event when applying replacement lines then it rewrites every wheel field"
   ) {
     let location = CGPoint(x: 21, y: 43)
-    let flags: CGEventFlags = [.maskShift]
     let event = try inputScrollEvent(location: location)
+    event.flags = [.maskShift]
     event.setIntegerValueField(.eventSourceUserData, value: 123)
 
-    ScrollEventSynthesizer().applyReplacement(
-      to: event,
-      location: location,
-      flags: flags,
-      linesX: 3,
-      linesY: -2
-    )
-    let replacement = try replacementEvent(location: location, flags: flags, linesX: 3, linesY: -2)
+    ScrollEventSynthesizer().applyReplacement(to: event, linesX: 3, linesY: -2)
 
-    for (fieldName, field) in wheelFields {
+    let expectedFields: [(String, CGEventField, Int64)] = [
+      ("delta axis 1", .scrollWheelEventDeltaAxis1, -2),
+      ("delta axis 2", .scrollWheelEventDeltaAxis2, 3),
+      ("delta axis 3", .scrollWheelEventDeltaAxis3, 0),
+      ("fixed axis 1", .scrollWheelEventFixedPtDeltaAxis1, -2 * 65_536),
+      ("fixed axis 2", .scrollWheelEventFixedPtDeltaAxis2, 3 * 65_536),
+      ("fixed axis 3", .scrollWheelEventFixedPtDeltaAxis3, 0),
+      ("point axis 1", .scrollWheelEventPointDeltaAxis1, -2 * 16),
+      ("point axis 2", .scrollWheelEventPointDeltaAxis2, 3 * 16),
+      ("point axis 3", .scrollWheelEventPointDeltaAxis3, 0),
+      ("scroll count", .scrollWheelEventScrollCount, 1),
+      ("continuous", .scrollWheelEventIsContinuous, 0),
+      ("phase", .scrollWheelEventScrollPhase, 0),
+      ("momentum", .scrollWheelEventMomentumPhase, 0),
+    ]
+    for (fieldName, field, expected) in expectedFields {
       try expectEqual(
         event.getIntegerValueField(field),
-        replacement.getIntegerValueField(field),
-        "applied replacement should match synthesized \(fieldName)"
+        expected,
+        "applied replacement should rewrite \(fieldName)"
       )
     }
     try expectEqual(
@@ -76,7 +84,8 @@ let scrollEventSynthesizerTests: [TestCase] = [
       "applied replacement should preserve event source user data"
     )
     try expectEqual(event.location, location, "applied replacement should preserve location")
-    try expect(event.flags.contains(.maskShift), "applied replacement should preserve flags")
+    try expect(
+      event.flags.contains(.maskShift), "applied replacement should leave flags untouched")
   },
 
   TestCase(
@@ -98,22 +107,6 @@ let scrollEventSynthesizerTests: [TestCase] = [
       "modifier event should carry the synth marker"
     )
   },
-]
-
-private let wheelFields: [(String, CGEventField)] = [
-  ("delta axis 1", .scrollWheelEventDeltaAxis1),
-  ("delta axis 2", .scrollWheelEventDeltaAxis2),
-  ("delta axis 3", .scrollWheelEventDeltaAxis3),
-  ("fixed axis 1", .scrollWheelEventFixedPtDeltaAxis1),
-  ("fixed axis 2", .scrollWheelEventFixedPtDeltaAxis2),
-  ("fixed axis 3", .scrollWheelEventFixedPtDeltaAxis3),
-  ("point axis 1", .scrollWheelEventPointDeltaAxis1),
-  ("point axis 2", .scrollWheelEventPointDeltaAxis2),
-  ("point axis 3", .scrollWheelEventPointDeltaAxis3),
-  ("scroll count", .scrollWheelEventScrollCount),
-  ("continuous", .scrollWheelEventIsContinuous),
-  ("phase", .scrollWheelEventScrollPhase),
-  ("momentum", .scrollWheelEventMomentumPhase),
 ]
 
 private func replacementEvent(
