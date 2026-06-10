@@ -3,18 +3,16 @@ import IOKit.pwr_mgt
 import os
 
 final class AutomaticSleepPreventionController {
-  typealias AssertionID = UInt32
-
   private static let logger = Logger(subsystem: "com.probo.app", category: "Power")
 
-  private let createAssertion: () -> AssertionID?
-  private let releaseAssertion: (AssertionID) -> Void
-  private var assertionID: AssertionID?
+  private let createAssertion: () -> IOPMAssertionID?
+  private let releaseAssertion: (IOPMAssertionID) -> Void
+  private var assertionID: IOPMAssertionID?
 
   init(
-    createAssertion: @escaping () -> AssertionID? =
+    createAssertion: @escaping () -> IOPMAssertionID? =
       AutomaticSleepPreventionController.createSystemAssertion,
-    releaseAssertion: @escaping (AssertionID) -> Void =
+    releaseAssertion: @escaping (IOPMAssertionID) -> Void =
       AutomaticSleepPreventionController.releaseSystemAssertion
   ) {
     self.createAssertion = createAssertion
@@ -29,23 +27,23 @@ final class AutomaticSleepPreventionController {
 
   @MainActor
   func setEnabled(_ enabled: Bool) {
-    if enabled {
-      guard assertionID == nil else { return }
+    switch (enabled, assertionID) {
+    case (true, nil):
       guard let createdAssertionID = createAssertion() else {
         Self.logger.error("failed to prevent automatic sleep")
         return
       }
       assertionID = createdAssertionID
-      return
+    case (false, let activeAssertionID?):
+      releaseAssertion(activeAssertionID)
+      assertionID = nil
+    case (true, _?), (false, nil):
+      break
     }
-
-    guard let activeAssertionID = assertionID else { return }
-    releaseAssertion(activeAssertionID)
-    assertionID = nil
   }
 
-  private static func createSystemAssertion() -> AssertionID? {
-    var assertionID = IOPMAssertionID(0)
+  private static func createSystemAssertion() -> IOPMAssertionID? {
+    var assertionID: IOPMAssertionID = 0
     let result = IOPMAssertionCreateWithDescription(
       kIOPMAssertPreventUserIdleSystemSleep as CFString,
       "Probo" as CFString,
@@ -61,13 +59,12 @@ final class AutomaticSleepPreventionController {
     return assertionID
   }
 
-  private static func releaseSystemAssertion(_ assertionID: AssertionID) {
-    let result = IOPMAssertionRelease(IOPMAssertionID(assertionID))
-    guard result == kIOReturnSuccess else {
+  private static func releaseSystemAssertion(_ assertionID: IOPMAssertionID) {
+    let result = IOPMAssertionRelease(assertionID)
+    if result != kIOReturnSuccess {
       logger.error(
         "failed to release automatic sleep assertion \(assertionID, privacy: .public): \(result, privacy: .public)"
       )
-      return
     }
   }
 }
