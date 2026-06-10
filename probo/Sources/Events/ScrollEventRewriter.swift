@@ -8,7 +8,7 @@ struct ScrollEventRewriter {
   private static let allOptionFlags: CGEventFlags = [
     .maskAlternate, leftOptionFlag, rightOptionFlag,
   ]
-  private static let optionKey = CGKeyCode(0x3A)
+  private static let leftOptionKey = CGKeyCode(0x3A)
   private static let rightOptionKey = CGKeyCode(0x3D)
 
   init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
@@ -48,8 +48,7 @@ struct ScrollEventRewriter {
     else { return event }
 
     if !decision.stripOption {
-      synth.applyReplacement(
-        to: event, location: event.location, flags: originalFlags, linesX: linesX, linesY: linesY)
+      synth.applyReplacement(to: event, linesX: linesX, linesY: linesY)
       return event
     }
 
@@ -60,7 +59,7 @@ struct ScrollEventRewriter {
     let flags = originalFlags.subtracting(Self.allOptionFlags)
     let optionKey: CGKeyCode =
       originalFlags.contains(Self.rightOptionFlag)
-      ? Self.rightOptionKey : Self.optionKey
+      ? Self.rightOptionKey : Self.leftOptionKey
     guard
       let replacement = synth.makeReplacement(
         location: event.location, flags: flags, linesX: linesX, linesY: linesY

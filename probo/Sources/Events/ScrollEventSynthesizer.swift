@@ -28,21 +28,16 @@ struct ScrollEventSynthesizer {
       return nil
     }
 
-    applyReplacement(
-      to: replacement, location: location, flags: flags, linesX: linesX, linesY: linesY)
+    replacement.location = location
+    replacement.flags = flags
+    applyReplacement(to: replacement, linesX: linesX, linesY: linesY)
     replacement.setIntegerValueField(.eventSourceUserData, value: Self.marker)
     return replacement
   }
 
-  func applyReplacement(
-    to event: CGEvent,
-    location: CGPoint,
-    flags: CGEventFlags,
-    linesX: Int32,
-    linesY: Int32
-  ) {
-    event.location = location
-    event.flags = flags
+  // Overwrites only the wheel fields; location, flags, and source user data stay untouched
+  // so the in-place rewrite path keeps the original event's identity for free.
+  func applyReplacement(to event: CGEvent, linesX: Int32, linesY: Int32) {
     event.setIntegerValueField(.scrollWheelEventDeltaAxis1, value: Int64(linesY))
     event.setIntegerValueField(.scrollWheelEventDeltaAxis2, value: Int64(linesX))
     event.setIntegerValueField(.scrollWheelEventDeltaAxis3, value: 0)

@@ -152,13 +152,7 @@ struct HotPathProfile {
       blackhole: &blackhole,
       prepare: resetEvent
     ) {
-      synth.applyReplacement(
-        to: event,
-        location: event.location,
-        flags: event.flags,
-        linesX: 0,
-        linesY: linesY
-      )
+      synth.applyReplacement(to: event, linesX: 0, linesY: linesY)
       return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
     }.print()
 
@@ -190,13 +184,7 @@ struct HotPathProfile {
     ) {
       guard let (linesX, linesY) = rewriteFromEvent(event, configuration: configuration)
       else { return 0 }
-      synth.applyReplacement(
-        to: event,
-        location: event.location,
-        flags: event.flags,
-        linesX: linesX,
-        linesY: linesY
-      )
+      synth.applyReplacement(to: event, linesX: linesX, linesY: linesY)
       return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
     }.print()
 
@@ -374,8 +362,7 @@ private func makeInputEvent(
 }
 
 private func resetInputEvent(_ event: CGEvent, synth: ScrollEventSynthesizer) {
-  synth.applyReplacement(
-    to: event, location: CGPoint(x: 100, y: 100), flags: [], linesX: 0, linesY: 1)
+  synth.applyReplacement(to: event, linesX: 0, linesY: 1)
   event.setIntegerValueField(.eventSourceUserData, value: 0)
 }
 
