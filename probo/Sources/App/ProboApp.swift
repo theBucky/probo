@@ -11,7 +11,7 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     app.run()
   }
 
-  private let runtime = ProboRuntime()
+  private let runtime = ProboRuntime(environment: .live())
   private var statusItem: NSStatusItem!
   private var statusMenu: ProboStatusMenu!
   private var settingsWindow: NSWindow?
@@ -80,14 +80,11 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let accessibilityTrusted = runtime.accessibilityTrusted
     guard lastAccessibilityTrusted != accessibilityTrusted else { return }
     lastAccessibilityTrusted = accessibilityTrusted
-    settingsViewController?.reload()
+    (settingsWindow?.contentViewController as? ProboSettingsViewController)?.reload()
   }
-
-  private var settingsViewController: ProboSettingsViewController?
 
   private func makeSettingsWindow() -> NSWindow {
     let controller = ProboSettingsViewController(runtime: runtime)
-    settingsViewController = controller
     let window = NSWindow(contentViewController: controller)
     window.styleMask = [.titled, .closable]
     window.title = "Probo"

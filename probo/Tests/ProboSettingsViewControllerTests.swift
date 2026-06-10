@@ -153,7 +153,7 @@ private final class SettingsRuntimeDriver {
       isStartAtLoginEnabled: { false },
       setStartAtLoginEnabled: { _ in },
       setFrontmostMonitorActive: { _ in },
-      startEventTap: { _ in },
+      setTapEnabledHandler: { _ in },
       setEventTapConfiguration: { _ in },
       setEventTapActive: { _ in },
       setAutomaticSleepPreventionEnabled: { _ in },
