@@ -176,7 +176,13 @@ final class ProboSettingsViewController: NSViewController {
       rowView.trailingAnchor.constraint(equalTo: rowsStack.trailingAnchor).isActive = true
     }
 
-    let card = CardView(cornerRadius: cardCornerRadius)
+    let card = NSBox()
+    card.boxType = .custom
+    card.titlePosition = .noTitle
+    card.cornerRadius = cardCornerRadius
+    card.borderWidth = 1
+    card.borderColor = .separatorColor
+    card.fillColor = .controlBackgroundColor
     card.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(rowsStack)
 
@@ -202,30 +208,6 @@ final class ProboSettingsViewController: NSViewController {
     divider.boxType = .separator
     divider.translatesAutoresizingMaskIntoConstraints = false
     return divider
-  }
-
-  private final class CardView: NSView {
-    private let cornerRadius: CGFloat
-
-    init(cornerRadius: CGFloat) {
-      self.cornerRadius = cornerRadius
-      super.init(frame: .zero)
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-      fatalError("init(coder:) is unavailable")
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-      let path = NSBezierPath(
-        roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: cornerRadius, yRadius: cornerRadius)
-      NSColor.controlBackgroundColor.setFill()
-      path.fill()
-      NSColor.separatorColor.setStroke()
-      path.lineWidth = 1
-      path.stroke()
-    }
   }
 
   private func row(title: String, description: String? = nil, control: NSView) -> NSView {
