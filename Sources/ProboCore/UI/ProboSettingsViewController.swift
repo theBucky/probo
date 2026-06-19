@@ -267,16 +267,18 @@ package final class ProboSettingsViewController: NSViewController {
   }
 
   private func accessibilityStatus() -> NSView {
-    let symbolName = runtime.accessibilityTrusted ? "checkmark.circle.fill" : "xmark.circle.fill"
+    let trusted = runtime.accessibilityTrusted
+    let tint: NSColor = trusted ? .systemGreen : .systemRed
+    let symbolName = trusted ? "checkmark.circle.fill" : "xmark.circle.fill"
     // systemSymbolName resolves to nil under headless rendering (CI); fall back to an empty image.
     let imageView = NSImageView(
       image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) ?? NSImage())
-    imageView.contentTintColor = runtime.accessibilityTrusted ? .systemGreen : .systemRed
+    imageView.contentTintColor = tint
     imageView.symbolConfiguration = .init(pointSize: 14, weight: .semibold)
 
-    let label = NSTextField(labelWithString: runtime.accessibilityTrusted ? "Granted" : "Required")
+    let label = NSTextField(labelWithString: trusted ? "Granted" : "Required")
     label.identifier = NSUserInterfaceItemIdentifier("accessibility-permission")
-    label.textColor = runtime.accessibilityTrusted ? .systemGreen : .systemRed
+    label.textColor = tint
 
     let stack = NSStackView(views: [imageView, label])
     stack.orientation = .horizontal
