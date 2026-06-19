@@ -16,10 +16,8 @@ package enum ScrollRewriteCore {
       )
     }
 
-    return PrecisionDecision(
-      isPrecision: isOptionPrecisionEnabled && isOptionHeld,
-      stripOption: isOptionPrecisionEnabled && isOptionHeld
-    )
+    let optionPrecision = isOptionPrecisionEnabled && isOptionHeld
+    return PrecisionDecision(isPrecision: optionPrecision, stripOption: optionPrecision)
   }
 
   // Drops continuous, phased, diagonal, and zero-delta events per the project invariant.
@@ -35,11 +33,11 @@ package enum ScrollRewriteCore {
     if isContinuous || hasPhase { return nil }
     if (verticalDelta != 0) == (horizontalDelta != 0) { return nil }
 
-    let stepLines: Int32 = isPrecision ? 1 : intensity.lines
-    let direction: Int32 = isTrackpadStyleScrollingEnabled ? 1 : -1
+    let step: Int32 =
+      (isPrecision ? 1 : intensity.lines) * (isTrackpadStyleScrollingEnabled ? 1 : -1)
     return (
-      linesX: horizontalDelta.signum() * stepLines * direction,
-      linesY: verticalDelta.signum() * stepLines * direction
+      linesX: horizontalDelta.signum() * step,
+      linesY: verticalDelta.signum() * step
     )
   }
 }
