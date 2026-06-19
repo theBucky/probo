@@ -1,13 +1,43 @@
 import AppKit
+import SwiftUI
 
 @MainActor
-package final class ProboSettingsViewController: NSViewController {
-  private enum ToggleSetting: String {
-    case optionPrecision = "option-precision"
-    case terminalOptimization = "terminal-optimization"
-    case naturalDirection = "natural-direction"
-    case lookUp = "look-up"
-    case preventAutomaticSleep = "prevent-automatic-sleep"
+package final class ProboSettingsViewController: NSHostingController<ProboSettingsView> {
+  private let runtime: ProboRuntime
+
+  package init(runtime: ProboRuntime) {
+    self.runtime = runtime
+    super.init(rootView: ProboSettingsView(runtime: runtime))
+    sizingOptions = [.preferredContentSize]
+    preferredContentSize = fittingContentSize
+  }
+
+  @available(*, unavailable)
+  required init?(coder _: NSCoder) {
+    fatalError("init(coder:) is unavailable")
+  }
+
+  package func reload() {
+    rootView = ProboSettingsView(runtime: runtime)
+  }
+
+  private var fittingContentSize: NSSize {
+    let size = sizeThatFits(
+      in: NSSize(width: ProboSettingsView.contentWidth, height: CGFloat.greatestFiniteMagnitude))
+    return NSSize(width: ProboSettingsView.contentWidth, height: ceil(size.height))
+  }
+}
+
+@MainActor
+package struct ProboSettingsView: View {
+  fileprivate static let contentWidth: CGFloat = 500
+
+  private enum ToggleSetting {
+    case optionPrecision
+    case terminalOptimization
+    case naturalDirection
+    case lookUp
+    case preventAutomaticSleep
 
     var title: String {
       switch self {
@@ -46,268 +76,81 @@ package final class ProboSettingsViewController: NSViewController {
   }
 
   private let runtime: ProboRuntime
-  private let cardWidth: CGFloat = 380
-  private let controlWidth: CGFloat = 126
-  private let contentInset: CGFloat = 20
-  private let cardCornerRadius: CGFloat = 10
-  private let rowInsetX: CGFloat = 14
-  private let rowInsetY: CGFloat = 10
 
   package init(runtime: ProboRuntime) {
     self.runtime = runtime
-    super.init(nibName: nil, bundle: nil)
   }
 
-  @available(*, unavailable)
-  required init?(coder _: NSCoder) {
-    fatalError("init(coder:) is unavailable")
-  }
+  package var body: some View {
+    Form {
+      Section("Scrolling") {
+        Picker("Wheel Step", selection: intensity) {
+          ForEach(ScrollIntensity.allCases, id: \.self) { intensity in
+            Text(intensity.title).tag(intensity)
+          }
+        }
+        .pickerStyle(.menu)
 
-  package override func loadView() {
-    installView()
-  }
-
-  package func reload() {
-    let windowFrame = view.window?.frame
-    installView()
-    if let windowFrame {
-      view.window?.setFrame(windowFrame, display: true)
-    }
-  }
-
-  private func installView() {
-    let contentView = makeView()
-    view = contentView
-    preferredContentSize = contentView.fittingSize
-  }
-
-  private func makeView() -> NSView {
-    let stack = NSStackView()
-    stack.orientation = .vertical
-    stack.alignment = .leading
-    stack.spacing = 20
-    stack.translatesAutoresizingMaskIntoConstraints = false
-
-    stack.addArrangedSubview(
-      section(
-        title: "Scrolling",
-        rows: [
-          row(
-            title: "Wheel Step",
-            description: "Lines emitted per mouse-wheel notch.",
-            control: wheelStepPopup()),
-          toggleRow(.optionPrecision),
-          toggleRow(.terminalOptimization),
-          toggleRow(.naturalDirection),
-        ]))
-
-    stack.addArrangedSubview(
-      section(
-        title: "Input",
-        rows: [
-          toggleRow(.lookUp)
-        ]))
-
-    stack.addArrangedSubview(
-      section(
-        title: "Power",
-        rows: [
-          toggleRow(.preventAutomaticSleep)
-        ]))
-
-    var accessibilityRows = [
-      row(title: "Permission", control: accessibilityStatus())
-    ]
-
-    if !runtime.accessibilityTrusted {
-      accessibilityRows.append(
-        row(
-          title: "Accessibility Access",
-          description: "Open System Settings to grant event monitoring access.",
-          control: requestAccessButton()))
-    }
-
-    stack.addArrangedSubview(section(title: "Accessibility", rows: accessibilityRows))
-
-    let container = NSView()
-    container.translatesAutoresizingMaskIntoConstraints = false
-    container.addSubview(stack)
-
-    NSLayoutConstraint.activate([
-      container.widthAnchor.constraint(equalToConstant: cardWidth + contentInset * 2),
-      stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: contentInset),
-      stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -contentInset),
-      stack.topAnchor.constraint(equalTo: container.topAnchor, constant: contentInset),
-      stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -contentInset),
-    ])
-
-    return container
-  }
-
-  private func section(title: String, rows: [NSView]) -> NSView {
-    let header = NSTextField(labelWithString: title)
-    header.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
-    header.textColor = .secondaryLabelColor
-    header.translatesAutoresizingMaskIntoConstraints = false
-
-    let rowsStack = NSStackView()
-    rowsStack.orientation = .vertical
-    rowsStack.alignment = .leading
-    rowsStack.spacing = 0
-    rowsStack.translatesAutoresizingMaskIntoConstraints = false
-
-    for (index, rowView) in rows.enumerated() {
-      if index > 0 {
-        let divider = separator()
-        rowsStack.addArrangedSubview(divider)
-        divider.trailingAnchor.constraint(equalTo: rowsStack.trailingAnchor).isActive = true
+        toggle(.optionPrecision)
+        toggle(.terminalOptimization)
+        toggle(.naturalDirection)
       }
-      rowsStack.addArrangedSubview(rowView)
-      rowView.trailingAnchor.constraint(equalTo: rowsStack.trailingAnchor).isActive = true
+
+      Section("Input") {
+        toggle(.lookUp)
+      }
+
+      Section("Power") {
+        toggle(.preventAutomaticSleep)
+      }
+
+      Section("Accessibility") {
+        Label {
+          Text(runtime.accessibilityTrusted ? "Granted" : "Required")
+        } icon: {
+          Image(
+            systemName: runtime.accessibilityTrusted ? "checkmark.circle.fill" : "xmark.circle.fill"
+          )
+          .foregroundStyle(runtime.accessibilityTrusted ? .green : .red)
+        }
+
+        if !runtime.accessibilityTrusted {
+          Button("Request Access...") {
+            runtime.requestAccessibilityAccess()
+          }
+        }
+      }
     }
-
-    let card = NSBox()
-    card.boxType = .custom
-    card.titlePosition = .noTitle
-    card.cornerRadius = cardCornerRadius
-    card.borderWidth = 1
-    card.borderColor = .separatorColor
-    card.fillColor = .controlBackgroundColor
-    card.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(rowsStack)
-
-    let group = NSStackView(views: [header, card])
-    group.orientation = .vertical
-    group.alignment = .leading
-    group.spacing = 6
-    group.translatesAutoresizingMaskIntoConstraints = false
-
-    NSLayoutConstraint.activate([
-      card.widthAnchor.constraint(equalToConstant: cardWidth),
-      rowsStack.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-      rowsStack.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-      rowsStack.topAnchor.constraint(equalTo: card.topAnchor),
-      rowsStack.bottomAnchor.constraint(equalTo: card.bottomAnchor),
-    ])
-
-    return group
+    .formStyle(.grouped)
+    .scrollContentBackground(.hidden)
+    .contentMargins(.top, 8, for: .scrollContent)
+    .frame(width: Self.contentWidth)
   }
 
-  private func separator() -> NSBox {
-    let divider = NSBox()
-    divider.boxType = .separator
-    divider.translatesAutoresizingMaskIntoConstraints = false
-    return divider
+  private var intensity: Binding<ScrollIntensity> {
+    Binding(
+      get: { runtime.intensity },
+      set: { runtime.intensity = $0 }
+    )
   }
 
-  private func row(title: String, description: String? = nil, control: NSView) -> NSView {
-    let titleLabel = NSTextField(labelWithString: title)
-    titleLabel.font = .systemFont(ofSize: NSFont.systemFontSize)
-    titleLabel.lineBreakMode = .byWordWrapping
-    titleLabel.setContentCompressionResistancePriority(.required, for: .vertical)
-
-    let textStack = NSStackView(views: [titleLabel])
-    textStack.orientation = .vertical
-    textStack.alignment = .leading
-    textStack.spacing = 2
-
-    if let description {
-      let descriptionLabel = NSTextField(wrappingLabelWithString: description)
-      descriptionLabel.font = .preferredFont(forTextStyle: .caption1)
-      descriptionLabel.textColor = .secondaryLabelColor
-      descriptionLabel.maximumNumberOfLines = 0
-      descriptionLabel.setContentCompressionResistancePriority(.required, for: .vertical)
-      textStack.addArrangedSubview(descriptionLabel)
+  private func toggle(_ setting: ToggleSetting) -> some View {
+    Toggle(isOn: binding(for: setting)) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(setting.title)
+        Text(setting.description)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
-
-    let row = NSView()
-    row.translatesAutoresizingMaskIntoConstraints = false
-    textStack.translatesAutoresizingMaskIntoConstraints = false
-    control.translatesAutoresizingMaskIntoConstraints = false
-    row.addSubview(textStack)
-    row.addSubview(control)
-
-    // Controls right-align in a fixed-width column so titles share one trailing edge across rows.
-    NSLayoutConstraint.activate([
-      textStack.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: rowInsetX),
-      textStack.topAnchor.constraint(equalTo: row.topAnchor, constant: rowInsetY),
-      textStack.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -rowInsetY),
-      textStack.trailingAnchor.constraint(
-        equalTo: row.trailingAnchor, constant: -(rowInsetX + controlWidth + 16)),
-      control.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -rowInsetX),
-      control.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-    ])
-
-    return row
+    .toggleStyle(.switch)
   }
 
-  private func toggleRow(_ setting: ToggleSetting) -> NSView {
-    let control = NSButton(
-      checkboxWithTitle: "", target: self, action: #selector(toggleSetting(_:)))
-    control.identifier = NSUserInterfaceItemIdentifier(setting.rawValue)
-    control.setAccessibilityLabel(setting.title)
-    control.state = runtime[toggle: setting.keyPath] ? .on : .off
-    control.setContentHuggingPriority(.required, for: .horizontal)
-    return row(title: setting.title, description: setting.description, control: control)
-  }
-
-  private func wheelStepPopup() -> NSPopUpButton {
-    let popup = NSPopUpButton()
-    popup.identifier = NSUserInterfaceItemIdentifier("wheel-step")
-    for intensity in ScrollIntensity.allCases {
-      popup.addItem(withTitle: intensity.title)
-      popup.lastItem?.tag = intensity.rawValue
-    }
-    popup.selectItem(withTag: runtime.intensity.rawValue)
-    popup.target = self
-    popup.action = #selector(changeWheelStep(_:))
-    popup.setContentHuggingPriority(.required, for: .horizontal)
-    popup.widthAnchor.constraint(equalToConstant: controlWidth).isActive = true
-    return popup
-  }
-
-  private func accessibilityStatus() -> NSView {
-    let trusted = runtime.accessibilityTrusted
-    let tint: NSColor = trusted ? .systemGreen : .systemRed
-    let symbolName = trusted ? "checkmark.circle.fill" : "xmark.circle.fill"
-    // systemSymbolName resolves to nil under headless rendering (CI); fall back to an empty image.
-    let imageView = NSImageView(
-      image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) ?? NSImage())
-    imageView.contentTintColor = tint
-    imageView.symbolConfiguration = .init(pointSize: 14, weight: .semibold)
-
-    let label = NSTextField(labelWithString: trusted ? "Granted" : "Required")
-    label.identifier = NSUserInterfaceItemIdentifier("accessibility-permission")
-    label.textColor = tint
-
-    let stack = NSStackView(views: [imageView, label])
-    stack.orientation = .horizontal
-    stack.alignment = .centerY
-    stack.spacing = 5
-    stack.setContentHuggingPriority(.required, for: .horizontal)
-    return stack
-  }
-
-  private func requestAccessButton() -> NSButton {
-    let button = NSButton(
-      title: "Request Access...", target: self, action: #selector(requestAccess))
-    button.identifier = NSUserInterfaceItemIdentifier("request-access")
-    button.bezelStyle = .rounded
-    button.setContentHuggingPriority(.required, for: .horizontal)
-    return button
-  }
-
-  @objc private func changeWheelStep(_ sender: NSPopUpButton) {
-    runtime.intensity = ScrollIntensity(rawValue: sender.selectedTag())!
-  }
-
-  @objc private func toggleSetting(_ sender: NSButton) {
-    let setting = ToggleSetting(rawValue: sender.identifier!.rawValue)!
-    runtime[toggle: setting.keyPath] = sender.state == .on
-  }
-
-  @objc private func requestAccess() {
-    runtime.requestAccessibilityAccess()
+  private func binding(for setting: ToggleSetting) -> Binding<Bool> {
+    Binding(
+      get: { runtime[toggle: setting.keyPath] },
+      set: { runtime[toggle: setting.keyPath] = $0 }
+    )
   }
 }
 
