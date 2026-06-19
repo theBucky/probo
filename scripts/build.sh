@@ -8,37 +8,22 @@ app_dir="$build_dir/Probo.app"
 app_contents_dir="$app_dir/Contents"
 app_binary_dir="$app_contents_dir/MacOS"
 app_resources_dir="$app_contents_dir/Resources"
-swift_dir="$root_dir/probo"
-sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
-swift_target="$(uname -m)-apple-macos15.0"
-swift_sources=()
+resource_dir="$root_dir/Sources/Probo/Resources"
 signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
-
-while IFS= read -r source; do
-  swift_sources+=("$source")
-done < <(find "$swift_dir/Sources" -type f -name '*.swift' | sort)
 
 if [[ "$signing_identity" != "-" ]] && ! security find-identity -p codesigning | grep -qF "\"$signing_identity\""; then
   PROBO_CODESIGN_DEFAULT_IDENTITY="$signing_identity" "$root_dir/scripts/dev/setup-codesign.sh" >/dev/null
 fi
 
+cd "$root_dir"
+swift build -c release --arch arm64 --product Probo
+swift_bin_dir="$(swift build -c release --arch arm64 --show-bin-path)"
+
 rm -rf "$app_dir"
 mkdir -p "$app_binary_dir" "$app_resources_dir"
-
-xcrun swiftc \
-  -sdk "$sdk_path" \
-  -target "$swift_target" \
-  -swift-version 6 \
-  -O \
-  -framework AppKit \
-  -framework ApplicationServices \
-  -framework IOKit \
-  -framework ServiceManagement \
-  "${swift_sources[@]}" \
-  -o "$app_binary_dir/Probo"
-
-cp "$swift_dir/Resources/Info.plist" "$app_contents_dir/Info.plist"
-cp "$swift_dir/Resources/AppIcon.icns" "$app_resources_dir/AppIcon.icns"
+cp "$swift_bin_dir/Probo" "$app_binary_dir/Probo"
+cp "$resource_dir/Info.plist" "$app_contents_dir/Info.plist"
+cp "$resource_dir/AppIcon.icns" "$app_resources_dir/AppIcon.icns"
 
 codesign \
   --force \

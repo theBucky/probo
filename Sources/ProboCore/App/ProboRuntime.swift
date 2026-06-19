@@ -2,7 +2,7 @@ import Foundation
 import os
 
 @MainActor
-struct ProboRuntimeEnvironment {
+package struct ProboRuntimeEnvironment {
   let loadConfiguration: () -> AppConfiguration
   let saveConfiguration: (AppConfiguration) -> Void
   let isAccessibilityTrusted: (_ prompt: Bool) -> Bool
@@ -15,7 +15,7 @@ struct ProboRuntimeEnvironment {
   let setAutomaticSleepPreventionEnabled: (Bool) -> Void
   let makeAccessibilityGrantTask: (@escaping @MainActor () -> Void) -> Task<Void, Never>
 
-  static func live() -> Self {
+  package static func live() -> Self {
     let configurationStore = AppConfigurationStore()
     let frontmostMonitor = FrontmostAppMonitor()
     let eventTapController = EventTapController(
@@ -50,15 +50,15 @@ struct ProboRuntimeEnvironment {
 }
 
 @MainActor
-final class ProboRuntime {
+package final class ProboRuntime {
   private let environment: ProboRuntimeEnvironment
   private var configuration: AppConfiguration
-  private(set) var accessibilityTrusted = false
-  private(set) var startAtLoginEnabled = false
+  package private(set) var accessibilityTrusted = false
+  package private(set) var startAtLoginEnabled = false
   private var tapEnabled = false
-  var onChange: (() -> Void)?
+  package var onChange: (() -> Void)?
 
-  var isEnabled: Bool {
+  package var isEnabled: Bool {
     get { configuration.isEnabled }
     set {
       guard update(\.isEnabled, newValue) else { return }
@@ -68,19 +68,19 @@ final class ProboRuntime {
     }
   }
 
-  var intensity: ScrollIntensity {
+  package var intensity: ScrollIntensity {
     get { configuration.intensity }
     set { update(\.intensity, newValue) }
   }
 
   // Plain on/off settings with no side effects beyond persist-and-reconcile;
   // isEnabled stays a named property because enabling can prompt for accessibility.
-  subscript(toggle keyPath: WritableKeyPath<AppConfiguration, Bool>) -> Bool {
+  package subscript(toggle keyPath: WritableKeyPath<AppConfiguration, Bool>) -> Bool {
     get { configuration[keyPath: keyPath] }
     set { update(keyPath, newValue) }
   }
 
-  var statusSymbolName: String {
+  package var statusSymbolName: String {
     if configuration.isEnabled && !accessibilityTrusted { return "exclamationmark.triangle.fill" }
     if configuration.isEnabled && tapEnabled { return "computermouse.fill" }
     return "computermouse"
@@ -89,12 +89,12 @@ final class ProboRuntime {
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
   private var accessibilityGrantTask: Task<Void, Never>?
 
-  init(environment: ProboRuntimeEnvironment) {
+  package init(environment: ProboRuntimeEnvironment) {
     self.environment = environment
     configuration = environment.loadConfiguration()
   }
 
-  func start() {
+  package func start() {
     environment.setTapEnabledHandler { [weak self] enabled in
       self?.tapEnabled = enabled
       self?.onChange?()
@@ -102,14 +102,14 @@ final class ProboRuntime {
     refreshSystemState()
   }
 
-  func refreshSystemState() {
+  package func refreshSystemState() {
     accessibilityTrusted = environment.isAccessibilityTrusted(false)
     startAtLoginEnabled = environment.isStartAtLoginEnabled()
     reconcile()
     onChange?()
   }
 
-  func setStartAtLoginEnabled(_ isEnabled: Bool) {
+  package func setStartAtLoginEnabled(_ isEnabled: Bool) {
     do {
       try environment.setStartAtLoginEnabled(isEnabled)
     } catch {
@@ -119,7 +119,7 @@ final class ProboRuntime {
     onChange?()
   }
 
-  func requestAccessibilityAccess() {
+  package func requestAccessibilityAccess() {
     accessibilityTrusted = environment.isAccessibilityTrusted(true)
     reconcile()
     onChange?()

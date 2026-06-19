@@ -1,12 +1,12 @@
 import AppKit
 
 @MainActor
-final class ProboStatusMenu: NSObject, NSMenuDelegate {
+package final class ProboStatusMenu: NSObject, NSMenuDelegate {
   private let runtime: ProboRuntime
   private let onOpenSettings: () -> Void
-  let menu = NSMenu()
+  package let menu = NSMenu()
 
-  init(runtime: ProboRuntime, onOpenSettings: @escaping () -> Void) {
+  package init(runtime: ProboRuntime, onOpenSettings: @escaping () -> Void) {
     self.runtime = runtime
     self.onOpenSettings = onOpenSettings
     super.init()
@@ -15,7 +15,7 @@ final class ProboStatusMenu: NSObject, NSMenuDelegate {
   }
 
   // Rebuild on open so toggle states track the runtime without per-item observation plumbing.
-  func menuNeedsUpdate(_ menu: NSMenu) {
+  package func menuNeedsUpdate(_ menu: NSMenu) {
     runtime.refreshSystemState()
     menu.removeAllItems()
 

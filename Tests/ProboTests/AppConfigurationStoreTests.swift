@@ -1,23 +1,21 @@
 import Foundation
+import Testing
 
-let appConfigurationStoreTests: [TestCase] = [
-  TestCase(
-    behavior: "given no saved configuration when loading then it returns the default configuration"
-  ) {
+@testable import ProboCore
+
+@Suite("App configuration store")
+struct AppConfigurationStoreTests {
+  @Test("missing saved configuration loads default configuration")
+  func missingSavedConfiguration() throws {
     try withIsolatedDefaults { defaults in
       let store = AppConfigurationStore(defaults: defaults)
 
-      try expectEqual(
-        store.load(),
-        .defaultValue,
-        "empty defaults suite should load the default configuration"
-      )
+      #expect(store.load() == .defaultValue)
     }
-  },
+  }
 
-  TestCase(
-    behavior: "given a saved configuration when loading then it returns the saved configuration"
-  ) {
+  @Test("saved configuration loads unchanged")
+  func savedConfiguration() throws {
     try withIsolatedDefaults { defaults in
       let store = AppConfigurationStore(defaults: defaults)
       let configuration = AppConfiguration(
@@ -32,25 +30,20 @@ let appConfigurationStoreTests: [TestCase] = [
 
       store.save(configuration)
 
-      try expectEqual(store.load(), configuration, "saved configuration should load unchanged")
+      #expect(store.load() == configuration)
     }
-  },
+  }
 
-  TestCase(
-    behavior: "given invalid stored configuration when loading then it returns the default"
-  ) {
+  @Test("invalid stored configuration loads default configuration")
+  func invalidStoredConfiguration() throws {
     try withIsolatedDefaults { defaults in
       defaults.set(Data("not a configuration".utf8), forKey: "configuration")
       let store = AppConfigurationStore(defaults: defaults)
 
-      try expectEqual(
-        store.load(),
-        .defaultValue,
-        "invalid stored data should not produce a partial configuration"
-      )
+      #expect(store.load() == .defaultValue)
     }
-  },
-]
+  }
+}
 
 private func withIsolatedDefaults(_ body: (UserDefaults) throws -> Void) throws {
   let suiteName = "com.probo.tests.\(UUID().uuidString)"

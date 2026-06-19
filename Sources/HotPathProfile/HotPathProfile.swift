@@ -1,6 +1,7 @@
 import ApplicationServices
 import Darwin
 import Foundation
+import ProboCore
 
 private struct Options {
   var iterations = 100_000

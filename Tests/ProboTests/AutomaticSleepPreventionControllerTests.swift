@@ -1,8 +1,12 @@
-let automaticSleepPreventionControllerTests: [TestCase] = [
-  TestCase(
-    behavior:
-      "given automatic sleep prevention is enabled twice then it creates one assertion"
-  ) {
+import Testing
+
+@testable import ProboCore
+
+@Suite("Automatic sleep prevention controller", .serialized)
+struct AutomaticSleepPreventionControllerTests {
+  @MainActor
+  @Test("enabling twice creates one assertion")
+  func enablingTwice() {
     let driver = PowerAssertionDriver(assertionID: 42)
     let controller = AutomaticSleepPreventionController(
       createAssertion: { driver.create() },
@@ -12,18 +16,13 @@ let automaticSleepPreventionControllerTests: [TestCase] = [
     controller.setEnabled(true)
     controller.setEnabled(true)
 
-    try expectEqual(driver.createdCount, 1, "enabled controller should create one assertion")
-    try expectEqual(
-      driver.releasedAssertions,
-      [],
-      "enabled controller should keep the assertion active"
-    )
-  },
+    #expect(driver.createdCount == 1)
+    #expect(driver.releasedAssertions == [])
+  }
 
-  TestCase(
-    behavior:
-      "given automatic sleep prevention is active when disabled then it releases the assertion"
-  ) {
+  @MainActor
+  @Test("disabling active controller releases the assertion once")
+  func disablingActiveController() {
     let driver = PowerAssertionDriver(assertionID: 42)
     let controller = AutomaticSleepPreventionController(
       createAssertion: { driver.create() },
@@ -34,18 +33,13 @@ let automaticSleepPreventionControllerTests: [TestCase] = [
     controller.setEnabled(false)
     controller.setEnabled(false)
 
-    try expectEqual(driver.createdCount, 1, "active controller should keep one assertion")
-    try expectEqual(
-      driver.releasedAssertions,
-      [42],
-      "disabled controller should release the active assertion once"
-    )
-  },
+    #expect(driver.createdCount == 1)
+    #expect(driver.releasedAssertions == [42])
+  }
 
-  TestCase(
-    behavior:
-      "given automatic sleep prevention is active when deinitialized then it releases the assertion"
-  ) {
+  @MainActor
+  @Test("deinitializing active controller releases the assertion")
+  func deinitializingActiveController() {
     let driver = PowerAssertionDriver(assertionID: 42)
     do {
       let controller = AutomaticSleepPreventionController(
@@ -55,14 +49,10 @@ let automaticSleepPreventionControllerTests: [TestCase] = [
       controller.setEnabled(true)
     }
 
-    try expectEqual(driver.createdCount, 1, "active controller should create one assertion")
-    try expectEqual(
-      driver.releasedAssertions,
-      [42],
-      "deinitialized controller should release the active assertion"
-    )
-  },
-]
+    #expect(driver.createdCount == 1)
+    #expect(driver.releasedAssertions == [42])
+  }
+}
 
 private final class PowerAssertionDriver {
   private let assertionID: UInt32

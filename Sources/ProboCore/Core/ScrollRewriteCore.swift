@@ -1,10 +1,10 @@
-enum ScrollRewriteCore {
-  struct PrecisionDecision: Equatable, Sendable {
-    var isPrecision: Bool
-    var stripOption: Bool
+package enum ScrollRewriteCore {
+  package struct PrecisionDecision: Equatable, Sendable {
+    package var isPrecision: Bool
+    package var stripOption: Bool
   }
 
-  static func decidePrecision(
+  package static func decidePrecision(
     isOptionHeld: Bool,
     isOptionPrecisionEnabled: Bool,
     isTerminalOptimizationActive: Bool
@@ -23,7 +23,7 @@ enum ScrollRewriteCore {
   }
 
   // Drops continuous, phased, diagonal, and zero-delta events per the project invariant.
-  static func rewrite(
+  package static func rewrite(
     deltaAxis1: Int32,
     deltaAxis2: Int32,
     intensity: ScrollIntensity,

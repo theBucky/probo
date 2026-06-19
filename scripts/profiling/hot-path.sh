@@ -4,14 +4,9 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "$0")/../.." && pwd)"
 build_dir="$root_dir/build/hot-path"
-probe_source="$root_dir/probo/Tools/HotPathProfile/HotPathProfile.swift"
-probe_binary="$build_dir/HotPathProfile"
 app_dir="$root_dir/build/Probo.app"
 app_executable="$app_dir/Contents/MacOS/Probo"
-profile_entitlements="$root_dir/probo/Tools/HotPathProfile/profile.entitlements"
-swift_dir="$root_dir/probo"
-sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
-swift_target="$(uname -m)-apple-macos15.0"
+profile_entitlements="$root_dir/Sources/HotPathProfile/profile.entitlements"
 signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
 record_kind="none"
 trace_duration=15
@@ -50,27 +45,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-mkdir -p "$build_dir"
-
-xcrun swiftc \
-  -sdk "$sdk_path" \
-  -target "$swift_target" \
-  -swift-version 6 \
-  -O \
-  -framework ApplicationServices \
-  "$swift_dir/Sources/Core/ScrollIntensity.swift" \
-  "$swift_dir/Sources/Core/ScrollRewriteCore.swift" \
-  "$swift_dir/Sources/Configuration/AppConfiguration.swift" \
-  "$swift_dir/Sources/Events/EventTapOptions.swift" \
-  "$swift_dir/Sources/Events/ScrollEventRewriter.swift" \
-  "$swift_dir/Sources/Events/ScrollEventSynthesizer.swift" \
-  "$probe_source" \
-  -o "$probe_binary"
+cd "$root_dir"
+swift build -c release --arch arm64 --product HotPathProfile
+probe_binary="$(swift build -c release --arch arm64 --show-bin-path)/HotPathProfile"
 
 if [[ "$record_kind" == "none" ]]; then
   "$probe_binary" "${probe_args[@]}"
   exit 0
 fi
+
+mkdir -p "$build_dir"
 
 case "$record_kind" in
   time)

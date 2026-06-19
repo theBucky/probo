@@ -1,4 +1,5 @@
 import AppKit
+import ProboCore
 
 @MainActor
 @main

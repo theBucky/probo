@@ -1,6 +1,6 @@
 @preconcurrency import ApplicationServices
 
-struct ScrollEventRewriter {
+package struct ScrollEventRewriter {
   private let synth = ScrollEventSynthesizer()
   private let isTerminalFrontmost: @Sendable () -> Bool
   private static let leftOptionFlag = CGEventFlags(rawValue: 0x20)
@@ -11,12 +11,12 @@ struct ScrollEventRewriter {
   private static let leftOptionKey = CGKeyCode(0x3A)
   private static let rightOptionKey = CGKeyCode(0x3D)
 
-  init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
+  package init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
     self.isTerminalFrontmost = isTerminalFrontmost
   }
 
   // EventTapController filters self-synth re-entry; the core owns the drop decision.
-  func rewrite(event: CGEvent, options: EventTapOptions) -> CGEvent? {
+  package func rewrite(event: CGEvent, options: EventTapOptions) -> CGEvent? {
     guard isMouseWheelEvent(event) else { return event }
 
     let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0

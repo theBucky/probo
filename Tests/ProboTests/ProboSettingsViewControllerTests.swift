@@ -1,9 +1,14 @@
 import AppKit
+import Testing
 
-let proboSettingsViewControllerTests: [TestCase] = [
-  TestCase(
-    behavior: "given settings opens then controls reflect runtime state"
-  ) {
+@testable import ProboCore
+
+@Suite("Probo settings view controller", .serialized)
+struct ProboSettingsViewControllerTests {
+  @MainActor
+  @Test("opening settings reflects runtime state")
+  func openingSettingsReflectsRuntimeState() throws {
+    _ = NSApplication.shared
     var configuration = AppConfiguration.defaultValue
     configuration.intensity = .medium
     configuration.isOptionPrecisionEnabled = true
@@ -22,10 +27,7 @@ let proboSettingsViewControllerTests: [TestCase] = [
     let controller = ProboSettingsViewController(runtime: runtime)
     controller.loadView()
 
-    try expectEqual(
-      try popup("wheel-step", in: controller.view).selectedItem?.title,
-      "Medium",
-      "wheel step popup should show current intensity")
+    #expect(try popup("wheel-step", in: controller.view).selectedItem?.title == "Medium")
     let toggleExpectations: [(identifier: String, state: NSControl.StateValue, title: String)] = [
       ("option-precision", .on, "Option Precision"),
       ("terminal-optimization", .off, "Terminal Optimization"),
@@ -36,27 +38,17 @@ let proboSettingsViewControllerTests: [TestCase] = [
 
     for expectation in toggleExpectations {
       let toggle = try button(expectation.identifier, in: controller.view)
-      try expectEqual(
-        toggle.state,
-        expectation.state,
-        "\(expectation.title) toggle should reflect configuration")
-      try expectEqual(
-        toggle.accessibilityLabel(),
-        expectation.title,
-        "\(expectation.title) toggle should expose its row title to accessibility")
+      #expect(toggle.state == expectation.state)
+      #expect(toggle.accessibilityLabel() == expectation.title)
     }
-    try expectEqual(
-      try label("accessibility-permission", in: controller.view).stringValue,
-      "Required",
-      "permission label should reflect missing accessibility")
-    _ = try expectNotNil(
-      findSubview(identifier: "request-access", in: controller.view) as NSButton?,
-      "request access button should be visible when permission is missing")
-  },
+    #expect(try label("accessibility-permission", in: controller.view).stringValue == "Required")
+    _ = try #require(findSubview(identifier: "request-access", in: controller.view) as NSButton?)
+  }
 
-  TestCase(
-    behavior: "given user changes settings then runtime persists configuration"
-  ) {
+  @MainActor
+  @Test("user changes persist runtime configuration")
+  func userChangesPersistRuntimeConfiguration() throws {
+    _ = NSApplication.shared
     let driver = SettingsRuntimeDriver(
       configuration: .defaultValue,
       accessibilityTrusted: true
@@ -71,24 +63,19 @@ let proboSettingsViewControllerTests: [TestCase] = [
     wheelStep.selectItem(withTitle: "Medium")
     _ = NSApp.sendAction(wheelStep.action!, to: wheelStep.target, from: wheelStep)
 
-    try expectEqual(
-      driver.savedConfigurations.last?.intensity,
-      .medium,
-      "wheel step change should persist selected intensity")
+    #expect(driver.savedConfigurations.last?.intensity == .medium)
 
     let optionPrecision = try button("option-precision", in: controller.view)
     optionPrecision.state = .on
     _ = NSApp.sendAction(optionPrecision.action!, to: optionPrecision.target, from: optionPrecision)
 
-    try expectEqual(
-      driver.savedConfigurations.last?.isOptionPrecisionEnabled,
-      true,
-      "toggle change should persist enabled state")
-  },
+    #expect(driver.savedConfigurations.last?.isOptionPrecisionEnabled == true)
+  }
 
-  TestCase(
-    behavior: "given accessibility is granted then settings removes request access button"
-  ) {
+  @MainActor
+  @Test("granted accessibility removes request access button")
+  func grantedAccessibilityRemovesRequestAccessButton() throws {
+    _ = NSApplication.shared
     let driver = SettingsRuntimeDriver(
       configuration: .defaultValue,
       accessibilityTrusted: false
@@ -103,18 +90,14 @@ let proboSettingsViewControllerTests: [TestCase] = [
     runtime.refreshSystemState()
     controller.reload()
 
-    try expectEqual(
-      try label("accessibility-permission", in: controller.view).stringValue,
-      "Granted",
-      "permission label should refresh after trust is granted")
-    try expectNil(
-      findSubview(identifier: "request-access", in: controller.view) as NSButton?,
-      "request access button should be removed when permission is granted")
-  },
+    #expect(try label("accessibility-permission", in: controller.view).stringValue == "Granted")
+    #expect((findSubview(identifier: "request-access", in: controller.view) as NSButton?) == nil)
+  }
 
-  TestCase(
-    behavior: "given settings reloads then window frame stays fixed"
-  ) {
+  @MainActor
+  @Test("settings reload keeps window frame fixed")
+  func settingsReloadKeepsWindowFrameFixed() {
+    _ = NSApplication.shared
     let driver = SettingsRuntimeDriver(
       configuration: .defaultValue,
       accessibilityTrusted: false
@@ -131,12 +114,9 @@ let proboSettingsViewControllerTests: [TestCase] = [
     runtime.refreshSystemState()
     controller.reload()
 
-    try expectEqual(
-      window.frame,
-      frame,
-      "settings reload should not resize or move the window")
-  },
-]
+    #expect(window.frame == frame)
+  }
+}
 
 @MainActor
 private final class SettingsRuntimeDriver {
@@ -169,23 +149,17 @@ private final class SettingsRuntimeDriver {
 
 @MainActor
 private func button(_ identifier: String, in view: NSView) throws -> NSButton {
-  try expectNotNil(
-    findSubview(identifier: identifier, in: view) as NSButton?,
-    "expected button \(identifier)")
+  try #require(findSubview(identifier: identifier, in: view) as NSButton?)
 }
 
 @MainActor
 private func popup(_ identifier: String, in view: NSView) throws -> NSPopUpButton {
-  try expectNotNil(
-    findSubview(identifier: identifier, in: view) as NSPopUpButton?,
-    "expected popup \(identifier)")
+  try #require(findSubview(identifier: identifier, in: view) as NSPopUpButton?)
 }
 
 @MainActor
 private func label(_ identifier: String, in view: NSView) throws -> NSTextField {
-  try expectNotNil(
-    findSubview(identifier: identifier, in: view) as NSTextField?,
-    "expected label \(identifier)")
+  try #require(findSubview(identifier: identifier, in: view) as NSTextField?)
 }
 
 @MainActor

@@ -4,13 +4,16 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps.
 
 ## Project Map
 
-- `probo/Sources/App`: lifecycle and controller wiring; AppKit owns menu, window, activation, and app surface.
-- `probo/Sources/UI`: status menu and settings content; AppKit owns all UI.
-- `probo/Sources/Core`: pure rewrite decisions; no AppKit, CoreGraphics, IOKit, persistence, or UI.
-- `probo/Sources/Events`: event tap, parsing, and synthesized output.
-- `probo/Sources/Configuration`: config model and `UserDefaults`.
-- `probo/Sources/System`: Accessibility, frontmost app, launch-at-login, power assertions.
-- `probo/Tests`: script-run Swift tests.
+- `Package.swift`: canonical SwiftPM package graph for app, tests, and profiling tool.
+- `Sources/Probo`: executable entry point, app delegate, and app resources.
+- `Sources/ProboCore/App`: runtime orchestration; AppKit app surface stays in the executable target.
+- `Sources/ProboCore/UI`: status menu and settings content; AppKit owns all UI.
+- `Sources/ProboCore/Core`: pure rewrite decisions; no AppKit, CoreGraphics, IOKit, persistence, or UI.
+- `Sources/ProboCore/Events`: event tap, parsing, and synthesized output.
+- `Sources/ProboCore/Configuration`: config model and `UserDefaults`.
+- `Sources/ProboCore/System`: Accessibility, frontmost app, launch-at-login, power assertions.
+- `Sources/HotPathProfile`: profiling executable and entitlements for the scroll hot path.
+- `Tests/ProboTests`: Swift Testing coverage for app behavior.
 - `refs/`: read-only inspiration. Do not edit or vendor from it.
 
 ## Environment Requirements
@@ -18,16 +21,15 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps.
 - Latest Swift syntax and idioms.
 - macOS 15.0 minimum deployment target.
 - Apple silicon target.
-- No SwiftPM manifest or Xcode project. `scripts/build.sh` is the gate.
-- `swiftc` flags stay explicit: `-target ...-apple-macos15.0`, `-swift-version 6`, `-O`.
+- SwiftPM is the source of truth for build graph and SourceKit-LSP.
+- `scripts/build.sh` is the app-bundle signing gate.
 
 ## Commands
 
-- Format: `swift-format format -i -r probo/Sources probo/Tests`
-- Test: `scripts/test.sh`
+- Format: `swift-format format -i -r Sources Tests`
+- Test: `swift test`
 - Build: `scripts/build.sh`
 - Run locally: `scripts/dev/run.sh`
-- Update LSP database: `scripts/dev/lsp.sh`
 - Hot-path profile: `scripts/profiling/hot-path.sh`
 
 ## General Coding Rules

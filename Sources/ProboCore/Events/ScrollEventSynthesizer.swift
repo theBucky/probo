@@ -1,8 +1,8 @@
 import ApplicationServices
 
-struct ScrollEventSynthesizer {
+package struct ScrollEventSynthesizer {
   // ASCII "PROBO" — tags synthesized events so the tap can skip its own output.
-  static let marker: Int64 = 0x50_524F_424F
+  package static let marker: Int64 = 0x50_524F_424F
   private static let pixelsPerLine: Int64 = 16
 
   private let source: CGEventSource? = {
@@ -11,7 +11,9 @@ struct ScrollEventSynthesizer {
     return source
   }()
 
-  func makeReplacement(location: CGPoint, flags: CGEventFlags, linesX: Int32, linesY: Int32)
+  package init() {}
+
+  package func makeReplacement(location: CGPoint, flags: CGEventFlags, linesX: Int32, linesY: Int32)
     -> CGEvent?
   {
     let wheelCount: UInt32 = linesX == 0 ? 1 : 2
@@ -37,7 +39,7 @@ struct ScrollEventSynthesizer {
 
   // Overwrites only the wheel fields; location, flags, and source user data stay untouched
   // so the in-place rewrite path keeps the original event's identity for free.
-  func applyReplacement(to event: CGEvent, linesX: Int32, linesY: Int32) {
+  package func applyReplacement(to event: CGEvent, linesX: Int32, linesY: Int32) {
     event.setIntegerValueField(.scrollWheelEventDeltaAxis1, value: Int64(linesY))
     event.setIntegerValueField(.scrollWheelEventDeltaAxis2, value: Int64(linesX))
     event.setIntegerValueField(.scrollWheelEventDeltaAxis3, value: 0)
@@ -53,7 +55,7 @@ struct ScrollEventSynthesizer {
     event.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 0)
   }
 
-  func makeFlagsChanged(flags: CGEventFlags, keyCode: CGKeyCode) -> CGEvent? {
+  package func makeFlagsChanged(flags: CGEventFlags, keyCode: CGKeyCode) -> CGEvent? {
     guard let event = CGEvent(source: source) else { return nil }
     event.type = .flagsChanged
     event.flags = flags

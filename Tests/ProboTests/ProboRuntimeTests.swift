@@ -1,7 +1,12 @@
-let proboRuntimeTests: [TestCase] = [
-  TestCase(
-    behavior: "given accessibility is missing when runtime starts then tap stays inactive"
-  ) {
+import Testing
+
+@testable import ProboCore
+
+@Suite("Probo runtime", .serialized)
+struct ProboRuntimeTests {
+  @MainActor
+  @Test("missing accessibility keeps tap inactive at start")
+  func missingAccessibilityAtStart() {
     let driver = ProboRuntimeDriver(
       configuration: .defaultValue,
       accessibilityTrusted: false
@@ -10,19 +15,14 @@ let proboRuntimeTests: [TestCase] = [
 
     runtime.start()
 
-    try expectEqual(
-      runtime.statusSymbolName, "exclamationmark.triangle.fill",
-      "enabled runtime should surface missing accessibility")
-    try expectEqual(
-      driver.eventTapActiveStates, [false], "runtime should not enable tap without accessibility")
-    try expectEqual(
-      driver.frontmostActiveStates, [false],
-      "runtime should not monitor frontmost app without tap access")
-  },
+    #expect(runtime.statusSymbolName == "exclamationmark.triangle.fill")
+    #expect(driver.eventTapActiveStates == [false])
+    #expect(driver.frontmostActiveStates == [false])
+  }
 
-  TestCase(
-    behavior: "given accessibility is granted after start then runtime enables tap"
-  ) {
+  @MainActor
+  @Test("granting accessibility after start enables tap")
+  func grantingAccessibilityAfterStart() {
     let driver = ProboRuntimeDriver(
       configuration: .defaultValue,
       accessibilityTrusted: false
@@ -34,20 +34,14 @@ let proboRuntimeTests: [TestCase] = [
     runtime.refreshSystemState()
     driver.publishTapEnabled(true)
 
-    try expectEqual(
-      runtime.statusSymbolName, "computermouse.fill",
-      "trusted active runtime should show active icon")
-    try expectEqual(
-      driver.eventTapActiveStates, [false, true],
-      "runtime should enable tap after accessibility is trusted")
-    try expectEqual(
-      driver.frontmostActiveStates, [false, true],
-      "runtime should monitor frontmost apps when terminal optimization is active")
-  },
+    #expect(runtime.statusSymbolName == "computermouse.fill")
+    #expect(driver.eventTapActiveStates == [false, true])
+    #expect(driver.frontmostActiveStates == [false, true])
+  }
 
-  TestCase(
-    behavior: "given enabled is turned on without accessibility then runtime requests access"
-  ) {
+  @MainActor
+  @Test("enabling without accessibility requests access")
+  func enablingWithoutAccessibility() {
     var configuration = AppConfiguration.defaultValue
     configuration.isEnabled = false
     let driver = ProboRuntimeDriver(
@@ -59,16 +53,13 @@ let proboRuntimeTests: [TestCase] = [
 
     runtime.isEnabled = true
 
-    try expectEqual(
-      driver.accessibilityPrompts, [false, true], "enabling without trust should prompt once")
-    try expectEqual(
-      driver.savedConfigurations.last?.isEnabled, true, "enabled change should persist")
-  },
+    #expect(driver.accessibilityPrompts == [false, true])
+    #expect(driver.savedConfigurations.last?.isEnabled == true)
+  }
 
-  TestCase(
-    behavior:
-      "given sleep prevention is configured when runtime is disabled then sleep prevention stops"
-  ) {
+  @MainActor
+  @Test("disabling runtime stops configured sleep prevention")
+  func disablingRuntimeStopsSleepPrevention() {
     var configuration = AppConfiguration.defaultValue
     configuration.preventsAutomaticSleep = true
     let driver = ProboRuntimeDriver(
@@ -80,12 +71,10 @@ let proboRuntimeTests: [TestCase] = [
 
     runtime.isEnabled = false
 
-    try expectEqual(
-      driver.sleepPreventionStates, [true, false], "disabling runtime should stop sleep prevention")
-    try expectEqual(
-      driver.eventTapActiveStates, [true, false], "disabling runtime should stop event tap")
-  },
-]
+    #expect(driver.sleepPreventionStates == [true, false])
+    #expect(driver.eventTapActiveStates == [true, false])
+  }
+}
 
 @MainActor
 private final class ProboRuntimeDriver {

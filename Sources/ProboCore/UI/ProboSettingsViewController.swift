@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class ProboSettingsViewController: NSViewController {
+package final class ProboSettingsViewController: NSViewController {
   private enum ToggleSetting: Int {
     case optionPrecision
     case terminalOptimization
@@ -63,7 +63,7 @@ final class ProboSettingsViewController: NSViewController {
   private let rowInsetX: CGFloat = 14
   private let rowInsetY: CGFloat = 10
 
-  init(runtime: ProboRuntime) {
+  package init(runtime: ProboRuntime) {
     self.runtime = runtime
     super.init(nibName: nil, bundle: nil)
   }
@@ -73,11 +73,11 @@ final class ProboSettingsViewController: NSViewController {
     fatalError("init(coder:) is unavailable")
   }
 
-  override func loadView() {
+  package override func loadView() {
     installView()
   }
 
-  func reload() {
+  package func reload() {
     let windowFrame = view.window?.frame
     installView()
     if let windowFrame {

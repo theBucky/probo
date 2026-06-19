@@ -44,34 +44,33 @@ Writes `build/Probo.app` and relaunches it. Set `PROBO_CODESIGN_IDENTITY=-` for 
 
 ## Architecture
 
-AppKit owns the menu bar item, status menu, settings window, and settings controls over a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when needed. Hot path is allocation-free.
+SwiftPM owns the build graph for the app, tests, profiling executable, and SourceKit-LSP. AppKit owns the menu bar item, status menu, settings window, and settings controls over a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when needed. Hot path is allocation-free.
 
 | Layer | Path | Role |
 | --- | --- | --- |
-| App | `probo/Sources/App` | Lifecycle, controller wiring |
-| Core | `probo/Sources/Core` | Pure rewrite hot path |
-| Events | `probo/Sources/Events` | Event tap, scroll synthesis |
-| Configuration | `probo/Sources/Configuration` | Settings model, persistence |
-| System | `probo/Sources/System` | Accessibility, frontmost app, sleep, login |
-| UI | `probo/Sources/UI` | Status menu and settings controls |
-| Tools | `probo/Tools` | Probes, diagnostics |
+| Package | `Package.swift` | SwiftPM products, targets, platforms, resources |
+| App | `Sources/Probo`, `Sources/ProboCore/App` | Entry point, resources, runtime wiring |
+| Core | `Sources/ProboCore/Core` | Pure rewrite hot path |
+| Events | `Sources/ProboCore/Events` | Event tap, scroll synthesis |
+| Configuration | `Sources/ProboCore/Configuration` | Settings model, persistence |
+| System | `Sources/ProboCore/System` | Accessibility, frontmost app, sleep, login |
+| UI | `Sources/ProboCore/UI` | Status menu and settings controls |
+| Tools | `Sources/HotPathProfile` | Profiling executable and entitlements |
+| Tests | `Tests/ProboTests` | Swift Testing suites |
 
 ## Development
 
-No SwiftPM manifest, no Xcode project. Shell scripts drive every workflow.
+SwiftPM is canonical. Shell scripts wrap SwiftPM where app bundling, signing, launch, or profiling need extra macOS steps.
 
-| Script | Purpose |
+| Command | Purpose |
 | --- | --- |
-| `swift-format format -i -r probo/Sources probo/Tests` | Format sources and tests |
-| `scripts/test.sh` | Build and run BDD-style Swift tests |
-| `scripts/build.sh` | Build and codesign the bundle (shared with CI) |
+| `swift-format format -i -r Sources Tests` | Format sources and tests |
+| `swift test` | Run Swift Testing suites and CI test gate |
+| `scripts/build.sh` | Build and codesign `build/Probo.app` |
 | `scripts/dev/run.sh` | Build and relaunch `Probo.app` |
-| `scripts/dev/lsp.sh` | Generate `compile_commands.json` for SourceKit-LSP |
 | `scripts/dev/setup-codesign.sh` | Create local signing identity |
 | `scripts/profiling/hot-path.sh` | Hot-path micro profiles or xctrace recordings |
 | `scripts/ci/mint-identity.sh` | Emit p12 and passphrase for CI signing secrets |
-
-Re-run `scripts/dev/lsp.sh` after source-layout or compiler-flag changes so the IDE matches the shell build.
 
 ## Release
 
