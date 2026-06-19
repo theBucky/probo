@@ -2,12 +2,12 @@ import AppKit
 
 @MainActor
 package final class ProboSettingsViewController: NSViewController {
-  private enum ToggleSetting: Int {
-    case optionPrecision
-    case terminalOptimization
-    case naturalDirection
-    case lookUp
-    case preventAutomaticSleep
+  private enum ToggleSetting: String {
+    case optionPrecision = "option-precision"
+    case terminalOptimization = "terminal-optimization"
+    case naturalDirection = "natural-direction"
+    case lookUp = "look-up"
+    case preventAutomaticSleep = "prevent-automatic-sleep"
 
     var title: String {
       switch self {
@@ -31,16 +31,6 @@ package final class ProboSettingsViewController: NSViewController {
         "Map mouse button 4 to Look Up."
       case .preventAutomaticSleep:
         "Keep your Mac awake while Probo is enabled. Display sleep, lid close, and manual sleep are still allowed."
-      }
-    }
-
-    var identifier: String {
-      switch self {
-      case .optionPrecision: "option-precision"
-      case .terminalOptimization: "terminal-optimization"
-      case .naturalDirection: "natural-direction"
-      case .lookUp: "look-up"
-      case .preventAutomaticSleep: "prevent-automatic-sleep"
       }
     }
 
@@ -254,10 +244,9 @@ package final class ProboSettingsViewController: NSViewController {
   private func toggleRow(_ setting: ToggleSetting) -> NSView {
     let control = NSButton(
       checkboxWithTitle: "", target: self, action: #selector(toggleSetting(_:)))
-    control.identifier = NSUserInterfaceItemIdentifier(setting.identifier)
+    control.identifier = NSUserInterfaceItemIdentifier(setting.rawValue)
     control.setAccessibilityLabel(setting.title)
     control.state = runtime[toggle: setting.keyPath] ? .on : .off
-    control.tag = setting.rawValue
     control.setContentHuggingPriority(.required, for: .horizontal)
     return row(title: setting.title, description: setting.description, control: control)
   }
@@ -311,11 +300,20 @@ package final class ProboSettingsViewController: NSViewController {
   }
 
   @objc private func toggleSetting(_ sender: NSButton) {
-    let setting = ToggleSetting(rawValue: sender.tag)!
+    let setting = ToggleSetting(rawValue: sender.identifier!.rawValue)!
     runtime[toggle: setting.keyPath] = sender.state == .on
   }
 
   @objc private func requestAccess() {
     runtime.requestAccessibilityAccess()
+  }
+}
+
+extension ScrollIntensity {
+  fileprivate var title: String {
+    switch self {
+    case .slow: "Slow"
+    case .medium: "Medium"
+    }
   }
 }

@@ -10,7 +10,7 @@ struct AppConfigurationStoreTests {
     try withIsolatedDefaults { defaults in
       let store = AppConfigurationStore(defaults: defaults)
 
-      #expect(store.load() == .defaultValue)
+      #expect(store.load() == AppConfiguration())
     }
   }
 
@@ -40,7 +40,29 @@ struct AppConfigurationStoreTests {
       defaults.set(Data("not a configuration".utf8), forKey: "configuration")
       let store = AppConfigurationStore(defaults: defaults)
 
-      #expect(store.load() == .defaultValue)
+      #expect(store.load() == AppConfiguration())
+    }
+  }
+
+  @Test("missing or invalid stored fields fall back individually")
+  func partiallyInvalidStoredConfiguration() throws {
+    try withIsolatedDefaults { defaults in
+      let data = try PropertyListSerialization.data(
+        fromPropertyList: [
+          "isEnabled": false,
+          "intensity": 99,
+          "isLookUpEnabled": false,
+        ],
+        format: .binary,
+        options: 0
+      )
+      defaults.set(data, forKey: "configuration")
+      let configuration = AppConfigurationStore(defaults: defaults).load()
+
+      #expect(configuration.isEnabled == false)
+      #expect(configuration.intensity == .slow)
+      #expect(configuration.isLookUpEnabled == false)
+      #expect(configuration.isTerminalOptimizationEnabled == true)
     }
   }
 }

@@ -3,7 +3,7 @@ import ProboCore
 
 @MainActor
 @main
-final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
   static func main() {
     let app = NSApplication.shared
     let delegate = ProboApp()
@@ -14,24 +14,21 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
   private let runtime = ProboRuntime(environment: .live())
   private var statusItem: NSStatusItem!
-  private var statusMenu: ProboStatusMenu!
   private var settingsWindow: NSWindow?
-  private var lastSymbolName: String?
   private var lastAccessibilityTrusted: Bool?
 
   func applicationDidFinishLaunching(_ _: Notification) {
-    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    statusMenu = ProboStatusMenu(runtime: runtime) { [weak self] in
-      self?.openSettings()
-    }
-    statusItem.menu = statusMenu.menu
+    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    statusItem.menu = NSMenu()
+    statusItem.menu?.autoenablesItems = false
+    statusItem.menu?.delegate = self
     installMainMenu()
     runtime.onChange = { [weak self] in
       guard let self else { return }
       setStatusIcon(runtime.statusSymbolName)
       reloadSettingsIfAccessibilityChanged()
     }
-    runtime.start()
+    runtime.refreshAccessibility()
   }
 
   // Accessory apps show no menu bar, but NSApp dispatches key equivalents
@@ -59,15 +56,81 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
   }
 
   private func setStatusIcon(_ symbolName: String) {
-    guard lastSymbolName != symbolName else { return }
-    lastSymbolName = symbolName
     let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Probo")
     image?.isTemplate = true
     statusItem.button?.image = image
   }
 
+  // Rebuild on open so toggle states track the runtime without per-item observation plumbing.
+  func menuNeedsUpdate(_ menu: NSMenu) {
+    runtime.refreshAccessibility()
+    menu.removeAllItems()
+
+    menu.addItem(
+      item(
+        title: "Enabled",
+        action: #selector(toggleEnabled),
+        state: runtime.isEnabled
+      ))
+    menu.addItem(
+      item(
+        title: "Start at Login",
+        action: #selector(toggleStartAtLogin),
+        state: runtime.startAtLoginEnabled
+      ))
+
+    menu.addItem(.separator())
+
+    let accessItem = item(
+      title: "Accessibility Access",
+      action: #selector(requestAccess),
+      state: runtime.accessibilityTrusted
+    )
+    accessItem.isEnabled = !runtime.accessibilityTrusted
+    menu.addItem(accessItem)
+    menu.addItem(item(title: "Settings...", action: #selector(showSettings)))
+
+    menu.addItem(.separator())
+
+    menu.addItem(item(title: "Quit Probo", action: #selector(quit), keyEquivalent: "q"))
+  }
+
+  private func item(
+    title: String,
+    action: Selector,
+    keyEquivalent: String = "",
+    state: Bool? = nil
+  ) -> NSMenuItem {
+    let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
+    item.target = self
+    if let state {
+      item.state = state ? .on : .off
+    }
+    return item
+  }
+
+  @objc private func toggleEnabled() {
+    runtime.isEnabled.toggle()
+  }
+
+  @objc private func requestAccess() {
+    runtime.requestAccessibilityAccess()
+  }
+
+  @objc private func showSettings() {
+    openSettings()
+  }
+
+  @objc private func toggleStartAtLogin() {
+    runtime.setStartAtLoginEnabled(!runtime.startAtLoginEnabled)
+  }
+
+  @objc private func quit() {
+    NSApp.terminate(nil)
+  }
+
   private func openSettings() {
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
     // Status-item apps start as accessory apps. Promote before creating/showing
     // the settings window so AppKit orders it like a normal foreground window.
     NSApp.setActivationPolicy(.regular)

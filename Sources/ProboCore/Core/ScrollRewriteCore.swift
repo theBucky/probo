@@ -24,8 +24,8 @@ package enum ScrollRewriteCore {
 
   // Drops continuous, phased, diagonal, and zero-delta events per the project invariant.
   package static func rewrite(
-    deltaAxis1: Int32,
-    deltaAxis2: Int32,
+    verticalDelta: Int32,
+    horizontalDelta: Int32,
     intensity: ScrollIntensity,
     isContinuous: Bool,
     hasPhase: Bool,
@@ -33,13 +33,13 @@ package enum ScrollRewriteCore {
     isTrackpadStyleScrollingEnabled: Bool
   ) -> (linesX: Int32, linesY: Int32)? {
     if isContinuous || hasPhase { return nil }
-    if (deltaAxis1 != 0) == (deltaAxis2 != 0) { return nil }
+    if (verticalDelta != 0) == (horizontalDelta != 0) { return nil }
 
     let stepLines: Int32 = isPrecision ? 1 : intensity.lines
     let direction: Int32 = isTrackpadStyleScrollingEnabled ? 1 : -1
     return (
-      linesX: deltaAxis2.signum() * stepLines * direction,
-      linesY: deltaAxis1.signum() * stepLines * direction
+      linesX: horizontalDelta.signum() * stepLines * direction,
+      linesY: verticalDelta.signum() * stepLines * direction
     )
   }
 }

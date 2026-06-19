@@ -70,16 +70,24 @@ struct HotPathProfile {
     let source = CGEventSource(stateID: .hidSystemState)
     source?.pixelsPerLine = 16.0
 
-    guard let event = makeInputEvent(source: source, deltaAxis1: 1, deltaAxis2: 0) else {
+    guard let event = makeInputEvent(source: source, verticalDelta: 1, horizontalDelta: 0) else {
       throw ProbeError.message("failed to create synthetic scroll event")
     }
 
-    let configuration = AppConfiguration.defaultValue
+    let configuration = AppConfiguration()
     let tapOptions = EventTapOptions(configuration: configuration)
     let tapOptionsRawValue = tapOptions.rawValue
     let synth = ScrollEventSynthesizer()
     let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
-    let linesY = configuration.intensity.lines
+    let linesY = ScrollRewriteCore.rewrite(
+      verticalDelta: 1,
+      horizontalDelta: 0,
+      intensity: configuration.intensity,
+      isContinuous: false,
+      hasPhase: false,
+      isPrecision: false,
+      isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
+    )!.linesY
     let resetEvent = { resetInputEvent(event, synth: synth) }
     var blackhole: Int64 = 0
 
@@ -104,26 +112,14 @@ struct HotPathProfile {
     ) {
       guard
         let (_, linesY) = ScrollRewriteCore.rewrite(
-          deltaAxis1: 1,
-          deltaAxis2: 0,
+          verticalDelta: 1,
+          horizontalDelta: 0,
           intensity: configuration.intensity,
           isContinuous: false,
           hasPhase: false,
           isPrecision: false,
           isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
         )
-      else { return 0 }
-      return Int64(linesY)
-    }.print()
-
-    measure(
-      "cg extract + core",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole,
-      prepare: resetEvent
-    ) {
-      guard let (_, linesY) = rewriteFromEvent(event, configuration: configuration)
       else { return 0 }
       return Int64(linesY)
     }.print()
@@ -154,38 +150,6 @@ struct HotPathProfile {
       prepare: resetEvent
     ) {
       synth.applyReplacement(to: event, linesX: 0, linesY: linesY)
-      return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
-    }.print()
-
-    measure(
-      "pipeline no post",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole,
-      prepare: resetEvent
-    ) {
-      guard
-        let (linesX, linesY) = rewriteFromEvent(event, configuration: configuration),
-        let replacement = synth.makeReplacement(
-          location: event.location,
-          flags: event.flags,
-          linesX: linesX,
-          linesY: linesY
-        )
-      else { return 0 }
-      return replacement.getIntegerValueField(.scrollWheelEventDeltaAxis1)
-    }.print()
-
-    measure(
-      "pipeline mutate",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole,
-      prepare: resetEvent
-    ) {
-      guard let (linesX, linesY) = rewriteFromEvent(event, configuration: configuration)
-      else { return 0 }
-      synth.applyReplacement(to: event, linesX: linesX, linesY: linesY)
       return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
     }.print()
 
@@ -244,7 +208,7 @@ private func parseOptions() throws -> Options {
     case "--post-events":
       options.postEvents = try takeNonNegativeInt(&arguments, argument)
     case "--post-interval-usec":
-      options.postIntervalUsec = UInt32(try takeNonNegativeInt(&arguments, argument))
+      options.postIntervalUsec = try takeUInt32(&arguments, argument)
     case "-h", "--help":
       Swift.print(
         """
@@ -263,6 +227,14 @@ private func parseOptions() throws -> Options {
   }
 
   return options
+}
+
+private func takeUInt32(_ arguments: inout ArraySlice<String>, _ name: String) throws -> UInt32 {
+  let value = try takeNonNegativeInt(&arguments, name)
+  guard value <= UInt32.max else {
+    throw ProbeError.message("\(name) must fit UInt32")
+  }
+  return UInt32(value)
 }
 
 private func takePositiveInt(_ arguments: inout ArraySlice<String>, _ name: String) throws -> Int {
@@ -308,48 +280,19 @@ private func measure(
   return Summary(name: name, samples: samples, timebase: timebase)
 }
 
-private func rewriteFromEvent(
-  _ event: CGEvent,
-  configuration: AppConfiguration
-) -> (linesX: Int32, linesY: Int32)? {
-  let originalFlags = event.flags
-  let decision = ScrollRewriteCore.decidePrecision(
-    isOptionHeld: originalFlags.contains(.maskAlternate),
-    isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
-    isTerminalOptimizationActive: false
-  )
-  let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
-  let hasPhase =
-    event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
-    || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
-  let deltaAxis1 = Int32(
-    truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
-  let deltaAxis2 = Int32(
-    truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
-  return ScrollRewriteCore.rewrite(
-    deltaAxis1: deltaAxis1,
-    deltaAxis2: deltaAxis2,
-    intensity: configuration.intensity,
-    isContinuous: isContinuous,
-    hasPhase: hasPhase,
-    isPrecision: decision.isPrecision,
-    isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
-  )
-}
-
 private func makeInputEvent(
   source: CGEventSource?,
-  deltaAxis1: Int32,
-  deltaAxis2: Int32
+  verticalDelta: Int32,
+  horizontalDelta: Int32
 ) -> CGEvent? {
-  let wheelCount: UInt32 = deltaAxis2 == 0 ? 1 : 2
+  let wheelCount: UInt32 = horizontalDelta == 0 ? 1 : 2
   guard
     let event = CGEvent(
       scrollWheelEvent2Source: source,
       units: .line,
       wheelCount: wheelCount,
-      wheel1: deltaAxis1,
-      wheel2: deltaAxis2,
+      wheel1: verticalDelta,
+      wheel2: horizontalDelta,
       wheel3: 0
     )
   else {
@@ -376,7 +319,7 @@ private func postInputEvents(options: Options, source: CGEventSource?) throws {
   for index in 0..<options.postEvents {
     guard
       let event = makeInputEvent(
-        source: source, deltaAxis1: index.isMultiple(of: 2) ? 1 : -1, deltaAxis2: 0)
+        source: source, verticalDelta: index.isMultiple(of: 2) ? 1 : -1, horizontalDelta: 0)
     else {
       throw ProbeError.message("failed to create post event")
     }

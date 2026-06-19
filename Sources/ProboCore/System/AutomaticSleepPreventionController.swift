@@ -27,19 +27,19 @@ final class AutomaticSleepPreventionController {
 
   @MainActor
   func setEnabled(_ enabled: Bool) {
-    switch (enabled, assertionID) {
-    case (true, nil):
+    if enabled {
+      guard assertionID == nil else { return }
       guard let createdAssertionID = createAssertion() else {
         Self.logger.error("failed to prevent automatic sleep")
         return
       }
       assertionID = createdAssertionID
-    case (false, let activeAssertionID?):
-      releaseAssertion(activeAssertionID)
-      assertionID = nil
-    case (true, _?), (false, nil):
-      break
+      return
     }
+
+    guard let activeAssertionID = assertionID else { return }
+    releaseAssertion(activeAssertionID)
+    assertionID = nil
   }
 
   private static func createSystemAssertion() -> IOPMAssertionID? {

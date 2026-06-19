@@ -9,7 +9,7 @@ struct ProboSettingsViewControllerTests {
   @Test("opening settings reflects runtime state")
   func openingSettingsReflectsRuntimeState() throws {
     _ = NSApplication.shared
-    var configuration = AppConfiguration.defaultValue
+    var configuration = AppConfiguration()
     configuration.intensity = .medium
     configuration.isOptionPrecisionEnabled = true
     configuration.isTerminalOptimizationEnabled = false
@@ -22,7 +22,7 @@ struct ProboSettingsViewControllerTests {
       accessibilityTrusted: false
     )
     let runtime = ProboRuntime(environment: driver.environment)
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
 
     let controller = ProboSettingsViewController(runtime: runtime)
     controller.loadView()
@@ -50,11 +50,11 @@ struct ProboSettingsViewControllerTests {
   func userChangesPersistRuntimeConfiguration() throws {
     _ = NSApplication.shared
     let driver = SettingsRuntimeDriver(
-      configuration: .defaultValue,
+      configuration: AppConfiguration(),
       accessibilityTrusted: true
     )
     let runtime = ProboRuntime(environment: driver.environment)
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
 
     let controller = ProboSettingsViewController(runtime: runtime)
     controller.loadView()
@@ -77,17 +77,17 @@ struct ProboSettingsViewControllerTests {
   func grantedAccessibilityRemovesRequestAccessButton() throws {
     _ = NSApplication.shared
     let driver = SettingsRuntimeDriver(
-      configuration: .defaultValue,
+      configuration: AppConfiguration(),
       accessibilityTrusted: false
     )
     let runtime = ProboRuntime(environment: driver.environment)
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
 
     let controller = ProboSettingsViewController(runtime: runtime)
     controller.loadView()
 
     driver.accessibilityTrusted = true
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
     controller.reload()
 
     #expect(try label("accessibility-permission", in: controller.view).stringValue == "Granted")
@@ -99,11 +99,11 @@ struct ProboSettingsViewControllerTests {
   func settingsReloadKeepsWindowFrameFixed() {
     _ = NSApplication.shared
     let driver = SettingsRuntimeDriver(
-      configuration: .defaultValue,
+      configuration: AppConfiguration(),
       accessibilityTrusted: false
     )
     let runtime = ProboRuntime(environment: driver.environment)
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
 
     let controller = ProboSettingsViewController(runtime: runtime)
     let window = NSWindow(contentViewController: controller)
@@ -111,7 +111,7 @@ struct ProboSettingsViewControllerTests {
     window.setFrame(frame, display: false)
 
     driver.accessibilityTrusted = true
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
     controller.reload()
 
     #expect(window.frame == frame)

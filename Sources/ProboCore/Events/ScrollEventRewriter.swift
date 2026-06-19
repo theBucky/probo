@@ -17,15 +17,15 @@ package struct ScrollEventRewriter {
 
   // EventTapController filters self-synth re-entry; the core owns the drop decision.
   package func rewrite(event: CGEvent, options: EventTapOptions) -> CGEvent? {
-    guard isMouseWheelEvent(event) else { return event }
+    guard Self.isMouseWheelEvent(event) else { return event }
 
     let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
     let hasPhase =
       event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
       || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
-    let deltaAxis1 = Int32(
+    let verticalDelta = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
-    let deltaAxis2 = Int32(
+    let horizontalDelta = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
 
     let originalFlags = event.flags
@@ -37,15 +37,15 @@ package struct ScrollEventRewriter {
     )
     guard
       let (linesX, linesY) = ScrollRewriteCore.rewrite(
-        deltaAxis1: deltaAxis1,
-        deltaAxis2: deltaAxis2,
+        verticalDelta: verticalDelta,
+        horizontalDelta: horizontalDelta,
         intensity: options.intensity,
         isContinuous: isContinuous,
         hasPhase: hasPhase,
         isPrecision: decision.isPrecision,
         isTrackpadStyleScrollingEnabled: options.isTrackpadStyleScrollingEnabled
       )
-    else { return event }
+    else { return nil }
 
     if !decision.stripOption {
       synth.applyReplacement(to: event, linesX: linesX, linesY: linesY)
@@ -75,7 +75,7 @@ package struct ScrollEventRewriter {
     return nil
   }
 
-  private func isMouseWheelEvent(_ event: CGEvent) -> Bool {
+  private static func isMouseWheelEvent(_ event: CGEvent) -> Bool {
     let subtype = CGEventMouseSubtype(
       rawValue: UInt32(event.getIntegerValueField(.mouseEventSubtype)))
     if subtype != .defaultType { return false }

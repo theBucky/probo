@@ -43,11 +43,13 @@ package struct ScrollEventSynthesizer {
     event.setIntegerValueField(.scrollWheelEventDeltaAxis1, value: Int64(linesY))
     event.setIntegerValueField(.scrollWheelEventDeltaAxis2, value: Int64(linesX))
     event.setIntegerValueField(.scrollWheelEventDeltaAxis3, value: 0)
-    event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis1, value: fixedDelta(linesY))
-    event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis2, value: fixedDelta(linesX))
+    event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis1, value: Int64(linesY) * 65_536)
+    event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis2, value: Int64(linesX) * 65_536)
     event.setIntegerValueField(.scrollWheelEventFixedPtDeltaAxis3, value: 0)
-    event.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: pointDelta(linesY))
-    event.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: pointDelta(linesX))
+    event.setIntegerValueField(
+      .scrollWheelEventPointDeltaAxis1, value: Int64(linesY) * Self.pixelsPerLine)
+    event.setIntegerValueField(
+      .scrollWheelEventPointDeltaAxis2, value: Int64(linesX) * Self.pixelsPerLine)
     event.setIntegerValueField(.scrollWheelEventPointDeltaAxis3, value: 0)
     event.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
     event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 0)
@@ -64,11 +66,4 @@ package struct ScrollEventSynthesizer {
     return event
   }
 
-  private func fixedDelta(_ lines: Int32) -> Int64 {
-    Int64(lines) * 65_536
-  }
-
-  private func pointDelta(_ lines: Int32) -> Int64 {
-    Int64(lines) * Self.pixelsPerLine
-  }
 }

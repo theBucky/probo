@@ -35,9 +35,8 @@ final class FrontmostAppMonitor {
 
   func setActive(_ isActive: Bool) {
     if !isActive {
-      guard let activationTask else { return }
-      activationTask.cancel()
-      self.activationTask = nil
+      activationTask?.cancel()
+      activationTask = nil
       terminalFrontmost.store(false, ordering: .relaxed)
       return
     }

@@ -10,8 +10,9 @@ struct AppConfigurationStore {
   }
 
   func load() -> AppConfiguration {
-    guard let data = defaults.data(forKey: Self.configurationKey) else { return .defaultValue }
-    return (try? PropertyListDecoder().decode(AppConfiguration.self, from: data)) ?? .defaultValue
+    guard let data = defaults.data(forKey: Self.configurationKey) else { return AppConfiguration() }
+    return (try? PropertyListDecoder().decode(AppConfiguration.self, from: data))
+      ?? AppConfiguration()
   }
 
   func save(_ configuration: AppConfiguration) {

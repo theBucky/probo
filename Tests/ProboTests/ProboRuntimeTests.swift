@@ -8,12 +8,12 @@ struct ProboRuntimeTests {
   @Test("missing accessibility keeps tap inactive at start")
   func missingAccessibilityAtStart() {
     let driver = ProboRuntimeDriver(
-      configuration: .defaultValue,
+      configuration: AppConfiguration(),
       accessibilityTrusted: false
     )
     let runtime = ProboRuntime(environment: driver.environment)
 
-    runtime.start()
+    runtime.refreshAccessibility()
 
     #expect(runtime.statusSymbolName == "exclamationmark.triangle.fill")
     #expect(driver.eventTapActiveStates == [false])
@@ -24,14 +24,14 @@ struct ProboRuntimeTests {
   @Test("granting accessibility after start enables tap")
   func grantingAccessibilityAfterStart() {
     let driver = ProboRuntimeDriver(
-      configuration: .defaultValue,
+      configuration: AppConfiguration(),
       accessibilityTrusted: false
     )
     let runtime = ProboRuntime(environment: driver.environment)
-    runtime.start()
+    runtime.refreshAccessibility()
 
     driver.accessibilityTrusted = true
-    runtime.refreshSystemState()
+    runtime.refreshAccessibility()
     driver.publishTapEnabled(true)
 
     #expect(runtime.statusSymbolName == "computermouse.fill")
@@ -42,14 +42,14 @@ struct ProboRuntimeTests {
   @MainActor
   @Test("enabling without accessibility requests access")
   func enablingWithoutAccessibility() {
-    var configuration = AppConfiguration.defaultValue
+    var configuration = AppConfiguration()
     configuration.isEnabled = false
     let driver = ProboRuntimeDriver(
       configuration: configuration,
       accessibilityTrusted: false
     )
     let runtime = ProboRuntime(environment: driver.environment)
-    runtime.start()
+    runtime.refreshAccessibility()
 
     runtime.isEnabled = true
 
@@ -60,14 +60,14 @@ struct ProboRuntimeTests {
   @MainActor
   @Test("disabling runtime stops configured sleep prevention")
   func disablingRuntimeStopsSleepPrevention() {
-    var configuration = AppConfiguration.defaultValue
+    var configuration = AppConfiguration()
     configuration.preventsAutomaticSleep = true
     let driver = ProboRuntimeDriver(
       configuration: configuration,
       accessibilityTrusted: true
     )
     let runtime = ProboRuntime(environment: driver.environment)
-    runtime.start()
+    runtime.refreshAccessibility()
 
     runtime.isEnabled = false
 

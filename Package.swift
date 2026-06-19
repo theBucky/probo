@@ -16,7 +16,7 @@ let package = Package(
     .executableTarget(
       name: "Probo",
       dependencies: ["ProboCore"],
-      resources: [.copy("Resources")]
+      exclude: ["Resources"]
     ),
     .executableTarget(
       name: "HotPathProfile",

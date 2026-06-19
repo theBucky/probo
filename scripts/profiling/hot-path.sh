@@ -45,6 +45,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if ! [[ "$trace_duration" == <-> ]] || (( trace_duration <= 0 )); then
+  echo "--trace-duration must be a positive integer" >&2
+  exit 64
+fi
+
 cd "$root_dir"
 swift build -c release --arch arm64 --product HotPathProfile
 probe_binary="$(swift build -c release --arch arm64 --show-bin-path)/HotPathProfile"

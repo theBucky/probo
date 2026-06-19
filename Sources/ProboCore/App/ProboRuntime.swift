@@ -36,15 +36,7 @@ package struct ProboRuntimeEnvironment {
       setAutomaticSleepPreventionEnabled: {
         automaticSleepPreventionController.setEnabled($0)
       },
-      makeAccessibilityGrantTask: { onChange in
-        Task { @MainActor in
-          let stream = DistributedNotificationCenter.default()
-            .notifications(named: AccessibilityPermission.trustChangedNotification)
-          for await _ in stream {
-            onChange()
-          }
-        }
-      }
+      makeAccessibilityGrantTask: { AccessibilityPermission.makeGrantTask(onChange: $0) }
     )
   }
 }
@@ -54,9 +46,10 @@ package final class ProboRuntime {
   private let environment: ProboRuntimeEnvironment
   private var configuration: AppConfiguration
   package private(set) var accessibilityTrusted = false
-  package private(set) var startAtLoginEnabled = false
   private var tapEnabled = false
   package var onChange: (() -> Void)?
+
+  package var startAtLoginEnabled: Bool { environment.isStartAtLoginEnabled() }
 
   package var isEnabled: Bool {
     get { configuration.isEnabled }
@@ -92,21 +85,14 @@ package final class ProboRuntime {
   package init(environment: ProboRuntimeEnvironment) {
     self.environment = environment
     configuration = environment.loadConfiguration()
-  }
-
-  package func start() {
     environment.setTapEnabledHandler { [weak self] enabled in
       self?.tapEnabled = enabled
       self?.onChange?()
     }
-    refreshSystemState()
   }
 
-  package func refreshSystemState() {
-    accessibilityTrusted = environment.isAccessibilityTrusted(false)
-    startAtLoginEnabled = environment.isStartAtLoginEnabled()
-    reconcile()
-    onChange?()
+  package func refreshAccessibility() {
+    refreshAccessibility(prompt: false)
   }
 
   package func setStartAtLoginEnabled(_ isEnabled: Bool) {
@@ -115,14 +101,11 @@ package final class ProboRuntime {
     } catch {
       logger.error("failed to update launch at login: \(error.localizedDescription)")
     }
-    startAtLoginEnabled = environment.isStartAtLoginEnabled()
     onChange?()
   }
 
   package func requestAccessibilityAccess() {
-    accessibilityTrusted = environment.isAccessibilityTrusted(true)
-    reconcile()
-    onChange?()
+    refreshAccessibility(prompt: true)
   }
 
   @discardableResult
@@ -138,6 +121,12 @@ package final class ProboRuntime {
     return true
   }
 
+  private func refreshAccessibility(prompt: Bool) {
+    accessibilityTrusted = environment.isAccessibilityTrusted(prompt)
+    reconcile()
+    onChange?()
+  }
+
   private func reconcile() {
     let tapActive = configuration.isEnabled && accessibilityTrusted
     environment.setFrontmostMonitorActive(tapActive && configuration.isTerminalOptimizationEnabled)
@@ -151,7 +140,7 @@ package final class ProboRuntime {
       accessibilityGrantTask = nil
     } else if accessibilityGrantTask == nil {
       accessibilityGrantTask = environment.makeAccessibilityGrantTask { [weak self] in
-        self?.refreshSystemState()
+        self?.refreshAccessibility()
       }
     }
   }

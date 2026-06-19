@@ -1,7 +1,6 @@
 @preconcurrency import ApplicationServices
 import Foundation
 import Synchronization
-import os
 
 final class EventTapController: @unchecked Sendable {
   private struct TapState {
@@ -15,11 +14,15 @@ final class EventTapController: @unchecked Sendable {
     case none
   }
 
+  private static let lookUpButtonNumber: Int64 = 3
+  private static let lookUpKeyCode = CGKeyCode(0x02)
+  private static let lookUpFlags: CGEventFlags = [.maskCommand, .maskControl]
+
   private let scrollRewriter: ScrollEventRewriter
   // Atomic, not lock-guarded, because the hot path reads it on every event.
   private let isActive = Atomic<Bool>(false)
   private let optionsRawValue = Atomic<UInt32>(
-    EventTapOptions(configuration: .defaultValue).rawValue)
+    EventTapOptions(configuration: AppConfiguration()).rawValue)
   private let tapState = Mutex(TapState())
   var onTapEnabledChange: (@MainActor (Bool) -> Void)?
 
@@ -113,8 +116,7 @@ final class EventTapController: @unchecked Sendable {
       return pass
     }
 
-    // Bail on our own synthesized events first so the option-strip sandwich
-    // doesn't re-enter the rewriter three times per click.
+    // Bail on our own synthesized scroll events before the rewriter sees them.
     if type == .scrollWheel,
       event.getIntegerValueField(.eventSourceUserData) == ScrollEventSynthesizer.marker
     {
@@ -127,12 +129,33 @@ final class EventTapController: @unchecked Sendable {
     switch type {
     case .otherMouseDown, .otherMouseUp:
       guard options.isLookUpEnabled else { return pass }
-      return LookUpGesture.consume(type: type, event: event) ? nil : pass
+      return consumeLookUpGesture(type: type, event: event) ? nil : pass
     case .scrollWheel:
       return scrollRewriter.rewrite(event: event, options: options).map(Unmanaged.passUnretained)
     default:
       return pass
     }
+  }
+
+  private func consumeLookUpGesture(type: CGEventType, event: CGEvent) -> Bool {
+    guard event.getIntegerValueField(.mouseEventButtonNumber) == Self.lookUpButtonNumber else {
+      return false
+    }
+    if type == .otherMouseDown {
+      postLookUpGesture()
+    }
+    return true
+  }
+
+  private func postLookUpGesture() {
+    guard
+      let down = CGEvent(keyboardEventSource: nil, virtualKey: Self.lookUpKeyCode, keyDown: true),
+      let up = CGEvent(keyboardEventSource: nil, virtualKey: Self.lookUpKeyCode, keyDown: false)
+    else { return }
+    down.flags = Self.lookUpFlags
+    up.flags = Self.lookUpFlags
+    down.post(tap: .cgSessionEventTap)
+    up.post(tap: .cgSessionEventTap)
   }
 
   private func publishTapEnabledOnMain() {

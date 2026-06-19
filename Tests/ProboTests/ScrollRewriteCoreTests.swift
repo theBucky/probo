@@ -6,22 +6,22 @@ import Testing
 struct ScrollRewriteCoreTests {
   @Test("discrete wheel notches emit configured fixed line steps")
   func discreteWheelNotches() throws {
-    try expectRewrite(deltaAxis1: 1, linesX: 0, linesY: 2, "slow vertical notch")
+    try expectRewrite(verticalDelta: 1, linesX: 0, linesY: 2, "slow vertical notch")
     try expectRewrite(
-      deltaAxis1: -42,
+      verticalDelta: -42,
       linesX: 0,
       linesY: -2,
       "large source delta still maps to one slow step"
     )
     try expectRewrite(
-      deltaAxis2: -9,
+      horizontalDelta: -9,
       intensity: .medium,
       linesX: -3,
       linesY: 0,
       "medium horizontal notch"
     )
     try expectRewrite(
-      deltaAxis2: Int32.min,
+      horizontalDelta: Int32.min,
       intensity: .medium,
       linesX: -3,
       linesY: 0,
@@ -32,7 +32,7 @@ struct ScrollRewriteCoreTests {
   @Test("precision mode emits one line regardless of intensity")
   func precisionMode() throws {
     try expectRewrite(
-      deltaAxis1: -1,
+      verticalDelta: -1,
       intensity: .slow,
       isPrecision: true,
       linesX: 0,
@@ -40,7 +40,7 @@ struct ScrollRewriteCoreTests {
       "precision mode ignores slow intensity"
     )
     try expectRewrite(
-      deltaAxis1: -1,
+      verticalDelta: -1,
       intensity: .medium,
       isPrecision: true,
       linesX: 0,
@@ -52,14 +52,14 @@ struct ScrollRewriteCoreTests {
   @Test("disabled trackpad-style scrolling reverses line direction")
   func disabledTrackpadStyleScrolling() throws {
     try expectRewrite(
-      deltaAxis1: 1,
+      verticalDelta: 1,
       isTrackpadStyleScrollingEnabled: false,
       linesX: 0,
       linesY: -2,
       "vertical direction"
     )
     try expectRewrite(
-      deltaAxis2: -9,
+      horizontalDelta: -9,
       intensity: .medium,
       isTrackpadStyleScrollingEnabled: false,
       linesX: 3,
@@ -124,16 +124,18 @@ struct ScrollRewriteCoreTests {
 
   @Test("non-discrete or ambiguous scrolling is dropped")
   func droppedInputs() {
-    #expect(rewrite(deltaAxis1: 1, isContinuous: true) == nil, "continuous scroll must not rewrite")
-    #expect(rewrite(deltaAxis1: 1, hasPhase: true) == nil, "phased scroll must not rewrite")
-    #expect(rewrite(deltaAxis1: 1, deltaAxis2: 1) == nil, "diagonal scroll must not rewrite")
+    #expect(
+      rewrite(verticalDelta: 1, isContinuous: true) == nil, "continuous scroll must not rewrite")
+    #expect(rewrite(verticalDelta: 1, hasPhase: true) == nil, "phased scroll must not rewrite")
+    #expect(
+      rewrite(verticalDelta: 1, horizontalDelta: 1) == nil, "diagonal scroll must not rewrite")
     #expect(rewrite() == nil, "zero-delta scroll must not rewrite")
   }
 }
 
 private func rewrite(
-  deltaAxis1: Int32 = 0,
-  deltaAxis2: Int32 = 0,
+  verticalDelta: Int32 = 0,
+  horizontalDelta: Int32 = 0,
   intensity: ScrollIntensity = .slow,
   isContinuous: Bool = false,
   hasPhase: Bool = false,
@@ -141,8 +143,8 @@ private func rewrite(
   isTrackpadStyleScrollingEnabled: Bool = true
 ) -> (linesX: Int32, linesY: Int32)? {
   ScrollRewriteCore.rewrite(
-    deltaAxis1: deltaAxis1,
-    deltaAxis2: deltaAxis2,
+    verticalDelta: verticalDelta,
+    horizontalDelta: horizontalDelta,
     intensity: intensity,
     isContinuous: isContinuous,
     hasPhase: hasPhase,
@@ -152,8 +154,8 @@ private func rewrite(
 }
 
 private func expectRewrite(
-  deltaAxis1: Int32 = 0,
-  deltaAxis2: Int32 = 0,
+  verticalDelta: Int32 = 0,
+  horizontalDelta: Int32 = 0,
   intensity: ScrollIntensity = .slow,
   isPrecision: Bool = false,
   isTrackpadStyleScrollingEnabled: Bool = true,
@@ -163,8 +165,8 @@ private func expectRewrite(
 ) throws {
   let output = try #require(
     rewrite(
-      deltaAxis1: deltaAxis1,
-      deltaAxis2: deltaAxis2,
+      verticalDelta: verticalDelta,
+      horizontalDelta: horizontalDelta,
       intensity: intensity,
       isPrecision: isPrecision,
       isTrackpadStyleScrollingEnabled: isTrackpadStyleScrollingEnabled
