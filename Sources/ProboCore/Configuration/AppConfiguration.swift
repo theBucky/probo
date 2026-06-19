@@ -1,11 +1,11 @@
 package struct AppConfiguration: Equatable, Codable, Sendable {
-  package var isEnabled = true
-  package var intensity = ScrollIntensity.slow
-  package var isLookUpEnabled = true
-  package var isOptionPrecisionEnabled = false
-  package var isTerminalOptimizationEnabled = true
-  package var isTrackpadStyleScrollingEnabled = false
-  package var preventsAutomaticSleep = false
+  package var isEnabled: Bool
+  package var intensity: ScrollIntensity
+  package var isLookUpEnabled: Bool
+  package var isOptionPrecisionEnabled: Bool
+  package var isTerminalOptimizationEnabled: Bool
+  package var isTrackpadStyleScrollingEnabled: Bool
+  package var preventsAutomaticSleep: Bool
 
   package init(
     isEnabled: Bool = true,
@@ -24,24 +24,30 @@ package struct AppConfiguration: Equatable, Codable, Sendable {
     self.isTrackpadStyleScrollingEnabled = isTrackpadStyleScrollingEnabled
     self.preventsAutomaticSleep = preventsAutomaticSleep
   }
+}
 
+extension AppConfiguration {
+  // Start from defaults, then overlay each field that decodes cleanly, so a partial or
+  // schema-evolved record keeps its valid values instead of resetting everything.
   package init(from decoder: Decoder) throws {
-    let values = try decoder.container(keyedBy: CodingKeys.self)
-    self.init(
-      isEnabled: values.decode(.isEnabled, fallback: true),
-      intensity: values.decode(.intensity, fallback: .slow),
-      isLookUpEnabled: values.decode(.isLookUpEnabled, fallback: true),
-      isOptionPrecisionEnabled: values.decode(.isOptionPrecisionEnabled, fallback: false),
-      isTerminalOptimizationEnabled: values.decode(.isTerminalOptimizationEnabled, fallback: true),
-      isTrackpadStyleScrollingEnabled: values.decode(
-        .isTrackpadStyleScrollingEnabled, fallback: false),
-      preventsAutomaticSleep: values.decode(.preventsAutomaticSleep, fallback: false)
-    )
+    self.init()
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    isEnabled = container.value(.isEnabled, fallback: isEnabled)
+    intensity = container.value(.intensity, fallback: intensity)
+    isLookUpEnabled = container.value(.isLookUpEnabled, fallback: isLookUpEnabled)
+    isOptionPrecisionEnabled = container.value(
+      .isOptionPrecisionEnabled, fallback: isOptionPrecisionEnabled)
+    isTerminalOptimizationEnabled = container.value(
+      .isTerminalOptimizationEnabled, fallback: isTerminalOptimizationEnabled)
+    isTrackpadStyleScrollingEnabled = container.value(
+      .isTrackpadStyleScrollingEnabled, fallback: isTrackpadStyleScrollingEnabled)
+    preventsAutomaticSleep = container.value(
+      .preventsAutomaticSleep, fallback: preventsAutomaticSleep)
   }
 }
 
 extension KeyedDecodingContainer {
-  fileprivate func decode<T: Decodable>(_ key: Key, fallback: T) -> T {
+  fileprivate func value<T: Decodable>(_ key: Key, fallback: T) -> T {
     (try? decode(T.self, forKey: key)) ?? fallback
   }
 }
