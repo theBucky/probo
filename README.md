@@ -11,7 +11,7 @@ macOS menu bar utility that rewrites each mouse-wheel notch to a fixed line step
 
 - Fixed step per notch: Slow (2 lines) or Medium (3 lines)
 - Option-key precision drops to 1 line per notch
-- Terminal heuristic emits 1 line per notch in terminal apps, configured step when Option is held
+- Terminal heuristic emits 1 line per notch in supported terminal apps, configured step when Option is held
 - Natural scroll-direction toggle
 - Mouse button 4 maps to the macOS Look Up gesture
 - Optional sleep-prevention assertion while enabled; display sleep, lid close, and manual sleep still fire

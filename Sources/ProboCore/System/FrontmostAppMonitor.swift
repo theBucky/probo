@@ -15,7 +15,6 @@ import Synchronization
 final class FrontmostAppMonitor {
   private static let terminalBundleIDs: Set<String> = [
     "com.apple.Terminal",
-    "com.googlecode.iterm2",
     "com.mitchellh.ghostty",
     "dev.warp.Warp-Stable",
     "net.kovidgoyal.kitty",
