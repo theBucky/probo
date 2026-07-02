@@ -75,18 +75,21 @@ struct HotPathProfile {
     }
 
     let configuration = AppConfiguration()
-    let tapOptions = EventTapOptions(configuration: configuration)
+    let tapOptions = TapOptions(configuration: configuration)
     let tapOptionsRawValue = tapOptions.rawValue
-    let synth = ScrollEventSynthesizer()
-    let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
-    let linesY = ScrollRewriteCore.rewrite(
-      verticalDelta: 1,
-      horizontalDelta: 0,
-      intensity: configuration.intensity,
-      isPrecision: false,
-      isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
-    )!.linesY
-    let resetEvent = { resetInputEvent(event, synth: synth) }
+    let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
+    guard
+      case .emit(_, let linesY, _) = decideScroll(
+        verticalDelta: 1,
+        horizontalDelta: 0,
+        isOptionHeld: false,
+        isTerminalFrontmost: false,
+        options: tapOptions
+      )
+    else {
+      throw ProbeError.message("default configuration must rewrite a vertical notch")
+    }
+    let resetEvent = { resetInputEvent(event, rewriter: rewriter) }
     var blackhole: Int64 = 0
 
     Swift.print("synthetic input: discrete line-unit CGEvent, no HID driver, no device coalescing")
@@ -109,12 +112,12 @@ struct HotPathProfile {
       blackhole: &blackhole
     ) {
       guard
-        let (_, linesY) = ScrollRewriteCore.rewrite(
+        case .emit(_, let linesY, _) = decideScroll(
           verticalDelta: 1,
           horizontalDelta: 0,
-          intensity: configuration.intensity,
-          isPrecision: false,
-          isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
+          isOptionHeld: false,
+          isTerminalFrontmost: false,
+          options: tapOptions
         )
       else { return 0 }
       return Int64(linesY)
@@ -128,7 +131,7 @@ struct HotPathProfile {
       prepare: resetEvent
     ) {
       guard
-        let replacement = synth.makeReplacement(
+        let replacement = rewriter.makeReplacement(
           location: event.location,
           flags: event.flags,
           linesX: 0,
@@ -145,7 +148,7 @@ struct HotPathProfile {
       blackhole: &blackhole,
       prepare: resetEvent
     ) {
-      synth.applyReplacement(to: event, linesX: 0, linesY: linesY)
+      rewriter.applyReplacement(to: event, linesX: 0, linesY: linesY)
       return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
     }.print()
 
@@ -155,7 +158,7 @@ struct HotPathProfile {
       timebase: timebase,
       blackhole: &blackhole
     ) {
-      let decoded = EventTapOptions(rawValue: tapOptionsRawValue)
+      let decoded = TapOptions(rawValue: tapOptionsRawValue)
       return decoded.isTerminalOptimizationEnabled ? 1 : 0
     }.print()
 
@@ -177,7 +180,7 @@ struct HotPathProfile {
       blackhole: &blackhole,
       prepare: resetEvent
     ) {
-      let decoded = EventTapOptions(rawValue: tapOptionsRawValue)
+      let decoded = TapOptions(rawValue: tapOptionsRawValue)
       return rewriter.rewrite(event: event, options: decoded)?
         .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
     }.print()
@@ -301,8 +304,8 @@ private func makeInputEvent(
   return event
 }
 
-private func resetInputEvent(_ event: CGEvent, synth: ScrollEventSynthesizer) {
-  synth.applyReplacement(to: event, linesX: 0, linesY: 1)
+private func resetInputEvent(_ event: CGEvent, rewriter: ScrollRewriter) {
+  rewriter.applyReplacement(to: event, linesX: 0, linesY: 1)
   event.setIntegerValueField(.eventSourceUserData, value: 0)
 }
 

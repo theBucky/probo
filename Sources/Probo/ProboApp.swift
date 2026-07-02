@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import ProboCore
 
 @MainActor
@@ -12,7 +13,7 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
     app.run()
   }
 
-  private let runtime = ProboRuntime(environment: .live())
+  private let runtime = Runtime()
   private var statusItem: NSStatusItem!
   private var settingsWindow: NSWindow?
 
@@ -23,10 +24,7 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
     menu.delegate = self
     statusItem.menu = menu
     installMainMenu()
-    runtime.onChange = { [weak self] in
-      guard let self else { return }
-      setStatusIcon(runtime.statusSymbolName)
-    }
+    trackStatusIcon()
     runtime.refreshAccessibility()
   }
 
@@ -54,7 +52,21 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
     NSApp.mainMenu = mainMenu
   }
 
-  private func setStatusIcon(_ symbolName: String) {
+  private func trackStatusIcon() {
+    withObservationTracking {
+      setStatusIcon(runtime.status)
+    } onChange: { [weak self] in
+      Task { @MainActor in self?.trackStatusIcon() }
+    }
+  }
+
+  private func setStatusIcon(_ status: RuntimeStatus) {
+    let symbolName =
+      switch status {
+      case .needsAccessibility: "exclamationmark.triangle.fill"
+      case .active: "computermouse.fill"
+      case .idle: "computermouse"
+      }
     let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Probo")
     image?.isTemplate = true
     statusItem.button?.image = image

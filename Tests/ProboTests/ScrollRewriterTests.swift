@@ -3,13 +3,13 @@ import Testing
 
 @testable import ProboCore
 
-@Suite("Scroll event rewriter")
-struct ScrollEventRewriterTests {
+@Suite("Scroll rewriter")
+struct ScrollRewriterTests {
   @Test("valid wheel event rewrites in place")
   func validWheelEvent() throws {
     let event = try scrollEvent(verticalDelta: 1)
-    let output = ScrollEventRewriter(isTerminalFrontmost: { false })
-      .rewrite(event: event, options: EventTapOptions(configuration: AppConfiguration()))
+    let output = ScrollRewriter(isTerminalFrontmost: { false })
+      .rewrite(event: event, options: TapOptions(configuration: AppConfiguration()))
 
     #expect(output != nil)
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == -2)
@@ -18,8 +18,8 @@ struct ScrollEventRewriterTests {
 
   @Test("continuous and phased events pass through untouched")
   func passthroughInputs() throws {
-    let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
-    let options = EventTapOptions(configuration: AppConfiguration())
+    let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
+    let options = TapOptions(configuration: AppConfiguration())
 
     let continuous = try scrollEvent(verticalDelta: 1)
     continuous.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
@@ -38,8 +38,8 @@ struct ScrollEventRewriterTests {
 
   @Test("ambiguous wheel events are dropped")
   func droppedInputs() throws {
-    let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
-    let options = EventTapOptions(configuration: AppConfiguration())
+    let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
+    let options = TapOptions(configuration: AppConfiguration())
 
     let diagonal = try scrollEvent(verticalDelta: 1, horizontalDelta: 1)
     let zero = try scrollEvent()
@@ -47,6 +47,24 @@ struct ScrollEventRewriterTests {
     for event in [diagonal, zero] {
       #expect(rewriter.rewrite(event: event, options: options) == nil)
     }
+  }
+
+  @Test("replacement and flags events are marked")
+  func synthesizedEventsAreMarked() throws {
+    let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
+    let replacement = try #require(
+      rewriter.makeReplacement(
+        location: CGPoint(x: 12, y: 34), flags: [.maskShift], linesX: 3, linesY: 0)
+    )
+    let flags = try #require(rewriter.makeFlagsChanged(flags: [.maskCommand], keyCode: 58))
+
+    #expect(replacement.getIntegerValueField(.scrollWheelEventDeltaAxis2) == 3)
+    #expect(replacement.getIntegerValueField(.eventSourceUserData) == ScrollRewriter.marker)
+    #expect(replacement.location == CGPoint(x: 12, y: 34))
+    #expect(replacement.flags.contains(.maskShift))
+    #expect(flags.type == .flagsChanged)
+    #expect(flags.getIntegerValueField(.keyboardEventKeycode) == 58)
+    #expect(flags.getIntegerValueField(.eventSourceUserData) == ScrollRewriter.marker)
   }
 }
 

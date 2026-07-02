@@ -11,7 +11,7 @@ enum AccessibilityPermission {
   }
 
   @MainActor
-  static func makeGrantTask(onChange: @escaping @MainActor () -> Void) -> Task<Void, Never> {
+  static func observeTrustChanges(onChange: @escaping @MainActor () -> Void) -> Task<Void, Never> {
     Task { @MainActor in
       let stream = DistributedNotificationCenter.default()
         .notifications(named: trustChangedNotification)
