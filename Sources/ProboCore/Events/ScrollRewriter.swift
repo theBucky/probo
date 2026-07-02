@@ -81,9 +81,10 @@ package struct ScrollRewriter {
       return event
     case .emit(let linesX, let linesY, true):
       // stripOption implies option was held; sandwich the stripped replacement with flagsChanged
-      // so the target app sees option release before our event and restore after. The replacement
-      // is required: skipping the sandwich on flagsChanged synthesis failure still beats passing
-      // the original Option-bearing event through, which terminals would read as alt-scroll.
+      // so the target app sees option release before our event and restore after. The sandwich is
+      // best-effort, the strip is not: on synthesis failure the notch is dropped rather than
+      // passing the original Option-bearing event through, which terminals would read as
+      // alt-scroll.
       let flags = originalFlags.subtracting(Self.allOptionFlags)
       let optionKey: CGKeyCode =
         originalFlags.contains(Self.rightOptionFlag)
@@ -92,7 +93,7 @@ package struct ScrollRewriter {
         let replacement = makeReplacement(
           location: event.location, flags: flags, linesX: linesX, linesY: linesY
         )
-      else { return event }
+      else { return nil }
 
       makeFlagsChanged(flags: flags, keyCode: optionKey)?.post(tap: .cgSessionEventTap)
       replacement.post(tap: .cgSessionEventTap)
