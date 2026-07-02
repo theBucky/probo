@@ -122,11 +122,8 @@ struct ScrollRewriteCoreTests {
     )
   }
 
-  @Test("non-discrete or ambiguous scrolling is dropped")
+  @Test("ambiguous wheel scrolling is dropped")
   func droppedInputs() {
-    #expect(
-      rewrite(verticalDelta: 1, isContinuous: true) == nil, "continuous scroll must not rewrite")
-    #expect(rewrite(verticalDelta: 1, hasPhase: true) == nil, "phased scroll must not rewrite")
     #expect(
       rewrite(verticalDelta: 1, horizontalDelta: 1) == nil, "diagonal scroll must not rewrite")
     #expect(rewrite() == nil, "zero-delta scroll must not rewrite")
@@ -137,8 +134,6 @@ private func rewrite(
   verticalDelta: Int32 = 0,
   horizontalDelta: Int32 = 0,
   intensity: ScrollIntensity = .slow,
-  isContinuous: Bool = false,
-  hasPhase: Bool = false,
   isPrecision: Bool = false,
   isTrackpadStyleScrollingEnabled: Bool = true
 ) -> (linesX: Int32, linesY: Int32)? {
@@ -146,8 +141,6 @@ private func rewrite(
     verticalDelta: verticalDelta,
     horizontalDelta: horizontalDelta,
     intensity: intensity,
-    isContinuous: isContinuous,
-    hasPhase: hasPhase,
     isPrecision: isPrecision,
     isTrackpadStyleScrollingEnabled: isTrackpadStyleScrollingEnabled
   )

@@ -16,8 +16,8 @@ struct ScrollEventRewriterTests {
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis2) == 0)
   }
 
-  @Test("non-discrete or ambiguous wheel events are dropped")
-  func droppedInputs() throws {
+  @Test("continuous and phased events pass through untouched")
+  func passthroughInputs() throws {
     let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
     let options = EventTapOptions(configuration: AppConfiguration())
 
@@ -30,10 +30,21 @@ struct ScrollEventRewriterTests {
     let momentum = try scrollEvent(verticalDelta: 1)
     momentum.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 1)
 
+    for event in [continuous, phased, momentum] {
+      #expect(rewriter.rewrite(event: event, options: options) === event)
+      #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == 1)
+    }
+  }
+
+  @Test("ambiguous wheel events are dropped")
+  func droppedInputs() throws {
+    let rewriter = ScrollEventRewriter(isTerminalFrontmost: { false })
+    let options = EventTapOptions(configuration: AppConfiguration())
+
     let diagonal = try scrollEvent(verticalDelta: 1, horizontalDelta: 1)
     let zero = try scrollEvent()
 
-    for event in [continuous, phased, momentum, diagonal, zero] {
+    for event in [diagonal, zero] {
       #expect(rewriter.rewrite(event: event, options: options) == nil)
     }
   }

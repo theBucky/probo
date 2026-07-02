@@ -83,8 +83,6 @@ struct HotPathProfile {
       verticalDelta: 1,
       horizontalDelta: 0,
       intensity: configuration.intensity,
-      isContinuous: false,
-      hasPhase: false,
       isPrecision: false,
       isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
     )!.linesY
@@ -115,8 +113,6 @@ struct HotPathProfile {
           verticalDelta: 1,
           horizontalDelta: 0,
           intensity: configuration.intensity,
-          isContinuous: false,
-          hasPhase: false,
           isPrecision: false,
           isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled
         )

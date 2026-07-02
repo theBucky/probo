@@ -17,12 +17,8 @@ package struct ScrollEventRewriter {
 
   // EventTapController filters self-synth re-entry; the core owns the drop decision.
   package func rewrite(event: CGEvent, options: EventTapOptions) -> CGEvent? {
-    guard Self.isMouseWheelEvent(event) else { return event }
+    guard Self.isDiscreteWheelEvent(event) else { return event }
 
-    let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
-    let hasPhase =
-      event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0
-      || event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
     let verticalDelta = Int32(
       truncatingIfNeeded: event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     let horizontalDelta = Int32(
@@ -40,8 +36,6 @@ package struct ScrollEventRewriter {
         verticalDelta: verticalDelta,
         horizontalDelta: horizontalDelta,
         intensity: options.intensity,
-        isContinuous: isContinuous,
-        hasPhase: hasPhase,
         isPrecision: decision.isPrecision,
         isTrackpadStyleScrollingEnabled: options.isTrackpadStyleScrollingEnabled
       )
@@ -75,7 +69,11 @@ package struct ScrollEventRewriter {
     return nil
   }
 
-  private static func isMouseWheelEvent(_ event: CGEvent) -> Bool {
+  // Trackpad and Magic Mouse scrolling is continuous or phased; wheel notches are neither.
+  private static func isDiscreteWheelEvent(_ event: CGEvent) -> Bool {
+    if event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 { return false }
+    if event.getIntegerValueField(.scrollWheelEventScrollPhase) != 0 { return false }
+    if event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0 { return false }
     let subtype = CGEventMouseSubtype(
       rawValue: UInt32(event.getIntegerValueField(.mouseEventSubtype)))
     if subtype != .defaultType { return false }
