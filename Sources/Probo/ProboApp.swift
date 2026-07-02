@@ -15,7 +15,6 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
   private let runtime = ProboRuntime(environment: .live())
   private var statusItem: NSStatusItem!
   private var settingsWindow: NSWindow?
-  private var lastAccessibilityTrusted: Bool?
 
   func applicationDidFinishLaunching(_ _: Notification) {
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -27,7 +26,6 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
     runtime.onChange = { [weak self] in
       guard let self else { return }
       setStatusIcon(runtime.statusSymbolName)
-      reloadSettingsIfAccessibilityChanged()
     }
     runtime.refreshAccessibility()
   }
@@ -137,13 +135,6 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
 
   @objc private func quit() {
     NSApp.terminate(nil)
-  }
-
-  private func reloadSettingsIfAccessibilityChanged() {
-    let accessibilityTrusted = runtime.accessibilityTrusted
-    guard lastAccessibilityTrusted != accessibilityTrusted else { return }
-    lastAccessibilityTrusted = accessibilityTrusted
-    (settingsWindow?.contentViewController as? ProboSettingsViewController)?.reload()
   }
 
   private func makeSettingsWindow() -> NSWindow {

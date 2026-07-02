@@ -3,10 +3,7 @@ import SwiftUI
 
 @MainActor
 package final class ProboSettingsViewController: NSHostingController<ProboSettingsView> {
-  private let runtime: ProboRuntime
-
   package init(runtime: ProboRuntime) {
-    self.runtime = runtime
     super.init(rootView: ProboSettingsView(runtime: runtime))
     sizingOptions = [.preferredContentSize]
     preferredContentSize = fittingContentSize
@@ -15,10 +12,6 @@ package final class ProboSettingsViewController: NSHostingController<ProboSettin
   @available(*, unavailable)
   required init?(coder _: NSCoder) {
     fatalError("init(coder:) is unavailable")
-  }
-
-  package func reload() {
-    rootView = ProboSettingsView(runtime: runtime)
   }
 
   private var fittingContentSize: NSSize {

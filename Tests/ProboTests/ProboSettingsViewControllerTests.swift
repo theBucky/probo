@@ -6,8 +6,8 @@ import Testing
 @Suite("Probo settings view controller", .serialized)
 struct ProboSettingsViewControllerTests {
   @MainActor
-  @Test("settings reload keeps window frame fixed")
-  func settingsReloadKeepsWindowFrameFixed() {
+  @Test("accessibility change keeps window frame fixed")
+  func accessibilityChangeKeepsWindowFrameFixed() {
     _ = NSApplication.shared
     let driver = SettingsRuntimeDriver(
       configuration: AppConfiguration(),
@@ -23,7 +23,6 @@ struct ProboSettingsViewControllerTests {
 
     driver.accessibilityTrusted = true
     runtime.refreshAccessibility()
-    controller.reload()
 
     #expect(window.frame == frame)
   }

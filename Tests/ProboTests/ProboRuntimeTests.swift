@@ -1,3 +1,4 @@
+import Observation
 import Testing
 
 @testable import ProboCore
@@ -55,6 +56,27 @@ struct ProboRuntimeTests {
 
     #expect(driver.accessibilityPrompts == [false, true])
     #expect(driver.savedConfigurations.last?.isEnabled == true)
+  }
+
+  // Locks the settings UI contract: SwiftUI shows live toggle state only if
+  // configuration reads are observation-tracked.
+  @MainActor
+  @Test("toggle changes notify observation trackers")
+  func toggleChangesNotifyObservationTrackers() async {
+    let driver = ProboRuntimeDriver(
+      configuration: AppConfiguration(),
+      accessibilityTrusted: true
+    )
+    let runtime = ProboRuntime(environment: driver.environment)
+
+    await confirmation { changed in
+      withObservationTracking {
+        _ = runtime[toggle: \.isLookUpEnabled]
+      } onChange: {
+        changed()
+      }
+      runtime[toggle: \.isLookUpEnabled] = false
+    }
   }
 
   @MainActor

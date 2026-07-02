@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import os
 
 @MainActor
@@ -42,6 +43,7 @@ package struct ProboRuntimeEnvironment {
 }
 
 @MainActor
+@Observable
 package final class ProboRuntime {
   private let environment: ProboRuntimeEnvironment
   private var configuration: AppConfiguration
@@ -80,7 +82,8 @@ package final class ProboRuntime {
   }
 
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
-  private var accessibilityGrantTask: Task<Void, Never>?
+  // ObservationIgnored keeps this a stored property so deinit can cancel it.
+  @ObservationIgnored private var accessibilityGrantTask: Task<Void, Never>?
 
   package init(environment: ProboRuntimeEnvironment) {
     self.environment = environment
