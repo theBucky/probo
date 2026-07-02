@@ -5,9 +5,9 @@ Menubar macOS app remapping mouse-wheel ticks to fixed line steps.
 ## Project Map
 
 - `Package.swift`: canonical SwiftPM package graph for app, tests, and profiling tool.
-- `Sources/Probo`: executable entry point, app delegate, and app resources.
+- `Sources/Probo`: executable entry point, app delegate, status item and menu, settings window, and app resources.
 - `Sources/ProboCore/App`: runtime orchestration; AppKit app surface stays in the executable target.
-- `Sources/ProboCore/UI`: status menu and settings content; AppKit owns all UI.
+- `Sources/ProboCore/UI`: SwiftUI settings content and its AppKit hosting controller.
 - `Sources/ProboCore/Core`: pure rewrite decisions; no AppKit, CoreGraphics, IOKit, persistence, or UI.
 - `Sources/ProboCore/Events`: event tap, parsing, and synthesized output.
 - `Sources/ProboCore/Configuration`: config model and `UserDefaults`.

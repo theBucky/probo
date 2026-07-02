@@ -44,17 +44,17 @@ Writes `build/Probo.app` and relaunches it. Set `PROBO_CODESIGN_IDENTITY=-` for 
 
 ## Architecture
 
-SwiftPM owns the build graph for the app, tests, profiling executable, and SourceKit-LSP. AppKit owns the menu bar item, status menu, settings window, and settings controls over a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when needed. Hot path is allocation-free.
+SwiftPM owns the build graph for the app, tests, profiling executable, and SourceKit-LSP. AppKit owns the menu bar item, status menu, and settings window; the settings controls are SwiftUI hosted in AppKit over a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when needed. Hot path is allocation-free.
 
 | Layer | Path | Role |
 | --- | --- | --- |
 | Package | `Package.swift` | SwiftPM products, targets, platforms, resources |
-| App | `Sources/Probo`, `Sources/ProboCore/App` | Entry point, resources, runtime wiring |
+| App | `Sources/Probo`, `Sources/ProboCore/App` | Entry point, status menu, settings window, runtime wiring |
 | Core | `Sources/ProboCore/Core` | Pure rewrite hot path |
 | Events | `Sources/ProboCore/Events` | Event tap, scroll synthesis |
 | Configuration | `Sources/ProboCore/Configuration` | Settings model, persistence |
 | System | `Sources/ProboCore/System` | Accessibility, frontmost app, sleep, login |
-| UI | `Sources/ProboCore/UI` | Status menu and settings controls |
+| UI | `Sources/ProboCore/UI` | SwiftUI settings content, AppKit hosting |
 | Tools | `Sources/HotPathProfile` | Profiling executable and entitlements |
 | Tests | `Tests/ProboTests` | Swift Testing suites |
 
