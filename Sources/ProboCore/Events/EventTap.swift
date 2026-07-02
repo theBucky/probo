@@ -2,7 +2,7 @@
 import Foundation
 import Synchronization
 
-final class EventTapController: @unchecked Sendable {
+final class EventTap: @unchecked Sendable {
   private struct TapState {
     var tap: CFMachPort?
     var installPending = false
@@ -18,22 +18,20 @@ final class EventTapController: @unchecked Sendable {
   private static let lookUpKeyCode = CGKeyCode(0x02)
   private static let lookUpFlags: CGEventFlags = [.maskCommand, .maskControl]
 
-  private let scrollRewriter: ScrollEventRewriter
-  // Atomic, not lock-guarded, because the hot path reads it on every event.
+  private let scrollRewriter: ScrollRewriter
   private let isActive = Atomic<Bool>(false)
   private let optionsRawValue = Atomic<UInt32>(
-    EventTapOptions(configuration: AppConfiguration()).rawValue)
+    TapOptions(configuration: AppConfiguration()).rawValue)
   private let tapState = Mutex(TapState())
   var onTapEnabledChange: (@MainActor (Bool) -> Void)?
 
   init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
-    scrollRewriter = ScrollEventRewriter(isTerminalFrontmost: isTerminalFrontmost)
+    scrollRewriter = ScrollRewriter(isTerminalFrontmost: isTerminalFrontmost)
   }
 
   @MainActor
-  func setConfiguration(_ configuration: AppConfiguration) {
-    optionsRawValue.store(
-      EventTapOptions(configuration: configuration).rawValue, ordering: .relaxed)
+  func setOptions(_ options: TapOptions) {
+    optionsRawValue.store(options.rawValue, ordering: .relaxed)
   }
 
   // Install once on first enable, then toggle forever via CGEvent.tapEnable. The tap thread
@@ -68,8 +66,8 @@ final class EventTapController: @unchecked Sendable {
       | CGEventMask(1 << CGEventType.otherMouseUp.rawValue)
     let callback: CGEventTapCallBack = { _, type, event, userInfo in
       guard let userInfo else { return Unmanaged.passUnretained(event) }
-      let controller = Unmanaged<EventTapController>.fromOpaque(userInfo).takeUnretainedValue()
-      return controller.handle(type: type, event: event)
+      let eventTap = Unmanaged<EventTap>.fromOpaque(userInfo).takeUnretainedValue()
+      return eventTap.handle(type: type, event: event)
     }
 
     guard
@@ -116,15 +114,14 @@ final class EventTapController: @unchecked Sendable {
       return pass
     }
 
-    // Bail on our own synthesized scroll events before the rewriter sees them.
     if type == .scrollWheel,
-      event.getIntegerValueField(.eventSourceUserData) == ScrollEventSynthesizer.marker
+      event.getIntegerValueField(.eventSourceUserData) == ScrollRewriter.marker
     {
       return pass
     }
 
     guard isActive.load(ordering: .relaxed) else { return pass }
-    let options = EventTapOptions(rawValue: optionsRawValue.load(ordering: .relaxed))
+    let options = TapOptions(rawValue: optionsRawValue.load(ordering: .relaxed))
 
     switch type {
     case .otherMouseDown, .otherMouseUp:
