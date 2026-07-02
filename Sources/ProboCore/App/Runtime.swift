@@ -92,7 +92,7 @@ package final class Runtime {
   }
 
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
-  @ObservationIgnored private var accessibilityGrantTask: Task<Void, Never>?
+  @ObservationIgnored private var trustChangeObserver: Task<Void, Never>?
 
   package init() {
     let frontmostMonitor = FrontmostAppMonitor()
@@ -103,6 +103,11 @@ package final class Runtime {
     configuration = settingsStore.load()
     eventTap.onTapEnabledChange = { [weak self] enabled in
       self?.tapEnabled = enabled
+    }
+    // Trust moves both ways at any time (grant in the permission prompt, revoke in
+    // System Settings), so the observer lives as long as the runtime.
+    trustChangeObserver = AccessibilityPermission.observeTrustChanges { [weak self] in
+      self?.refreshAccessibility()
     }
   }
 
@@ -145,18 +150,9 @@ package final class Runtime {
     eventTap.setOptions(plan.tapOptions)
     eventTap.setActive(plan.tapActive)
     idleSleepAssertion.setEnabled(plan.preventsIdleSleep)
-
-    if accessibilityTrusted {
-      accessibilityGrantTask?.cancel()
-      accessibilityGrantTask = nil
-    } else if accessibilityGrantTask == nil {
-      accessibilityGrantTask = AccessibilityPermission.observeTrustChanges { [weak self] in
-        self?.refreshAccessibility()
-      }
-    }
   }
 
   deinit {
-    accessibilityGrantTask?.cancel()
+    trustChangeObserver?.cancel()
   }
 }
