@@ -1,37 +1,5 @@
 @preconcurrency import ApplicationServices
 
-package struct TapOptions: Equatable, Sendable {
-  private static let lookUpBit: UInt32 = 1 << 0
-  private static let optionPrecisionBit: UInt32 = 1 << 1
-  private static let terminalOptimizationBit: UInt32 = 1 << 2
-  private static let trackpadStyleScrollingBit: UInt32 = 1 << 3
-  private static let stepLinesShift: UInt32 = 8
-  private static let stepLinesMask: UInt32 = 0xFF << stepLinesShift
-
-  package let rawValue: UInt32
-
-  package init(rawValue: UInt32) {
-    self.rawValue = rawValue
-  }
-
-  package init(configuration: AppConfiguration) {
-    var value = UInt32(configuration.wheelStep.lines) << Self.stepLinesShift
-    if configuration.isLookUpEnabled { value |= Self.lookUpBit }
-    if configuration.isOptionPrecisionEnabled { value |= Self.optionPrecisionBit }
-    if configuration.isTerminalOptimizationEnabled { value |= Self.terminalOptimizationBit }
-    if configuration.isTrackpadStyleScrollingEnabled { value |= Self.trackpadStyleScrollingBit }
-    rawValue = value
-  }
-
-  package var isLookUpEnabled: Bool { rawValue & Self.lookUpBit != 0 }
-  package var isOptionPrecisionEnabled: Bool { rawValue & Self.optionPrecisionBit != 0 }
-  package var isTerminalOptimizationEnabled: Bool { rawValue & Self.terminalOptimizationBit != 0 }
-  package var isTrackpadStyleScrollingEnabled: Bool {
-    rawValue & Self.trackpadStyleScrollingBit != 0
-  }
-  package var stepLines: Int32 { Int32((rawValue & Self.stepLinesMask) >> Self.stepLinesShift) }
-}
-
 package struct ScrollRewriter {
   // ASCII "PROBO" tags synthesized events so the tap can skip its own output.
   package static let marker: Int64 = 0x50_524F_424F

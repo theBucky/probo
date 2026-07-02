@@ -28,6 +28,18 @@ package struct AppConfiguration: Equatable, Sendable {
   }
 }
 
+extension TapOptions {
+  package init(configuration: AppConfiguration) {
+    self.init(
+      isLookUpEnabled: configuration.isLookUpEnabled,
+      isOptionPrecisionEnabled: configuration.isOptionPrecisionEnabled,
+      isTerminalOptimizationEnabled: configuration.isTerminalOptimizationEnabled,
+      isTrackpadStyleScrollingEnabled: configuration.isTrackpadStyleScrollingEnabled,
+      stepLines: configuration.wheelStep.lines
+    )
+  }
+}
+
 package struct SettingsStore {
   private enum Key {
     static let isEnabled = "isEnabled"
