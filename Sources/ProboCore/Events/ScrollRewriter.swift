@@ -1,8 +1,6 @@
 @preconcurrency import ApplicationServices
 
 package struct ScrollRewriter {
-  // ASCII "PROBO" tags synthesized events so the tap can skip its own output.
-  package static let marker: Int64 = 0x50_524F_424F
   private static let pixelsPerLine: Int64 = 16
 
   private let isTerminalFrontmost: @Sendable () -> Bool
@@ -24,7 +22,7 @@ package struct ScrollRewriter {
     self.isTerminalFrontmost = isTerminalFrontmost
   }
 
-  package func rewrite(event: CGEvent, options: TapOptions) -> CGEvent? {
+  package func rewrite(event: CGEvent, options: TapOptions, proxy: CGEventTapProxy?) -> CGEvent? {
     guard Self.isDiscreteWheelEvent(event) else { return event }
 
     let verticalDelta = Int32(
@@ -63,9 +61,9 @@ package struct ScrollRewriter {
         )
       else { return nil }
 
-      makeFlagsChanged(flags: flags, keyCode: optionKey)?.post(tap: .cgSessionEventTap)
-      replacement.post(tap: .cgSessionEventTap)
-      makeFlagsChanged(flags: originalFlags, keyCode: optionKey)?.post(tap: .cgSessionEventTap)
+      makeFlagsChanged(flags: flags, keyCode: optionKey)?.tapPostEvent(proxy)
+      replacement.tapPostEvent(proxy)
+      makeFlagsChanged(flags: originalFlags, keyCode: optionKey)?.tapPostEvent(proxy)
       return nil
     }
   }
@@ -99,7 +97,6 @@ package struct ScrollRewriter {
     replacement.location = location
     replacement.flags = flags
     applyReplacement(to: replacement, linesX: linesX, linesY: linesY)
-    replacement.setIntegerValueField(.eventSourceUserData, value: Self.marker)
     return replacement
   }
 
@@ -126,7 +123,6 @@ package struct ScrollRewriter {
     event.type = .flagsChanged
     event.flags = flags
     event.setIntegerValueField(.keyboardEventKeycode, value: Int64(keyCode))
-    event.setIntegerValueField(.eventSourceUserData, value: Self.marker)
     return event
   }
 }

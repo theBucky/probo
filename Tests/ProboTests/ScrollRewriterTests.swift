@@ -9,7 +9,7 @@ struct ScrollRewriterTests {
   func validWheelEvent() throws {
     let event = try scrollEvent(verticalDelta: 1)
     let output = ScrollRewriter(isTerminalFrontmost: { false })
-      .rewrite(event: event, options: TapOptions(configuration: AppConfiguration()))
+      .rewrite(event: event, options: TapOptions(configuration: AppConfiguration()), proxy: nil)
 
     #expect(output != nil)
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == -2)
@@ -31,7 +31,7 @@ struct ScrollRewriterTests {
     momentum.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 1)
 
     for event in [continuous, phased, momentum] {
-      #expect(rewriter.rewrite(event: event, options: options) === event)
+      #expect(rewriter.rewrite(event: event, options: options, proxy: nil) === event)
       #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == 1)
     }
   }
@@ -45,12 +45,12 @@ struct ScrollRewriterTests {
     let zero = try scrollEvent()
 
     for event in [diagonal, zero] {
-      #expect(rewriter.rewrite(event: event, options: options) == nil)
+      #expect(rewriter.rewrite(event: event, options: options, proxy: nil) == nil)
     }
   }
 
-  @Test("replacement and flags events are marked")
-  func synthesizedEventsAreMarked() throws {
+  @Test("synthesized replacement and flags events carry the requested fields")
+  func synthesizedEvents() throws {
     let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
     let replacement = try #require(
       rewriter.makeReplacement(
@@ -59,12 +59,10 @@ struct ScrollRewriterTests {
     let flags = try #require(rewriter.makeFlagsChanged(flags: [.maskCommand], keyCode: 58))
 
     #expect(replacement.getIntegerValueField(.scrollWheelEventDeltaAxis2) == 3)
-    #expect(replacement.getIntegerValueField(.eventSourceUserData) == ScrollRewriter.marker)
     #expect(replacement.location == CGPoint(x: 12, y: 34))
     #expect(replacement.flags.contains(.maskShift))
     #expect(flags.type == .flagsChanged)
     #expect(flags.getIntegerValueField(.keyboardEventKeycode) == 58)
-    #expect(flags.getIntegerValueField(.eventSourceUserData) == ScrollRewriter.marker)
   }
 }
 

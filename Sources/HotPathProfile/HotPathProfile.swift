@@ -89,7 +89,7 @@ struct HotPathProfile {
     else {
       throw ProbeError.message("default configuration must rewrite a vertical notch")
     }
-    let resetEvent = { resetInputEvent(event, rewriter: rewriter) }
+    let resetEvent = { rewriter.applyReplacement(to: event, linesX: 0, linesY: 1) }
     var blackhole: Int64 = 0
 
     Swift.print("synthetic input: discrete line-unit CGEvent, no HID driver, no device coalescing")
@@ -169,7 +169,7 @@ struct HotPathProfile {
       blackhole: &blackhole,
       prepare: resetEvent
     ) {
-      rewriter.rewrite(event: event, options: tapOptions)?
+      rewriter.rewrite(event: event, options: tapOptions, proxy: nil)?
         .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
     }.print()
 
@@ -181,7 +181,7 @@ struct HotPathProfile {
       prepare: resetEvent
     ) {
       let decoded = TapOptions(rawValue: tapOptionsRawValue)
-      return rewriter.rewrite(event: event, options: decoded)?
+      return rewriter.rewrite(event: event, options: decoded, proxy: nil)?
         .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
     }.print()
 
@@ -215,7 +215,7 @@ private func parseOptions() throws -> Options {
 
           --iterations n            measured samples per stage, default 100000
           --warmup n                warmup iterations per stage, default 10000
-          --post-events n           post n unmarked synthetic scroll events to cgSessionEventTap
+          --post-events n           post n synthetic scroll events to cgSessionEventTap
           --post-interval-usec n    sleep between posted events
         """
       )
@@ -300,19 +300,13 @@ private func makeInputEvent(
 
   event.location = CGPoint(x: 100, y: 100)
   event.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
-  event.setIntegerValueField(.eventSourceUserData, value: 0)
   return event
-}
-
-private func resetInputEvent(_ event: CGEvent, rewriter: ScrollRewriter) {
-  rewriter.applyReplacement(to: event, linesX: 0, linesY: 1)
-  event.setIntegerValueField(.eventSourceUserData, value: 0)
 }
 
 private func postInputEvents(options: Options, source: CGEventSource?) throws {
   Swift.print("")
   Swift.print(
-    "posting \(options.postEvents) unmarked synthetic scroll events to cgSessionEventTap"
+    "posting \(options.postEvents) synthetic scroll events to cgSessionEventTap"
   )
 
   for index in 0..<options.postEvents {

@@ -64,10 +64,10 @@ final class EventTap: @unchecked Sendable {
       CGEventMask(1 << CGEventType.scrollWheel.rawValue)
       | CGEventMask(1 << CGEventType.otherMouseDown.rawValue)
       | CGEventMask(1 << CGEventType.otherMouseUp.rawValue)
-    let callback: CGEventTapCallBack = { _, type, event, userInfo in
+    let callback: CGEventTapCallBack = { proxy, type, event, userInfo in
       guard let userInfo else { return Unmanaged.passUnretained(event) }
       let eventTap = Unmanaged<EventTap>.fromOpaque(userInfo).takeUnretainedValue()
-      return eventTap.handle(type: type, event: event)
+      return eventTap.handle(type: type, event: event, proxy: proxy)
     }
 
     guard
@@ -103,7 +103,9 @@ final class EventTap: @unchecked Sendable {
     publishTapEnabledOnMain()
   }
 
-  private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+  private func handle(type: CGEventType, event: CGEvent, proxy: CGEventTapProxy)
+    -> Unmanaged<CGEvent>?
+  {
     let pass = Unmanaged.passUnretained(event)
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
@@ -111,12 +113,6 @@ final class EventTap: @unchecked Sendable {
       if let tap, isActive.load(ordering: .relaxed) {
         CGEvent.tapEnable(tap: tap, enable: true)
       }
-      return pass
-    }
-
-    if type == .scrollWheel,
-      event.getIntegerValueField(.eventSourceUserData) == ScrollRewriter.marker
-    {
       return pass
     }
 
@@ -128,7 +124,8 @@ final class EventTap: @unchecked Sendable {
       guard options.isLookUpEnabled else { return pass }
       return consumeLookUpGesture(type: type, event: event) ? nil : pass
     case .scrollWheel:
-      return scrollRewriter.rewrite(event: event, options: options).map(Unmanaged.passUnretained)
+      return scrollRewriter.rewrite(event: event, options: options, proxy: proxy)
+        .map(Unmanaged.passUnretained)
     default:
       return pass
     }
