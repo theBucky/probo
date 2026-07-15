@@ -39,49 +39,21 @@ package final class Runtime {
   private let frontmostMonitor: FrontmostAppMonitor
   private let eventTap: EventTap
   private let idleSleepAssertion: IdleSleepAssertion
-  private var configuration: AppConfiguration
   package private(set) var accessibilityTrusted = false
   private var tapEnabled = false
 
-  package var startAtLoginEnabled: Bool { LaunchAtLogin.isEnabled }
-
-  package var isEnabled: Bool {
-    get { configuration.isEnabled }
-    set {
-      guard set(\.isEnabled, newValue) else { return }
-      if newValue && !accessibilityTrusted { requestAccessibilityAccess() }
+  package var configuration: AppConfiguration {
+    didSet {
+      guard configuration != oldValue else { return }
+      settingsStore.save(configuration)
+      reconcile()
+      if configuration.isEnabled && !oldValue.isEnabled && !accessibilityTrusted {
+        requestAccessibilityAccess()
+      }
     }
   }
 
-  package var wheelStep: WheelStep {
-    get { configuration.wheelStep }
-    set { set(\.wheelStep, newValue) }
-  }
-
-  package var isLookUpEnabled: Bool {
-    get { configuration.isLookUpEnabled }
-    set { set(\.isLookUpEnabled, newValue) }
-  }
-
-  package var isOptionPrecisionEnabled: Bool {
-    get { configuration.isOptionPrecisionEnabled }
-    set { set(\.isOptionPrecisionEnabled, newValue) }
-  }
-
-  package var isTerminalOptimizationEnabled: Bool {
-    get { configuration.isTerminalOptimizationEnabled }
-    set { set(\.isTerminalOptimizationEnabled, newValue) }
-  }
-
-  package var isTrackpadStyleScrollingEnabled: Bool {
-    get { configuration.isTrackpadStyleScrollingEnabled }
-    set { set(\.isTrackpadStyleScrollingEnabled, newValue) }
-  }
-
-  package var preventsIdleSleep: Bool {
-    get { configuration.preventsIdleSleep }
-    set { set(\.preventsIdleSleep, newValue) }
-  }
+  package var startAtLoginEnabled: Bool { LaunchAtLogin.isEnabled }
 
   package var status: RuntimeStatus {
     RuntimeStatus(
@@ -94,9 +66,9 @@ package final class Runtime {
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
   @ObservationIgnored private var trustChangeObserver: Task<Void, Never>?
 
-  package init() {
+  package init(settingsStore: SettingsStore = SettingsStore()) {
     let frontmostMonitor = FrontmostAppMonitor()
-    settingsStore = SettingsStore()
+    self.settingsStore = settingsStore
     self.frontmostMonitor = frontmostMonitor
     eventTap = EventTap(isTerminalFrontmost: { frontmostMonitor.isTerminalFrontmost() })
     idleSleepAssertion = IdleSleepAssertion()
@@ -125,18 +97,6 @@ package final class Runtime {
 
   package func requestAccessibilityAccess() {
     refreshAccessibility(prompt: true)
-  }
-
-  @discardableResult
-  private func set<T: Equatable>(
-    _ keyPath: WritableKeyPath<AppConfiguration, T>,
-    _ value: T
-  ) -> Bool {
-    guard configuration[keyPath: keyPath] != value else { return false }
-    configuration[keyPath: keyPath] = value
-    settingsStore.save(configuration)
-    reconcile()
-    return true
   }
 
   private func refreshAccessibility(prompt: Bool) {

@@ -81,7 +81,7 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
       item(
         title: "Enabled",
         action: #selector(toggleEnabled),
-        state: runtime.isEnabled
+        state: runtime.configuration.isEnabled
       ))
     menu.addItem(
       item(
@@ -123,7 +123,7 @@ final class ProboApp: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuD
   }
 
   @objc private func toggleEnabled() {
-    runtime.isEnabled.toggle()
+    runtime.configuration.isEnabled.toggle()
   }
 
   @objc private func requestAccess() {

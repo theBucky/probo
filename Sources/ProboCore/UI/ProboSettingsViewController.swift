@@ -34,7 +34,7 @@ package struct ProboSettingsView: View {
   package var body: some View {
     Form {
       Section("Scrolling") {
-        Picker("Wheel Step", selection: $runtime.wheelStep) {
+        Picker("Wheel Step", selection: $runtime.configuration.wheelStep) {
           ForEach(WheelStep.allCases, id: \.self) { wheelStep in
             Text(wheelStep.title).tag(wheelStep)
           }
@@ -44,29 +44,29 @@ package struct ProboSettingsView: View {
         toggle(
           "Option Precision",
           "Hold Option to emit one line per notch.",
-          $runtime.isOptionPrecisionEnabled
+          $runtime.configuration.isOptionPrecisionEnabled
         )
         toggle(
           "Terminal Optimization",
           "In terminal apps, emit one line per notch; hold Option for your wheel step.",
-          $runtime.isTerminalOptimizationEnabled
+          $runtime.configuration.isTerminalOptimizationEnabled
         )
         toggle(
           "Natural Direction",
           "Match trackpad scrolling direction.",
-          $runtime.isTrackpadStyleScrollingEnabled
+          $runtime.configuration.isTrackpadStyleScrollingEnabled
         )
       }
 
       Section("Input") {
-        toggle("Look Up", "Map mouse button 4 to Look Up.", $runtime.isLookUpEnabled)
+        toggle("Look Up", "Map mouse button 4 to Look Up.", $runtime.configuration.isLookUpEnabled)
       }
 
       Section("Power") {
         toggle(
           "Prevent Automatic Sleep",
           "Keep your Mac awake while Probo is enabled. Display sleep, lid close, and manual sleep are still allowed.",
-          $runtime.preventsIdleSleep
+          $runtime.configuration.preventsIdleSleep
         )
       }
 

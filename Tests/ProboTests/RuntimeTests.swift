@@ -1,9 +1,29 @@
+import Foundation
 import Testing
 
 @testable import ProboCore
 
 @Suite("Runtime")
 struct RuntimeTests {
+  @Test("configuration changes persist through the store")
+  @MainActor
+  func configurationPersistence() throws {
+    let suiteName = "com.probo.tests.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defaults.removePersistentDomain(forName: suiteName)
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let store = SettingsStore(defaults: defaults)
+    let runtime = Runtime(settingsStore: store)
+
+    runtime.configuration.wheelStep = .medium
+    runtime.configuration.isEnabled = false
+
+    #expect(store.load() == runtime.configuration)
+    #expect(runtime.configuration.wheelStep == .medium)
+    #expect(runtime.status == .idle)
+  }
+
   @Test("missing accessibility keeps tap inactive")
   func missingAccessibility() {
     let plan = SystemPlan(configuration: AppConfiguration(), accessibilityTrusted: false)
