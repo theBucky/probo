@@ -7,13 +7,9 @@ import Testing
 struct RuntimeTests {
   @Test("configuration changes persist through the store")
   @MainActor
-  func configurationPersistence() throws {
-    let suiteName = "com.probo.tests.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defaults.removePersistentDomain(forName: suiteName)
-    defer { defaults.removePersistentDomain(forName: suiteName) }
-
-    let store = SettingsStore(defaults: defaults)
+  func configurationPersistence() {
+    let isolated = IsolatedDefaults()
+    let store = SettingsStore(defaults: isolated.defaults)
     let runtime = Runtime(settingsStore: store)
 
     runtime.configuration.wheelStep = .medium
