@@ -39,6 +39,8 @@ package final class Runtime {
   private let frontmostMonitor: FrontmostAppMonitor
   private let eventTap: EventTap
   private let idleSleepAssertion: IdleSleepAssertion
+  private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
+  @ObservationIgnored private var trustChangeObserver: Task<Void, Never>?
   package private(set) var accessibilityTrusted = false
   private var tapEnabled = false
 
@@ -53,7 +55,24 @@ package final class Runtime {
     }
   }
 
-  package var startAtLoginEnabled: Bool { LaunchAtLogin.isEnabled }
+  // Projects SMAppService state through manual observation hooks so menu toggles
+  // can bind to it. External changes (System Settings) don't notify; each read
+  // still returns live service state.
+  package var startAtLoginEnabled: Bool {
+    get {
+      access(keyPath: \.startAtLoginEnabled)
+      return LaunchAtLogin.isEnabled
+    }
+    set {
+      withMutation(keyPath: \.startAtLoginEnabled) {
+        do {
+          try LaunchAtLogin.setEnabled(newValue)
+        } catch {
+          logger.error("failed to update launch at login: \(error.localizedDescription)")
+        }
+      }
+    }
+  }
 
   package var status: RuntimeStatus {
     RuntimeStatus(
@@ -62,9 +81,6 @@ package final class Runtime {
       tapEnabled: tapEnabled
     )
   }
-
-  private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
-  @ObservationIgnored private var trustChangeObserver: Task<Void, Never>?
 
   package init(settingsStore: SettingsStore = SettingsStore()) {
     let frontmostMonitor = FrontmostAppMonitor()
@@ -85,14 +101,6 @@ package final class Runtime {
 
   package func refreshAccessibility() {
     refreshAccessibility(prompt: false)
-  }
-
-  package func setStartAtLoginEnabled(_ isEnabled: Bool) {
-    do {
-      try LaunchAtLogin.setEnabled(isEnabled)
-    } catch {
-      logger.error("failed to update launch at login: \(error.localizedDescription)")
-    }
   }
 
   package func requestAccessibilityAccess() {
