@@ -49,12 +49,7 @@ struct ProboMenu: View {
       }
     }
     Button("Settings...") {
-      // Status-item apps run as accessory apps. Promote and activate before the
-      // window exists so AppKit creates it in an active app and orders it front;
-      // activating after the fact leaves it behind other apps' windows.
-      NSApp.setActivationPolicy(.regular)
-      NSApp.activate(ignoringOtherApps: true)
-      openSettings()
+      openSettingsWindow()
     }
 
     Divider()
@@ -63,6 +58,15 @@ struct ProboMenu: View {
       NSApp.terminate(nil)
     }
     .keyboardShortcut("q")
+  }
+
+  private func openSettingsWindow() {
+    // Status-item apps run as accessory apps. Promote and activate before the
+    // window exists so AppKit creates it in an active app and orders it front;
+    // activating after the fact leaves it behind other apps' windows.
+    NSApp.setActivationPolicy(.regular)
+    NSApp.activate(ignoringOtherApps: true)
+    openSettings()
   }
 }
 

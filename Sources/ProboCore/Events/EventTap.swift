@@ -41,8 +41,12 @@ final class EventTap: @unchecked Sendable {
   func setActive(_ active: Bool) {
     let wasActive = isActive.exchange(active, ordering: .relaxed)
     let action = tapState.withLock { state -> InstallAction in
-      if let tap = state.tap { return wasActive == active ? .none : .toggle(tap) }
-      if !active || state.installPending { return .none }
+      if let tap = state.tap {
+        return wasActive == active ? .none : .toggle(tap)
+      }
+      guard active, !state.installPending else {
+        return .none
+      }
       state.installPending = true
       return .install
     }

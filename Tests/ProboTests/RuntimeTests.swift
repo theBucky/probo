@@ -24,9 +24,9 @@ struct RuntimeTests {
   func missingAccessibility() {
     let plan = SystemPlan(configuration: AppConfiguration(), accessibilityTrusted: false)
 
-    #expect(plan.tapActive == false)
-    #expect(plan.frontmostMonitorActive == false)
-    #expect(plan.preventsIdleSleep == false)
+    #expect(!plan.tapActive)
+    #expect(!plan.frontmostMonitorActive)
+    #expect(!plan.preventsIdleSleep)
   }
 
   @Test("trusted enabled configuration activates tap and terminal monitor")
@@ -42,9 +42,9 @@ struct RuntimeTests {
     let configuration = AppConfiguration(isEnabled: false, preventsIdleSleep: true)
     let plan = SystemPlan(configuration: configuration, accessibilityTrusted: true)
 
-    #expect(plan.tapActive == false)
-    #expect(plan.frontmostMonitorActive == false)
-    #expect(plan.preventsIdleSleep == false)
+    #expect(!plan.tapActive)
+    #expect(!plan.frontmostMonitorActive)
+    #expect(!plan.preventsIdleSleep)
   }
 
   @Test("enabled idle sleep prevention is planned independently of accessibility")

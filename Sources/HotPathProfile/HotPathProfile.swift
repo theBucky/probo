@@ -3,75 +3,16 @@ import Darwin
 import Foundation
 import ProboCore
 
-private struct Options {
-  var iterations = 100_000
-  var warmup = 10_000
-  var postEvents = 0
-  var postIntervalUsec: UInt32 = 0
-}
-
-private struct Timebase {
-  let numer: UInt32
-  let denom: UInt32
-
-  init() {
-    var info = mach_timebase_info_data_t()
-    mach_timebase_info(&info)
-    numer = info.numer
-    denom = info.denom
-  }
-
-  func nanoseconds(_ ticks: UInt64) -> Double {
-    Double(ticks) * Double(numer) / Double(denom)
-  }
-}
-
-private struct Summary {
-  var name: String
-  var samples: [UInt64]
-  var timebase: Timebase
-
-  func print() {
-    let sorted = samples.sorted()
-    let total = samples.reduce(UInt64(0), &+)
-    let average = timebase.nanoseconds(total) / Double(samples.count)
-    let minValue = timebase.nanoseconds(sorted[0])
-    let p50 = percentile(sorted, 0.50)
-    let p95 = percentile(sorted, 0.95)
-    let p99 = percentile(sorted, 0.99)
-    let maxValue = timebase.nanoseconds(sorted[sorted.count - 1])
-    let label = String(name.prefix(26)).padding(toLength: 26, withPad: " ", startingAt: 0)
-
-    Swift.print(
-      String(
-        format: "%@ min %@  avg %@  p50 %@  p95 %@  p99 %@  max %@",
-        label,
-        formatNanoseconds(minValue),
-        formatNanoseconds(average),
-        formatNanoseconds(p50),
-        formatNanoseconds(p95),
-        formatNanoseconds(p99),
-        formatNanoseconds(maxValue)
-      )
-    )
-  }
-
-  private func percentile(_ sorted: [UInt64], _ quantile: Double) -> Double {
-    let index = min(sorted.count - 1, Int(Double(sorted.count - 1) * quantile))
-    return timebase.nanoseconds(sorted[index])
-  }
-}
-
 @main
 struct HotPathProfile {
   static func main() throws {
-    let options = try parseOptions()
+    let options = try ProfileOptions.parse()
     let timebase = Timebase()
     let source = CGEventSource(stateID: .hidSystemState)
     source?.pixelsPerLine = 16.0
 
     guard let event = makeInputEvent(source: source, verticalDelta: 1, horizontalDelta: 0) else {
-      throw ProbeError.message("failed to create synthetic scroll event")
+      throw ProfileError("failed to create synthetic scroll event")
     }
 
     let configuration = AppConfiguration()
@@ -87,7 +28,7 @@ struct HotPathProfile {
         options: tapOptions
       )
     else {
-      throw ProbeError.message("default configuration must rewrite a vertical notch")
+      throw ProfileError("default configuration must rewrite a vertical notch")
     }
     let resetEvent = { rewriter.applyReplacement(to: event, linesX: 0, linesY: 1) }
     var blackhole: Int64 = 0
@@ -96,94 +37,108 @@ struct HotPathProfile {
     Swift.print("iterations: \(options.iterations), warmup: \(options.warmup)")
     Swift.print("")
 
-    measure(
-      "timer baseline",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole
-    ) {
-      1
-    }.print()
+    print(
+      measure(
+        "timer baseline",
+        options: options,
+        timebase: timebase,
+        blackhole: &blackhole
+      ) {
+        1
+      }
+    )
 
-    measure(
-      "core only",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole
-    ) {
-      guard
-        case .emit(_, let linesY, _) = decideScroll(
-          verticalDelta: 1,
-          horizontalDelta: 0,
-          isOptionHeld: false,
-          isTerminalFrontmost: false,
-          options: tapOptions
-        )
-      else { return 0 }
-      return Int64(linesY)
-    }.print()
+    print(
+      measure(
+        "core only",
+        options: options,
+        timebase: timebase,
+        blackhole: &blackhole
+      ) {
+        guard
+          case .emit(_, let linesY, _) = decideScroll(
+            verticalDelta: 1,
+            horizontalDelta: 0,
+            isOptionHeld: false,
+            isTerminalFrontmost: false,
+            options: tapOptions
+          )
+        else { return 0 }
+        return Int64(linesY)
+      }
+    )
 
-    measure(
-      "synth make event",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole,
-      prepare: resetEvent
-    ) {
-      guard
-        let replacement = rewriter.makeReplacement(
-          location: event.location,
-          flags: event.flags,
-          linesX: 0,
-          linesY: linesY
-        )
-      else { return 0 }
-      return replacement.getIntegerValueField(.scrollWheelEventDeltaAxis1)
-    }.print()
+    print(
+      measure(
+        "synth make event",
+        options: options,
+        timebase: timebase,
+        blackhole: &blackhole,
+        prepare: resetEvent
+      ) {
+        guard
+          let replacement = rewriter.makeReplacement(
+            location: event.location,
+            flags: event.flags,
+            linesX: 0,
+            linesY: linesY
+          )
+        else { return 0 }
+        return replacement.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+      }
+    )
 
-    measure(
-      "apply replacement",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole,
-      prepare: resetEvent
-    ) {
-      rewriter.applyReplacement(to: event, linesX: 0, linesY: linesY)
-      return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
-    }.print()
+    print(
+      measure(
+        "apply replacement",
+        options: options,
+        timebase: timebase,
+        blackhole: &blackhole,
+        prepare: resetEvent
+      ) {
+        rewriter.applyReplacement(to: event, linesX: 0, linesY: linesY)
+        return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+      }
+    )
 
-    measure(
-      "options decode",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole
-    ) {
-      let decoded = TapOptions(rawValue: tapOptionsRawValue)
-      return decoded.isTerminalOptimizationEnabled ? 1 : 0
-    }.print()
+    print(
+      measure(
+        "options decode",
+        options: options,
+        timebase: timebase,
+        blackhole: &blackhole
+      ) {
+        let decoded = TapOptions(rawValue: tapOptionsRawValue)
+        return decoded.isTerminalOptimizationEnabled ? 1 : 0
+      }
+    )
 
-    measure(
-      "rewriter mutate",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole,
-      prepare: resetEvent
-    ) {
-      rewriter.rewrite(event: event, options: tapOptions, proxy: nil)?
-        .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
-    }.print()
+    print(
+      measure(
+        "rewriter mutate",
+        options: options,
+        timebase: timebase,
+        blackhole: &blackhole,
+        prepare: resetEvent
+      ) {
+        rewriter.rewrite(event: event, options: tapOptions, proxy: nil)?
+          .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
+      }
+    )
 
-    measure(
-      "rewriter + decode",
-      options: options,
-      timebase: timebase,
-      blackhole: &blackhole,
-      prepare: resetEvent
-    ) {
-      let decoded = TapOptions(rawValue: tapOptionsRawValue)
-      return rewriter.rewrite(event: event, options: decoded, proxy: nil)?
-        .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
-    }.print()
+    print(
+      measure(
+        "rewriter + decode",
+        options: options,
+        timebase: timebase,
+        blackhole: &blackhole,
+        prepare: resetEvent
+      ) {
+        let decoded = TapOptions(rawValue: tapOptionsRawValue)
+        return rewriter.rewrite(event: event, options: decoded, proxy: nil)?
+          .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
+      }
+    )
 
     if options.postEvents > 0 {
       try postInputEvents(options: options, source: source)
@@ -192,91 +147,6 @@ struct HotPathProfile {
     Swift.print("")
     Swift.print("blackhole: \(blackhole)")
   }
-}
-
-private func parseOptions() throws -> Options {
-  var options = Options()
-  var arguments = CommandLine.arguments.dropFirst()
-
-  while let argument = arguments.popFirst() {
-    switch argument {
-    case "--iterations":
-      options.iterations = try takePositiveInt(&arguments, argument)
-    case "--warmup":
-      options.warmup = try takeNonNegativeInt(&arguments, argument)
-    case "--post-events":
-      options.postEvents = try takeNonNegativeInt(&arguments, argument)
-    case "--post-interval-usec":
-      options.postIntervalUsec = try takeUInt32(&arguments, argument)
-    case "-h", "--help":
-      Swift.print(
-        """
-        usage: HotPathProfile [options]
-
-          --iterations n            measured samples per stage, default 100000
-          --warmup n                warmup iterations per stage, default 10000
-          --post-events n           post n synthetic scroll events to cgSessionEventTap
-          --post-interval-usec n    sleep between posted events
-        """
-      )
-      exit(0)
-    default:
-      throw ProbeError.message("unknown option: \(argument)")
-    }
-  }
-
-  return options
-}
-
-private func takeUInt32(_ arguments: inout ArraySlice<String>, _ name: String) throws -> UInt32 {
-  let value = try takeNonNegativeInt(&arguments, name)
-  guard value <= UInt32.max else {
-    throw ProbeError.message("\(name) must fit UInt32")
-  }
-  return UInt32(value)
-}
-
-private func takePositiveInt(_ arguments: inout ArraySlice<String>, _ name: String) throws -> Int {
-  let value = try takeNonNegativeInt(&arguments, name)
-  if value <= 0 {
-    throw ProbeError.message("\(name) must be positive")
-  }
-  return value
-}
-
-private func takeNonNegativeInt(_ arguments: inout ArraySlice<String>, _ name: String) throws -> Int
-{
-  guard let rawValue = arguments.popFirst() else {
-    throw ProbeError.message("missing value for \(name)")
-  }
-  guard let value = Int(rawValue), value >= 0 else {
-    throw ProbeError.message("\(name) must be a non-negative integer")
-  }
-  return value
-}
-
-private func measure(
-  _ name: String,
-  options: Options,
-  timebase: Timebase,
-  blackhole: inout Int64,
-  prepare: () -> Void = {},
-  operation: () -> Int64
-) -> Summary {
-  for _ in 0..<options.warmup {
-    prepare()
-    blackhole &+= operation()
-  }
-
-  var samples = [UInt64](repeating: 0, count: options.iterations)
-  for index in 0..<options.iterations {
-    prepare()
-    let start = mach_continuous_time()
-    blackhole &+= operation()
-    samples[index] = mach_continuous_time() - start
-  }
-
-  return Summary(name: name, samples: samples, timebase: timebase)
 }
 
 private func makeInputEvent(
@@ -303,7 +173,7 @@ private func makeInputEvent(
   return event
 }
 
-private func postInputEvents(options: Options, source: CGEventSource?) throws {
+private func postInputEvents(options: ProfileOptions, source: CGEventSource?) throws {
   Swift.print("")
   Swift.print(
     "posting \(options.postEvents) synthetic scroll events to cgSessionEventTap"
@@ -314,32 +184,11 @@ private func postInputEvents(options: Options, source: CGEventSource?) throws {
       let event = makeInputEvent(
         source: source, verticalDelta: index.isMultiple(of: 2) ? 1 : -1, horizontalDelta: 0)
     else {
-      throw ProbeError.message("failed to create post event")
+      throw ProfileError("failed to create post event")
     }
     event.post(tap: .cgSessionEventTap)
     if options.postIntervalUsec > 0 {
       usleep(options.postIntervalUsec)
-    }
-  }
-}
-
-private func formatNanoseconds(_ value: Double) -> String {
-  if value < 1_000 {
-    return String(format: "%.0f ns", value)
-  }
-  if value < 1_000_000 {
-    return String(format: "%.2f us", value / 1_000)
-  }
-  return String(format: "%.2f ms", value / 1_000_000)
-}
-
-private enum ProbeError: Error, CustomStringConvertible {
-  case message(String)
-
-  var description: String {
-    switch self {
-    case .message(let message):
-      return message
     }
   }
 }
