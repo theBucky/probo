@@ -3,6 +3,7 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$root_dir/scripts/toolchain.sh"
 build_dir="$root_dir/build/hot-path"
 app_dir="$root_dir/build/Probo.app"
 app_executable="$app_dir/Contents/MacOS/Probo"

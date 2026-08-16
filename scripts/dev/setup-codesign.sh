@@ -44,6 +44,11 @@ if [[ -n "$(find_identity)" ]]; then
   exit 0
 fi
 
+if security find-certificate -c "$identity_name" "$keychain" >/dev/null 2>&1; then
+  echo "certificate $identity_name exists without a usable private key; rerun with --force" >&2
+  exit 1
+fi
+
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
