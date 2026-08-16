@@ -15,20 +15,18 @@ struct HotPathProfile {
       throw ProfileError("failed to create synthetic scroll event")
     }
 
-    let configuration = AppConfiguration()
-    let tapOptions = TapOptions(configuration: configuration)
-    let tapOptionsRawValue = tapOptions.rawValue
+    let scrollOptions = ScrollOptions(configuration: InputConfiguration())
+    let scrollOptionsRawValue = scrollOptions.rawValue
     let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
     guard
-      case .emit(_, let linesY, _) = decideScroll(
-        verticalDelta: 1,
-        horizontalDelta: 0,
+      case .vertical(let linesY, _) = resolveScroll(
+        .vertical(.positive),
         isOptionHeld: false,
         isTerminalFrontmost: false,
-        options: tapOptions
+        options: scrollOptions
       )
     else {
-      throw ProfileError("default configuration must rewrite a vertical notch")
+      throw ProfileError("vertical input resolved to horizontal output")
     }
     let resetEvent = { rewriter.applyReplacement(to: event, linesX: 0, linesY: 1) }
     var blackhole: Int64 = 0
@@ -55,16 +53,15 @@ struct HotPathProfile {
         timebase: timebase,
         blackhole: &blackhole
       ) {
-        guard
-          case .emit(_, let linesY, _) = decideScroll(
-            verticalDelta: 1,
-            horizontalDelta: 0,
-            isOptionHeld: false,
-            isTerminalFrontmost: false,
-            options: tapOptions
-          )
-        else { return 0 }
-        return Int64(linesY)
+        switch resolveScroll(
+          .vertical(.positive),
+          isOptionHeld: false,
+          isTerminalFrontmost: false,
+          options: scrollOptions
+        ) {
+        case .vertical(let lines, _): Int64(lines)
+        case .horizontal: 0
+        }
       }
     )
 
@@ -108,7 +105,7 @@ struct HotPathProfile {
         timebase: timebase,
         blackhole: &blackhole
       ) {
-        let decoded = TapOptions(rawValue: tapOptionsRawValue)
+        let decoded = ScrollOptions(rawValue: scrollOptionsRawValue)
         return decoded.isTerminalOptimizationEnabled ? 1 : 0
       }
     )
@@ -121,7 +118,7 @@ struct HotPathProfile {
         blackhole: &blackhole,
         prepare: resetEvent
       ) {
-        rewriter.rewrite(event: event, options: tapOptions, proxy: nil)?
+        rewriter.rewrite(event: event, options: scrollOptions, proxy: nil)?
           .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
       }
     )
@@ -134,7 +131,7 @@ struct HotPathProfile {
         blackhole: &blackhole,
         prepare: resetEvent
       ) {
-        let decoded = TapOptions(rawValue: tapOptionsRawValue)
+        let decoded = ScrollOptions(rawValue: scrollOptionsRawValue)
         return rewriter.rewrite(event: event, options: decoded, proxy: nil)?
           .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
       }

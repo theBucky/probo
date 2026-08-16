@@ -16,7 +16,7 @@ macOS menu bar utility that rewrites each mouse-wheel notch to a fixed line step
 - Mouse button 4 maps to the macOS Look Up gesture
 - Optional sleep-prevention assertion while enabled; display sleep, lid close, and manual sleep still fire
 - Launch at login via `SMAppService`
-- Pass-through for continuous, phased, diagonal, and zero-delta events
+- Pass-through for continuous and phased events; diagonal and zero-delta wheel events are dropped
 
 Settings live in a single window opened from the menu bar icon.
 
@@ -44,17 +44,14 @@ Writes `build/Probo.app` and relaunches it. Set `PROBO_CODESIGN_IDENTITY=-` for 
 
 ## Architecture
 
-SwiftPM owns the build graph for the app, tests, profiling executable, and SourceKit-LSP. AppKit owns the menu bar item, status menu, and settings window; the settings controls are SwiftUI hosted in AppKit over a native Swift rewrite core. The event-tap callback reads raw `CGEvent` fields, applies the terminal heuristic, asks the core for a rewrite decision, and synthesizes a replacement scroll event when needed. Hot path is allocation-free.
+SwiftPM owns the build graph for the app, tests, profiling executable, and SourceKit-LSP. SwiftUI owns the app surface. The runtime persists app settings and applies them to the input pipeline and power adapter. The input pipeline owns terminal focus and the event tap; each callback classifies raw `CGEvent` fields into a valid wheel notch, resolves the pure scroll rule, then mutates or synthesizes output. Hot path is allocation-free.
 
-| Layer | Path | Role |
+| Module | Path | Role |
 | --- | --- | --- |
 | Package | `Package.swift` | SwiftPM products, targets, platforms, resources |
-| App | `Sources/Probo`, `Sources/ProboCore/App` | Entry point, status menu, settings window, runtime wiring |
-| Core | `Sources/ProboCore/Core` | Pure rewrite hot path |
-| Events | `Sources/ProboCore/Events` | Event tap, scroll synthesis |
-| Configuration | `Sources/ProboCore/Configuration` | Settings model, persistence |
-| System | `Sources/ProboCore/System` | Accessibility, frontmost app, sleep, login |
-| UI | `Sources/ProboCore/UI` | SwiftUI settings content, AppKit hosting |
+| App | `Sources/Probo`, `Sources/ProboCore/App` | Entry point, settings, UI, runtime orchestration |
+| Input | `Sources/ProboCore/Input` | Input configuration and mouse-event pipeline |
+| System | `Sources/ProboCore/System` | Accessibility, sleep, and login adapters |
 | Tools | `Sources/HotPathProfile` | Profiling executable and entitlements |
 | Tests | `Tests/ProboTests` | Swift Testing suites |
 

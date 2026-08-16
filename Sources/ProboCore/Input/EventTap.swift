@@ -16,22 +16,50 @@ final class EventTap: @unchecked Sendable {
 
   private static let lookUpButtonNumber: Int64 = 3
   private static let lookUpKeyCode = CGKeyCode(0x02)
-  private static let lookUpFlags: CGEventFlags = [.maskCommand, .maskControl]
 
   private let scrollRewriter: ScrollRewriter
+  private let lookUpKeys: (down: CGEvent, up: CGEvent)?
   private let isActive = Atomic<Bool>(false)
-  private let optionsRawValue = Atomic<UInt32>(
-    TapOptions(configuration: AppConfiguration()).rawValue)
+  private let isLookUpEnabled = Atomic<Bool>(InputConfiguration().isLookUpEnabled)
+  private let scrollOptionsRawValue = Atomic<UInt32>(
+    ScrollOptions(configuration: InputConfiguration()).rawValue)
+  private let installedTapPointer = Atomic<UnsafeRawPointer?>(nil)
   private let tapState = Mutex(TapState())
-  var onTapEnabledChange: (@MainActor (Bool) -> Void)?
+  private let onEnabledChange: @MainActor (Bool) -> Void
 
-  init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
+  init(
+    isTerminalFrontmost: @escaping @Sendable () -> Bool,
+    onEnabledChange: @escaping @MainActor (Bool) -> Void
+  ) {
+    let lookUpKeyDown = CGEvent(
+      keyboardEventSource: nil,
+      virtualKey: Self.lookUpKeyCode,
+      keyDown: true
+    )
+    let lookUpKeyUp = CGEvent(
+      keyboardEventSource: nil,
+      virtualKey: Self.lookUpKeyCode,
+      keyDown: false
+    )
+    if let lookUpKeyDown, let lookUpKeyUp {
+      lookUpKeyDown.flags = [.maskCommand, .maskControl]
+      lookUpKeyUp.flags = [.maskCommand, .maskControl]
+      lookUpKeys = (lookUpKeyDown, lookUpKeyUp)
+    } else {
+      lookUpKeys = nil
+    }
+
     scrollRewriter = ScrollRewriter(isTerminalFrontmost: isTerminalFrontmost)
+    self.onEnabledChange = onEnabledChange
   }
 
   @MainActor
-  func setOptions(_ options: TapOptions) {
-    optionsRawValue.store(options.rawValue, ordering: .relaxed)
+  func setConfiguration(_ configuration: InputConfiguration) {
+    isLookUpEnabled.store(configuration.isLookUpEnabled, ordering: .relaxed)
+    scrollOptionsRawValue.store(
+      ScrollOptions(configuration: configuration).rawValue,
+      ordering: .relaxed
+    )
   }
 
   // Install once on first enable, then toggle forever via CGEvent.tapEnable. The tap thread
@@ -95,6 +123,8 @@ final class EventTap: @unchecked Sendable {
       $0.tap = tap
       $0.installPending = false
     }
+    // The mutex owns the port; this unretained atomic view keeps callback recovery lock-free.
+    installedTapPointer.store(Unmanaged.passUnretained(tap).toOpaque(), ordering: .relaxed)
     CGEvent.tapEnable(tap: tap, enable: isActive.load(ordering: .relaxed))
     publishTapEnabledOnMain()
 
@@ -103,6 +133,7 @@ final class EventTap: @unchecked Sendable {
     // CFRunLoopRun only returns if the tap source is invalidated externally
     // (e.g. event service restart); drop the dead port so a future setActive
     // reinstalls instead of toggling a corpse.
+    installedTapPointer.store(nil, ordering: .relaxed)
     tapState.withLock { $0.tap = nil }
     publishTapEnabledOnMain()
   }
@@ -113,47 +144,43 @@ final class EventTap: @unchecked Sendable {
     let pass = Unmanaged.passUnretained(event)
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      let tap = tapState.withLock { $0.tap }
-      if let tap, isActive.load(ordering: .relaxed) {
-        CGEvent.tapEnable(tap: tap, enable: true)
+      if let pointer = installedTapPointer.load(ordering: .relaxed),
+        isActive.load(ordering: .relaxed)
+      {
+        CGEvent.tapEnable(
+          tap: Unmanaged<CFMachPort>.fromOpaque(pointer).takeUnretainedValue(),
+          enable: true
+        )
       }
       return pass
     }
 
     guard isActive.load(ordering: .relaxed) else { return pass }
-    let options = TapOptions(rawValue: optionsRawValue.load(ordering: .relaxed))
 
     switch type {
     case .otherMouseDown, .otherMouseUp:
-      guard options.isLookUpEnabled else { return pass }
-      return consumeLookUpGesture(type: type, event: event) ? nil : pass
+      guard
+        isLookUpEnabled.load(ordering: .relaxed),
+        event.getIntegerValueField(.mouseEventButtonNumber) == Self.lookUpButtonNumber
+      else { return pass }
+      if type == .otherMouseDown, let lookUpKeys {
+        lookUpKeys.down.timestamp = event.timestamp
+        lookUpKeys.up.timestamp = event.timestamp
+        lookUpKeys.down.post(tap: .cgSessionEventTap)
+        lookUpKeys.up.post(tap: .cgSessionEventTap)
+      }
+      return nil
     case .scrollWheel:
-      return scrollRewriter.rewrite(event: event, options: options, proxy: proxy)
-        .map(Unmanaged.passUnretained)
+      return scrollRewriter.rewrite(
+        event: event,
+        options: ScrollOptions(
+          rawValue: scrollOptionsRawValue.load(ordering: .relaxed)
+        ),
+        proxy: proxy
+      ).map(Unmanaged.passUnretained)
     default:
       return pass
     }
-  }
-
-  private func consumeLookUpGesture(type: CGEventType, event: CGEvent) -> Bool {
-    guard event.getIntegerValueField(.mouseEventButtonNumber) == Self.lookUpButtonNumber else {
-      return false
-    }
-    if type == .otherMouseDown {
-      postLookUpGesture()
-    }
-    return true
-  }
-
-  private func postLookUpGesture() {
-    guard
-      let down = CGEvent(keyboardEventSource: nil, virtualKey: Self.lookUpKeyCode, keyDown: true),
-      let up = CGEvent(keyboardEventSource: nil, virtualKey: Self.lookUpKeyCode, keyDown: false)
-    else { return }
-    down.flags = Self.lookUpFlags
-    up.flags = Self.lookUpFlags
-    down.post(tap: .cgSessionEventTap)
-    up.post(tap: .cgSessionEventTap)
   }
 
   private func publishTapEnabledOnMain() {
@@ -163,6 +190,6 @@ final class EventTap: @unchecked Sendable {
   @MainActor
   private func publishTapEnabled() {
     let installed = tapState.withLock { $0.tap != nil }
-    onTapEnabledChange?(isActive.load(ordering: .relaxed) && installed)
+    onEnabledChange(isActive.load(ordering: .relaxed) && installed)
   }
 }

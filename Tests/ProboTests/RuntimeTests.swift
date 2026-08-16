@@ -12,56 +12,24 @@ struct RuntimeTests {
     let store = SettingsStore(defaults: isolated.defaults)
     let runtime = Runtime(settingsStore: store)
 
-    runtime.configuration.wheelStep = .medium
+    runtime.configuration.input.wheelStep = .medium
     runtime.configuration.isEnabled = false
 
     #expect(store.load() == runtime.configuration)
-    #expect(runtime.configuration.wheelStep == .medium)
+    #expect(runtime.configuration.input.wheelStep == .medium)
     #expect(runtime.status == .idle)
   }
 
-  @Test("missing accessibility keeps tap inactive")
-  func missingAccessibility() {
-    let plan = SystemPlan(configuration: AppConfiguration(), accessibilityTrusted: false)
-
-    #expect(!plan.tapActive)
-    #expect(!plan.frontmostMonitorActive)
-    #expect(!plan.preventsIdleSleep)
-  }
-
-  @Test("trusted enabled configuration activates tap and terminal monitor")
-  func trustedEnabled() {
-    let plan = SystemPlan(configuration: AppConfiguration(), accessibilityTrusted: true)
-
-    #expect(plan.tapActive)
-    #expect(plan.frontmostMonitorActive)
-  }
-
-  @Test("disabled runtime stops tap and idle sleep prevention")
-  func disabledRuntime() {
-    let configuration = AppConfiguration(isEnabled: false, preventsIdleSleep: true)
-    let plan = SystemPlan(configuration: configuration, accessibilityTrusted: true)
-
-    #expect(!plan.tapActive)
-    #expect(!plan.frontmostMonitorActive)
-    #expect(!plan.preventsIdleSleep)
-  }
-
-  @Test("enabled idle sleep prevention is planned independently of accessibility")
-  func idleSleep() {
-    let configuration = AppConfiguration(preventsIdleSleep: true)
-    let plan = SystemPlan(configuration: configuration, accessibilityTrusted: false)
-
-    #expect(plan.preventsIdleSleep)
-  }
-
-  @Test("status reflects enablement, trust, and tap installation")
+  @Test("status reflects enablement, trust, and input pipeline state")
   func status() {
     #expect(
-      RuntimeStatus(isEnabled: true, accessibilityTrusted: false, tapEnabled: false)
+      RuntimeStatus(isEnabled: true, accessibilityTrusted: false, inputRunning: false)
         == .needsAccessibility)
-    #expect(RuntimeStatus(isEnabled: true, accessibilityTrusted: true, tapEnabled: true) == .active)
-    #expect(RuntimeStatus(isEnabled: true, accessibilityTrusted: true, tapEnabled: false) == .idle)
-    #expect(RuntimeStatus(isEnabled: false, accessibilityTrusted: true, tapEnabled: false) == .idle)
+    #expect(
+      RuntimeStatus(isEnabled: true, accessibilityTrusted: true, inputRunning: true) == .active)
+    #expect(
+      RuntimeStatus(isEnabled: true, accessibilityTrusted: true, inputRunning: false) == .idle)
+    #expect(
+      RuntimeStatus(isEnabled: false, accessibilityTrusted: true, inputRunning: false) == .idle)
   }
 }

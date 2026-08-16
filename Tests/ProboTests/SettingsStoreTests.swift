@@ -18,11 +18,13 @@ struct SettingsStoreTests {
     let store = SettingsStore(defaults: isolated.defaults)
     let configuration = AppConfiguration(
       isEnabled: false,
-      wheelStep: .medium,
-      isLookUpEnabled: false,
-      isOptionPrecisionEnabled: true,
-      isTerminalOptimizationEnabled: false,
-      isTrackpadStyleScrollingEnabled: true,
+      input: InputConfiguration(
+        wheelStep: .medium,
+        isLookUpEnabled: false,
+        isOptionPrecisionEnabled: true,
+        isTerminalOptimizationEnabled: false,
+        isTrackpadStyleScrollingEnabled: true
+      ),
       preventsIdleSleep: true
     )
 
@@ -36,6 +38,6 @@ struct SettingsStoreTests {
     let isolated = IsolatedDefaults()
     isolated.defaults.set(99, forKey: "wheelStep")
 
-    #expect(SettingsStore(defaults: isolated.defaults).load().wheelStep == .slow)
+    #expect(SettingsStore(defaults: isolated.defaults).load().input.wheelStep == .slow)
   }
 }

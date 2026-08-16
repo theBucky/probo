@@ -10,7 +10,7 @@ package struct ProboSettingsView: View {
   package var body: some View {
     Form {
       Section("Scrolling") {
-        Picker("Wheel Step", selection: $runtime.configuration.wheelStep) {
+        Picker("Wheel Step", selection: $runtime.configuration.input.wheelStep) {
           ForEach(WheelStep.allCases, id: \.self) { wheelStep in
             Text(wheelStep.title).tag(wheelStep)
           }
@@ -20,18 +20,18 @@ package struct ProboSettingsView: View {
         SettingToggle(
           title: "Option Precision",
           description: "Hold Option to emit one line per notch.",
-          isOn: $runtime.configuration.isOptionPrecisionEnabled
+          isOn: $runtime.configuration.input.isOptionPrecisionEnabled
         )
         SettingToggle(
           title: "Terminal Optimization",
           description:
             "In terminal apps, emit one line per notch; hold Option for your wheel step.",
-          isOn: $runtime.configuration.isTerminalOptimizationEnabled
+          isOn: $runtime.configuration.input.isTerminalOptimizationEnabled
         )
         SettingToggle(
           title: "Natural Direction",
           description: "Match trackpad scrolling direction.",
-          isOn: $runtime.configuration.isTrackpadStyleScrollingEnabled
+          isOn: $runtime.configuration.input.isTrackpadStyleScrollingEnabled
         )
       }
 
@@ -39,7 +39,7 @@ package struct ProboSettingsView: View {
         SettingToggle(
           title: "Look Up",
           description: "Map mouse button 4 to Look Up.",
-          isOn: $runtime.configuration.isLookUpEnabled
+          isOn: $runtime.configuration.input.isLookUpEnabled
         )
       }
 

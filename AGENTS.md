@@ -2,19 +2,21 @@
 
 Menubar macOS app remapping mouse-wheel ticks to fixed line steps.
 
-## Project Map
+## Repo Structure
 
-- `Package.swift`: canonical SwiftPM package graph for app, tests, and profiling tool.
-- `Sources/Probo`: executable entry point, menu bar extra, settings scene, and app resources.
-- `Sources/ProboCore/App`: runtime orchestration; AppKit app surface stays in the executable target.
-- `Sources/ProboCore/UI`: SwiftUI settings content.
-- `Sources/ProboCore/Core`: pure rewrite decisions; no AppKit, CoreGraphics, IOKit, persistence, or UI.
-- `Sources/ProboCore/Events`: event tap, parsing, and synthesized output.
-- `Sources/ProboCore/Configuration`: config model and `UserDefaults`.
-- `Sources/ProboCore/System`: Accessibility, frontmost app, launch-at-login, power assertions.
-- `Sources/HotPathProfile`: profiling executable and entitlements for the scroll hot path.
-- `Tests/ProboTests`: Swift Testing coverage for app behavior.
-- `refs/`: read-only inspiration. Do not edit or vendor from it.
+```text
+Package.swift                 SwiftPM graph for app, tests, and profiling tool
+Sources/
+├── Probo                     app entry point, menu bar, settings scene, resources
+├── ProboCore/
+│   ├── App                   observable runtime, persisted settings, settings UI
+│   ├── Input                 mouse pipeline: configuration, tap, scroll policy, output
+│   └── System                Accessibility, launch-at-login, power adapters
+└── HotPathProfile            scroll hot-path benchmarks and entitlements
+Tests/ProboTests              Swift Testing behavior coverage
+scripts                       build, signing, development, CI, profiling workflows
+refs                          read-only inspiration; never edit or vendor
+```
 
 ## Environment Requirements
 

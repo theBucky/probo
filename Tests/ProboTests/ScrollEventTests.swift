@@ -3,13 +3,17 @@ import Testing
 
 @testable import ProboCore
 
-@Suite("Scroll rewriter")
-struct ScrollRewriterTests {
+@Suite("Scroll event")
+struct ScrollEventTests {
   @Test("valid wheel event rewrites in place")
   func validWheelEvent() throws {
     let event = try scrollEvent(verticalDelta: 1)
     let output = ScrollRewriter(isTerminalFrontmost: { false })
-      .rewrite(event: event, options: TapOptions(configuration: AppConfiguration()), proxy: nil)
+      .rewrite(
+        event: event,
+        options: ScrollOptions(configuration: InputConfiguration()),
+        proxy: nil
+      )
 
     #expect(output != nil)
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == -2)
@@ -19,7 +23,7 @@ struct ScrollRewriterTests {
   @Test("continuous and phased events pass through untouched")
   func passthroughInputs() throws {
     let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
-    let options = TapOptions(configuration: AppConfiguration())
+    let options = ScrollOptions(configuration: InputConfiguration())
 
     let continuous = try scrollEvent(verticalDelta: 1)
     continuous.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
@@ -39,7 +43,7 @@ struct ScrollRewriterTests {
   @Test("ambiguous wheel events are dropped")
   func droppedInputs() throws {
     let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
-    let options = TapOptions(configuration: AppConfiguration())
+    let options = ScrollOptions(configuration: InputConfiguration())
 
     let diagonal = try scrollEvent(verticalDelta: 1, horizontalDelta: 1)
     let zero = try scrollEvent()
@@ -49,20 +53,17 @@ struct ScrollRewriterTests {
     }
   }
 
-  @Test("synthesized replacement and flags events carry the requested fields")
-  func synthesizedEvents() throws {
-    let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
+  @Test("synthesized replacement carries the requested fields")
+  func synthesizedEvent() throws {
     let replacement = try #require(
-      rewriter.makeReplacement(
-        location: CGPoint(x: 12, y: 34), flags: [.maskShift], linesX: 3, linesY: 0)
+      ScrollRewriter(isTerminalFrontmost: { false }).makeReplacement(
+        location: CGPoint(x: 12, y: 34), flags: [.maskShift], linesX: 3, linesY: 0
+      )
     )
-    let flags = try #require(rewriter.makeFlagsChanged(flags: [.maskCommand], keyCode: 58))
 
     #expect(replacement.getIntegerValueField(.scrollWheelEventDeltaAxis2) == 3)
     #expect(replacement.location == CGPoint(x: 12, y: 34))
     #expect(replacement.flags.contains(.maskShift))
-    #expect(flags.type == .flagsChanged)
-    #expect(flags.getIntegerValueField(.keyboardEventKeycode) == 58)
   }
 }
 
