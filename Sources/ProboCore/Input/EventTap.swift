@@ -3,9 +3,10 @@ import Foundation
 import Synchronization
 
 final class EventTap: @unchecked Sendable {
-  private struct TapState {
-    var tap: CFMachPort?
-    var installPending = false
+  private enum TapState {
+    case notInstalled
+    case installing
+    case installed(CFMachPort)
   }
 
   private enum InstallAction {
@@ -20,11 +21,10 @@ final class EventTap: @unchecked Sendable {
   private let scrollRewriter: ScrollRewriter
   private let lookUpKeys: (down: CGEvent, up: CGEvent)?
   private let isActive = Atomic<Bool>(false)
-  private let isLookUpEnabled = Atomic<Bool>(InputConfiguration().isLookUpEnabled)
-  private let scrollOptionsRawValue = Atomic<UInt32>(
-    ScrollOptions(configuration: InputConfiguration()).rawValue)
+  private let optionsRawValue = Atomic<UInt32>(
+    TapOptions(configuration: InputConfiguration()).rawValue)
   private let installedTapPointer = Atomic<UnsafeRawPointer?>(nil)
-  private let tapState = Mutex(TapState())
+  private let tapState = Mutex<TapState>(.notInstalled)
   private let onEnabledChange: @MainActor (Bool) -> Void
 
   init(
@@ -55,33 +55,30 @@ final class EventTap: @unchecked Sendable {
 
   @MainActor
   func setConfiguration(_ configuration: InputConfiguration) {
-    isLookUpEnabled.store(configuration.isLookUpEnabled, ordering: .relaxed)
-    scrollOptionsRawValue.store(
-      ScrollOptions(configuration: configuration).rawValue,
-      ordering: .relaxed
-    )
+    optionsRawValue.store(TapOptions(configuration: configuration).rawValue, ordering: .relaxed)
   }
 
   // Install once on first enable, then toggle forever via CGEvent.tapEnable. The tap thread
-  // outlives setActive(false); process exit reaps it. installPending coalesces back-to-back
+  // outlives setActive(false); process exit reaps it. The installing state coalesces back-to-back
   // enables so the in-flight install picks up the latest isActive instead of spawning a duplicate.
   @MainActor
   func setActive(_ active: Bool) {
     let wasActive = isActive.exchange(active, ordering: .relaxed)
     let action = tapState.withLock { state -> InstallAction in
-      if let tap = state.tap {
+      switch state {
+      case .installed(let tap):
         return wasActive == active ? .none : .toggle(tap)
-      }
-      guard active, !state.installPending else {
+      case .notInstalled where active:
+        state = .installing
+        return .install
+      case .notInstalled, .installing:
         return .none
       }
-      state.installPending = true
-      return .install
     }
     switch action {
     case .toggle(let tap):
       CGEvent.tapEnable(tap: tap, enable: active)
-      publishTapEnabled()
+      publishRunningState()
     case .install:
       let thread = Thread { self.runTapLoop() }
       thread.name = "Probo Event Tap"
@@ -112,21 +109,18 @@ final class EventTap: @unchecked Sendable {
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
-      tapState.withLock { $0.installPending = false }
-      publishTapEnabledOnMain()
+      tapState.withLock { $0 = .notInstalled }
+      scheduleRunningStatePublication()
       return
     }
 
     let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
     CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
-    tapState.withLock {
-      $0.tap = tap
-      $0.installPending = false
-    }
+    tapState.withLock { $0 = .installed(tap) }
     // The mutex owns the port; this unretained atomic view keeps callback recovery lock-free.
     installedTapPointer.store(Unmanaged.passUnretained(tap).toOpaque(), ordering: .relaxed)
     CGEvent.tapEnable(tap: tap, enable: isActive.load(ordering: .relaxed))
-    publishTapEnabledOnMain()
+    scheduleRunningStatePublication()
 
     CFRunLoopRun()
 
@@ -134,8 +128,8 @@ final class EventTap: @unchecked Sendable {
     // (e.g. event service restart); drop the dead port so a future setActive
     // reinstalls instead of toggling a corpse.
     installedTapPointer.store(nil, ordering: .relaxed)
-    tapState.withLock { $0.tap = nil }
-    publishTapEnabledOnMain()
+    tapState.withLock { $0 = .notInstalled }
+    scheduleRunningStatePublication()
   }
 
   private func handle(type: CGEventType, event: CGEvent, proxy: CGEventTapProxy)
@@ -157,10 +151,11 @@ final class EventTap: @unchecked Sendable {
 
     guard isActive.load(ordering: .relaxed) else { return pass }
 
+    let options = TapOptions(rawValue: optionsRawValue.load(ordering: .relaxed))
     switch type {
     case .otherMouseDown, .otherMouseUp:
       guard
-        isLookUpEnabled.load(ordering: .relaxed),
+        options.isLookUpEnabled,
         event.getIntegerValueField(.mouseEventButtonNumber) == Self.lookUpButtonNumber
       else { return pass }
       if type == .otherMouseDown, let lookUpKeys {
@@ -173,9 +168,7 @@ final class EventTap: @unchecked Sendable {
     case .scrollWheel:
       return scrollRewriter.rewrite(
         event: event,
-        options: ScrollOptions(
-          rawValue: scrollOptionsRawValue.load(ordering: .relaxed)
-        ),
+        options: options,
         proxy: proxy
       ).map(Unmanaged.passUnretained)
     default:
@@ -183,13 +176,15 @@ final class EventTap: @unchecked Sendable {
     }
   }
 
-  private func publishTapEnabledOnMain() {
-    Task { @MainActor in publishTapEnabled() }
+  private func scheduleRunningStatePublication() {
+    Task { @MainActor in publishRunningState() }
   }
 
   @MainActor
-  private func publishTapEnabled() {
-    let installed = tapState.withLock { $0.tap != nil }
+  private func publishRunningState() {
+    let installed = tapState.withLock { state in
+      if case .installed = state { true } else { false }
+    }
     onEnabledChange(isActive.load(ordering: .relaxed) && installed)
   }
 }

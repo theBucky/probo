@@ -11,7 +11,7 @@ struct ScrollEventTests {
     let output = ScrollRewriter(isTerminalFrontmost: { false })
       .rewrite(
         event: event,
-        options: ScrollOptions(configuration: InputConfiguration()),
+        options: TapOptions(configuration: InputConfiguration()),
         proxy: nil
       )
 
@@ -23,7 +23,7 @@ struct ScrollEventTests {
   @Test("continuous and phased events pass through untouched")
   func passthroughInputs() throws {
     let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
-    let options = ScrollOptions(configuration: InputConfiguration())
+    let options = TapOptions(configuration: InputConfiguration())
 
     let continuous = try scrollEvent(verticalDelta: 1)
     continuous.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
@@ -43,7 +43,7 @@ struct ScrollEventTests {
   @Test("ambiguous wheel events are dropped")
   func droppedInputs() throws {
     let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
-    let options = ScrollOptions(configuration: InputConfiguration())
+    let options = TapOptions(configuration: InputConfiguration())
 
     let diagonal = try scrollEvent(verticalDelta: 1, horizontalDelta: 1)
     let zero = try scrollEvent()

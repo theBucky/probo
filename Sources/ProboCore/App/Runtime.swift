@@ -79,15 +79,15 @@ package final class Runtime {
   }
 
   package func refreshAccessibility() {
-    refreshAccessibility(prompt: false)
+    updateAccessibility(AccessibilityPermission.isTrusted)
   }
 
   package func requestAccessibilityAccess() {
-    refreshAccessibility(prompt: true)
+    updateAccessibility(AccessibilityPermission.request())
   }
 
-  private func refreshAccessibility(prompt: Bool) {
-    accessibilityTrusted = AccessibilityPermission.isTrusted(prompt: prompt)
+  private func updateAccessibility(_ isTrusted: Bool) {
+    accessibilityTrusted = isTrusted
     applyConfiguration()
   }
 

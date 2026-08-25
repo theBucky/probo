@@ -2,6 +2,13 @@
 
 package final class ScrollRewriter {
   private static let pixelsPerLine: Int64 = 16
+  private static let leftOptionFlag = CGEventFlags(rawValue: 0x20)
+  private static let rightOptionFlag = CGEventFlags(rawValue: 0x40)
+  private static let allOptionFlags: CGEventFlags = [
+    .maskAlternate, leftOptionFlag, rightOptionFlag,
+  ]
+  private static let leftOptionKey = CGKeyCode(0x3A)
+  private static let rightOptionKey = CGKeyCode(0x3D)
 
   private let isTerminalFrontmost: @Sendable () -> Bool
   private let source: CGEventSource?
@@ -12,13 +19,6 @@ package final class ScrollRewriter {
       optionReleased: CGEvent,
       optionRestored: CGEvent
     )?
-  private static let leftOptionFlag = CGEventFlags(rawValue: 0x20)
-  private static let rightOptionFlag = CGEventFlags(rawValue: 0x40)
-  private static let allOptionFlags: CGEventFlags = [
-    .maskAlternate, leftOptionFlag, rightOptionFlag,
-  ]
-  private static let leftOptionKey = CGKeyCode(0x3A)
-  private static let rightOptionKey = CGKeyCode(0x3D)
 
   package init(isTerminalFrontmost: @escaping @Sendable () -> Bool) {
     let source = CGEventSource(stateID: .hidSystemState)
@@ -53,8 +53,7 @@ package final class ScrollRewriter {
     }
   }
 
-  package func rewrite(event: CGEvent, options: ScrollOptions, proxy: CGEventTapProxy?) -> CGEvent?
-  {
+  package func rewrite(event: CGEvent, options: TapOptions, proxy: CGEventTapProxy?) -> CGEvent? {
     guard Self.isDiscreteWheelEvent(event) else { return event }
 
     guard
@@ -131,12 +130,11 @@ package final class ScrollRewriter {
   package func makeReplacement(location: CGPoint, flags: CGEventFlags, linesX: Int32, linesY: Int32)
     -> CGEvent?
   {
-    let wheelCount: UInt32 = linesX == 0 ? 1 : 2
     guard
       let replacement = CGEvent(
         scrollWheelEvent2Source: source,
         units: .line,
-        wheelCount: wheelCount,
+        wheelCount: linesX == 0 ? 1 : 2,
         wheel1: linesY,
         wheel2: linesX,
         wheel3: 0

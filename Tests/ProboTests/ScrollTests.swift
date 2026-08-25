@@ -12,6 +12,26 @@ struct ScrollTests {
     #expect(WheelNotch(verticalDelta: 0, horizontalDelta: 0) == nil)
   }
 
+  @Test("tap options publish one coherent configuration snapshot")
+  func tapOptionsSnapshot() {
+    let encoded = TapOptions(
+      configuration: InputConfiguration(
+        wheelStep: .medium,
+        isLookUpEnabled: true,
+        isOptionPrecisionEnabled: true,
+        isTerminalOptimizationEnabled: false,
+        isTrackpadStyleScrollingEnabled: true
+      )
+    )
+    let decoded = TapOptions(rawValue: encoded.rawValue)
+
+    #expect(decoded.stepLines == 3)
+    #expect(decoded.isLookUpEnabled)
+    #expect(decoded.isOptionPrecisionEnabled)
+    #expect(!decoded.isTerminalOptimizationEnabled)
+    #expect(decoded.isTrackpadStyleScrollingEnabled)
+  }
+
   @Test("wheel notches emit configured line steps")
   func wheelNotches() {
     expect(
@@ -80,7 +100,7 @@ private func expect(
   _ notch: WheelNotch,
   isOptionHeld: Bool = false,
   isTerminalFrontmost: Bool = false,
-  options: ScrollOptions = options(),
+  options: TapOptions = options(),
   output: ScrollOutput
 ) {
   #expect(
@@ -98,8 +118,8 @@ private func options(
   optionPrecision: Bool = false,
   terminalOptimization: Bool = false,
   natural: Bool = true
-) -> ScrollOptions {
-  ScrollOptions(
+) -> TapOptions {
+  TapOptions(
     configuration: InputConfiguration(
       wheelStep: wheelStep,
       isOptionPrecisionEnabled: optionPrecision,

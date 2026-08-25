@@ -1,8 +1,9 @@
-// Bit-packed so the event tap can publish one atomic UInt32 to its callback thread.
-package struct ScrollOptions: Equatable, Sendable {
-  private static let optionPrecisionBit: UInt32 = 1 << 0
-  private static let terminalOptimizationBit: UInt32 = 1 << 1
-  private static let trackpadStyleScrollingBit: UInt32 = 1 << 2
+// Bit-packed so the event tap can publish one coherent configuration to its callback thread.
+package struct TapOptions: Equatable, Sendable {
+  private static let lookUpBit: UInt32 = 1 << 0
+  private static let optionPrecisionBit: UInt32 = 1 << 1
+  private static let terminalOptimizationBit: UInt32 = 1 << 2
+  private static let trackpadStyleScrollingBit: UInt32 = 1 << 3
   private static let stepLinesShift: UInt32 = 8
   private static let stepLinesMask: UInt32 = 0xFF << stepLinesShift
 
@@ -14,6 +15,7 @@ package struct ScrollOptions: Equatable, Sendable {
 
   package init(configuration: InputConfiguration) {
     var value = UInt32(configuration.wheelStep.lines) << Self.stepLinesShift
+    if configuration.isLookUpEnabled { value |= Self.lookUpBit }
     if configuration.isOptionPrecisionEnabled { value |= Self.optionPrecisionBit }
     if configuration.isTerminalOptimizationEnabled { value |= Self.terminalOptimizationBit }
     if configuration.isTrackpadStyleScrollingEnabled {
@@ -22,6 +24,7 @@ package struct ScrollOptions: Equatable, Sendable {
     rawValue = value
   }
 
+  package var isLookUpEnabled: Bool { rawValue & Self.lookUpBit != 0 }
   package var isOptionPrecisionEnabled: Bool { rawValue & Self.optionPrecisionBit != 0 }
   package var isTerminalOptimizationEnabled: Bool {
     rawValue & Self.terminalOptimizationBit != 0
@@ -61,7 +64,7 @@ package func resolveScroll(
   _ notch: WheelNotch,
   isOptionHeld: Bool,
   isTerminalFrontmost: Bool,
-  options: ScrollOptions
+  options: TapOptions
 ) -> ScrollOutput {
   let stripsOption: Bool
   let stepLines: Int32
