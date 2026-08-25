@@ -1,40 +1,51 @@
 import Darwin
 
+struct BenchmarkOptions {
+  let iterations: Int
+  let warmup: Int
+
+  fileprivate init(iterations: Int, warmup: Int) {
+    self.iterations = iterations
+    self.warmup = warmup
+  }
+}
+
+struct EventPostingOptions {
+  let count: Int
+  let intervalUsec: UInt32
+
+  fileprivate init(count: Int, intervalUsec: UInt32) {
+    self.count = count
+    self.intervalUsec = intervalUsec
+  }
+}
+
 struct ProfileOptions {
-  var iterations = 100_000
-  var warmup = 10_000
-  var postEvents = 0
-  var postIntervalUsec: UInt32 = 0
+  let benchmark: BenchmarkOptions
+  let eventPosting: EventPostingOptions?
+
+  private init(benchmark: BenchmarkOptions, eventPosting: EventPostingOptions?) {
+    self.benchmark = benchmark
+    self.eventPosting = eventPosting
+  }
 
   static func parse(_ commandLine: [String] = CommandLine.arguments) throws -> Self {
-    var options = Self()
+    var iterations = 100_000
+    var warmup = 10_000
+    var postEvents = 0
+    var postIntervalUsec: UInt32 = 0
     var arguments = commandLine.dropFirst()
 
     while let argument = arguments.popFirst() {
       switch argument {
       case "--iterations":
-        options.iterations = try takeInt(
-          &arguments,
-          named: argument,
-          in: 1...Int.max,
-          requirement: "a positive integer"
-        )
+        iterations = try takeInt(&arguments, named: argument, minimum: 1)
       case "--warmup":
-        options.warmup = try takeInt(
-          &arguments,
-          named: argument,
-          in: 0...Int.max,
-          requirement: "a non-negative integer"
-        )
+        warmup = try takeInt(&arguments, named: argument, minimum: 0)
       case "--post-events":
-        options.postEvents = try takeInt(
-          &arguments,
-          named: argument,
-          in: 0...Int.max,
-          requirement: "a non-negative integer"
-        )
+        postEvents = try takeInt(&arguments, named: argument, minimum: 0)
       case "--post-interval-usec":
-        options.postIntervalUsec = try takeUInt32(&arguments, named: argument)
+        postIntervalUsec = try takeUInt32(&arguments, named: argument)
       case "-h", "--help":
         printHelpAndExit()
       default:
@@ -42,20 +53,27 @@ struct ProfileOptions {
       }
     }
 
-    return options
+    guard postEvents > 0 || postIntervalUsec == 0 else {
+      throw ProfileError("--post-interval-usec requires a positive --post-events value")
+    }
+
+    return Self(
+      benchmark: BenchmarkOptions(iterations: iterations, warmup: warmup),
+      eventPosting: postEvents > 0
+        ? EventPostingOptions(count: postEvents, intervalUsec: postIntervalUsec) : nil
+    )
   }
 
   private static func takeInt(
     _ arguments: inout ArraySlice<String>,
     named name: String,
-    in validRange: ClosedRange<Int>,
-    requirement: String
+    minimum: Int
   ) throws -> Int {
     guard let rawValue = arguments.popFirst() else {
       throw ProfileError("missing value for \(name)")
     }
-    guard let value = Int(rawValue), validRange.contains(value) else {
-      throw ProfileError("\(name) must be \(requirement)")
+    guard let value = Int(rawValue), value >= minimum else {
+      throw ProfileError("\(name) must be an integer greater than or equal to \(minimum)")
     }
     return value
   }

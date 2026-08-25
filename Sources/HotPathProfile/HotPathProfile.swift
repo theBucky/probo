@@ -15,15 +15,15 @@ struct HotPathProfile {
       throw ProfileError("failed to create synthetic scroll event")
     }
 
-    let scrollOptions = ScrollOptions(configuration: InputConfiguration())
-    let scrollOptionsRawValue = scrollOptions.rawValue
+    let tapOptions = TapOptions(configuration: InputConfiguration())
+    let tapOptionsRawValue = tapOptions.rawValue
     let rewriter = ScrollRewriter(isTerminalFrontmost: { false })
     guard
       case .vertical(let linesY, _) = resolveScroll(
         .vertical(.positive),
         isOptionHeld: false,
         isTerminalFrontmost: false,
-        options: scrollOptions
+        options: tapOptions
       )
     else {
       throw ProfileError("vertical input resolved to horizontal output")
@@ -32,13 +32,15 @@ struct HotPathProfile {
     var blackhole: Int64 = 0
 
     Swift.print("synthetic input: discrete line-unit CGEvent, no HID driver, no device coalescing")
-    Swift.print("iterations: \(options.iterations), warmup: \(options.warmup)")
+    Swift.print(
+      "iterations: \(options.benchmark.iterations), warmup: \(options.benchmark.warmup)"
+    )
     Swift.print("")
 
     print(
       measure(
         "timer baseline",
-        options: options,
+        options: options.benchmark,
         timebase: timebase,
         blackhole: &blackhole
       ) {
@@ -49,7 +51,7 @@ struct HotPathProfile {
     print(
       measure(
         "core only",
-        options: options,
+        options: options.benchmark,
         timebase: timebase,
         blackhole: &blackhole
       ) {
@@ -57,7 +59,7 @@ struct HotPathProfile {
           .vertical(.positive),
           isOptionHeld: false,
           isTerminalFrontmost: false,
-          options: scrollOptions
+          options: tapOptions
         ) {
         case .vertical(let lines, _): Int64(lines)
         case .horizontal: 0
@@ -68,7 +70,7 @@ struct HotPathProfile {
     print(
       measure(
         "synth make event",
-        options: options,
+        options: options.benchmark,
         timebase: timebase,
         blackhole: &blackhole,
         prepare: resetEvent
@@ -88,7 +90,7 @@ struct HotPathProfile {
     print(
       measure(
         "apply replacement",
-        options: options,
+        options: options.benchmark,
         timebase: timebase,
         blackhole: &blackhole,
         prepare: resetEvent
@@ -101,11 +103,11 @@ struct HotPathProfile {
     print(
       measure(
         "options decode",
-        options: options,
+        options: options.benchmark,
         timebase: timebase,
         blackhole: &blackhole
       ) {
-        let decoded = ScrollOptions(rawValue: scrollOptionsRawValue)
+        let decoded = TapOptions(rawValue: tapOptionsRawValue)
         return decoded.isTerminalOptimizationEnabled ? 1 : 0
       }
     )
@@ -113,12 +115,12 @@ struct HotPathProfile {
     print(
       measure(
         "rewriter mutate",
-        options: options,
+        options: options.benchmark,
         timebase: timebase,
         blackhole: &blackhole,
         prepare: resetEvent
       ) {
-        rewriter.rewrite(event: event, options: scrollOptions, proxy: nil)?
+        rewriter.rewrite(event: event, options: tapOptions, proxy: nil)?
           .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
       }
     )
@@ -126,19 +128,19 @@ struct HotPathProfile {
     print(
       measure(
         "rewriter + decode",
-        options: options,
+        options: options.benchmark,
         timebase: timebase,
         blackhole: &blackhole,
         prepare: resetEvent
       ) {
-        let decoded = ScrollOptions(rawValue: scrollOptionsRawValue)
+        let decoded = TapOptions(rawValue: tapOptionsRawValue)
         return rewriter.rewrite(event: event, options: decoded, proxy: nil)?
           .getIntegerValueField(.scrollWheelEventDeltaAxis1) ?? 0
       }
     )
 
-    if options.postEvents > 0 {
-      try postInputEvents(options: options, source: source)
+    if let eventPosting = options.eventPosting {
+      try postInputEvents(options: eventPosting, source: source)
     }
 
     Swift.print("")
@@ -151,12 +153,11 @@ private func makeInputEvent(
   verticalDelta: Int32,
   horizontalDelta: Int32
 ) -> CGEvent? {
-  let wheelCount: UInt32 = horizontalDelta == 0 ? 1 : 2
   guard
     let event = CGEvent(
       scrollWheelEvent2Source: source,
       units: .line,
-      wheelCount: wheelCount,
+      wheelCount: horizontalDelta == 0 ? 1 : 2,
       wheel1: verticalDelta,
       wheel2: horizontalDelta,
       wheel3: 0
@@ -170,13 +171,13 @@ private func makeInputEvent(
   return event
 }
 
-private func postInputEvents(options: ProfileOptions, source: CGEventSource?) throws {
+private func postInputEvents(options: EventPostingOptions, source: CGEventSource?) throws {
   Swift.print("")
   Swift.print(
-    "posting \(options.postEvents) synthetic scroll events to cgSessionEventTap"
+    "posting \(options.count) synthetic scroll events to cgSessionEventTap"
   )
 
-  for index in 0..<options.postEvents {
+  for index in 0..<options.count {
     guard
       let event = makeInputEvent(
         source: source, verticalDelta: index.isMultiple(of: 2) ? 1 : -1, horizontalDelta: 0)
@@ -184,8 +185,8 @@ private func postInputEvents(options: ProfileOptions, source: CGEventSource?) th
       throw ProfileError("failed to create post event")
     }
     event.post(tap: .cgSessionEventTap)
-    if options.postIntervalUsec > 0 {
-      usleep(options.postIntervalUsec)
+    if options.intervalUsec > 0 {
+      usleep(options.intervalUsec)
     }
   }
 }
