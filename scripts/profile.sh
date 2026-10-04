@@ -2,13 +2,11 @@
 
 set -euo pipefail
 
-root_dir="$(cd "$(dirname "$0")/../.." && pwd)"
-source "$root_dir/scripts/toolchain.sh"
-build_dir="$root_dir/build/hot-path"
-app_dir="$root_dir/build/Probo.app"
-app_executable="$app_dir/Contents/MacOS/Probo"
+root_dir="$(cd "$(dirname "$0")/.." && pwd)"
+source "$root_dir/scripts/lib.sh"
+
+trace_dir="$root_dir/build/hot-path"
 profile_entitlements="$root_dir/Sources/HotPathProfile/profile.entitlements"
-signing_identity="${PROBO_CODESIGN_IDENTITY:-${PROBO_CODESIGN_DEFAULT_IDENTITY:-Probo Local Code Signing}}"
 record_kind="none"
 trace_duration=15
 post_events_seen=false
@@ -60,8 +58,6 @@ if [[ "$record_kind" == "none" ]]; then
   exit 0
 fi
 
-mkdir -p "$build_dir"
-
 case "$record_kind" in
   time)
     template="Time Profiler"
@@ -82,11 +78,11 @@ esac
 if ! xcrun --find xctrace >/dev/null 2>&1; then
   echo "xctrace is unavailable; install/select full Xcode to use --record-app" >&2
   echo "micro profile still works without xctrace:" >&2
-  echo "  scripts/profiling/hot-path.sh" >&2
+  echo "  scripts/profile.sh" >&2
   exit 127
 fi
 
-PROBO_CODESIGN_DEFAULT_IDENTITY="$signing_identity" "$root_dir/scripts/build.sh" >/dev/null
+"$root_dir/scripts/build.sh" >/dev/null
 codesign \
   --force \
   --options runtime \
@@ -95,13 +91,7 @@ codesign \
   --timestamp=none \
   "$app_dir" >/dev/null
 
-if pgrep -f -x "$app_executable" >/dev/null; then
-  pkill -f -x "$app_executable"
-  while pgrep -f -x "$app_executable" >/dev/null; do
-    sleep 0.1
-  done
-fi
-
+stop_app
 env -i \
   HOME="$HOME" \
   LOGNAME="$LOGNAME" \
@@ -125,9 +115,10 @@ if [[ "$post_events_seen" == false ]]; then
   probe_args+=("--post-events" "$((trace_duration * 120))" "--post-interval-usec" "8333")
 fi
 
+mkdir -p "$trace_dir"
 timestamp="$(date +%Y%m%d-%H%M%S)"
-trace_path="$build_dir/probo-$record_kind-$timestamp.trace"
-log_path="$build_dir/probo-$record_kind-$timestamp.xctrace.log"
+trace_path="$trace_dir/probo-$record_kind-$timestamp.trace"
+log_path="$trace_dir/probo-$record_kind-$timestamp.xctrace.log"
 
 echo "recording $template for pid $pid"
 echo "trace: $trace_path"

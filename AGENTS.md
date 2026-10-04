@@ -22,7 +22,7 @@ Sources/
 │   └── System                Accessibility, idle-sleep assertion, launch-at-login adapters
 └── HotPathProfile            scroll hot-path benchmarks and entitlements
 Tests/ProboTests              Swift Testing behavior coverage, one suite per core file
-scripts                       build, signing, development, CI, profiling workflows
+scripts                       build, run, profile, codesign; lib.sh is sourced by all
 refs                          read-only inspiration; never edit or vendor
 ```
 
@@ -39,8 +39,8 @@ refs                          read-only inspiration; never edit or vendor
 - Format: `swift-format format -i -r Sources Tests`
 - Test: `swift test`
 - Build: `scripts/build.sh`
-- Run locally: `scripts/dev/run.sh`
-- Hot-path profile: `scripts/profiling/hot-path.sh`
+- Run locally: `scripts/run.sh`
+- Hot-path profile: `scripts/profile.sh`
 
 ## General Coding Rules
 

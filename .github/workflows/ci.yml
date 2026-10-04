@@ -15,6 +15,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
+      - run: swift-format lint --strict -r Sources Tests
       - run: swift test
       - env:
           PROBO_CODESIGN_IDENTITY: "-"

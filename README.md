@@ -37,7 +37,7 @@ First launch routes through the menu bar icon. Enabling Probo or selecting Reque
 Requires Xcode command-line tools. Local builds codesign with a self-minted identity created on first run.
 
 ```sh
-scripts/dev/run.sh
+scripts/run.sh
 ```
 
 Writes `build/Probo.app` and relaunches it. Set `PROBO_CODESIGN_IDENTITY=-` for ad-hoc signing.
@@ -58,17 +58,18 @@ SwiftPM owns the build graph for the app, core library, tests, profiling executa
 
 ## Development
 
-SwiftPM is canonical. Shell scripts wrap SwiftPM where app bundling, signing, launch, or profiling need extra macOS steps.
+SwiftPM is canonical. Shell scripts wrap SwiftPM where app bundling, signing, launch, or profiling need extra macOS steps; `scripts/lib.sh` holds the toolchain pin and signing defaults they share.
 
 | Command | Purpose |
 | --- | --- |
 | `swift-format format -i -r Sources Tests` | Format sources and tests |
+| `swift-format lint --strict -r Sources Tests` | Format gate used by CI |
 | `swift test` | Run Swift Testing suites and CI test gate |
 | `scripts/build.sh` | Build and codesign `build/Probo.app` |
-| `scripts/dev/run.sh` | Build and relaunch `Probo.app` |
-| `scripts/dev/setup-codesign.sh` | Create local signing identity |
-| `scripts/profiling/hot-path.sh` | Hot-path micro profiles or xctrace recordings |
-| `scripts/ci/mint-identity.sh` | Emit p12 and passphrase for CI signing secrets |
+| `scripts/run.sh` | Build and relaunch `Probo.app` |
+| `scripts/setup-codesign.sh` | Create local signing identity |
+| `scripts/profile.sh` | Hot-path micro profiles or xctrace recordings |
+| `scripts/mint-release-identity.sh` | Emit p12 and passphrase for CI signing secrets |
 
 ## Release
 
