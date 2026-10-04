@@ -22,7 +22,8 @@ package enum RuntimeStatus: Equatable {
 
 @MainActor
 @Observable
-package final class Runtime {
+// Explicit conformance survives SourceKit-LSP's lazy-typecheck module emission; the macro-synthesized one is dropped there and cross-module @Bindable breaks.
+package final class Runtime: Observable {
   private let store: ConfigurationStore
   private let inputPipeline = InputPipeline()
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
