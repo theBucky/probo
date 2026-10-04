@@ -68,9 +68,6 @@ package final class ScrollRewriter {
     event.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: linesX * pixelsPerLine)
     event.setIntegerValueField(.scrollWheelEventPointDeltaAxis3, value: 0)
     event.setIntegerValueField(.scrollWheelEventScrollCount, value: 1)
-    event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 0)
-    event.setIntegerValueField(.scrollWheelEventScrollPhase, value: 0)
-    event.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 0)
   }
 }
 
