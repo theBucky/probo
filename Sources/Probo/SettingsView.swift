@@ -61,7 +61,21 @@ struct SettingsView: View {
     .fixedSize(horizontal: false, vertical: true)
     .scrollDisabled(true)
     .scrollIndicators(.never)
+    .background { SettingsWindowStyle() }
   }
+}
+
+/// Dropping `.fullSizeContentView` from the hosting window keeps the title bar draggable: with that style, macOS 26+ stops title bar drags once a switch has been pressed.
+private struct SettingsWindowStyle: NSViewRepresentable {
+  final class View: NSView {
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow()
+      window?.styleMask.remove(.fullSizeContentView)
+    }
+  }
+
+  func makeNSView(context: Context) -> View { View() }
+  func updateNSView(_: View, context: Context) {}
 }
 
 private struct SettingToggle: View {
