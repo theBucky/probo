@@ -9,8 +9,8 @@ struct RuntimeTests {
   @MainActor
   func configurationPersistence() {
     let isolated = IsolatedDefaults()
-    let store = SettingsStore(defaults: isolated.defaults)
-    let runtime = Runtime(settingsStore: store)
+    let store = ConfigurationStore(defaults: isolated.defaults)
+    let runtime = Runtime(store: store)
 
     runtime.configuration.input.wheelStep = .medium
     runtime.configuration.isEnabled = false
@@ -28,7 +28,7 @@ struct RuntimeTests {
     #expect(
       RuntimeStatus(isEnabled: true, accessibilityTrusted: true, inputRunning: true) == .active)
     #expect(
-      RuntimeStatus(isEnabled: true, accessibilityTrusted: true, inputRunning: false) == .idle)
+      RuntimeStatus(isEnabled: true, accessibilityTrusted: true, inputRunning: false) == .tapFailed)
     #expect(
       RuntimeStatus(isEnabled: false, accessibilityTrusted: true, inputRunning: false) == .idle)
   }

@@ -6,9 +6,6 @@ import SwiftUI
 struct ProboApp: App {
   @State private var runtime: Runtime
 
-  // The launch-time accessibility query lives here, not in Runtime.init, so tests
-  // constructing a Runtime never touch AX APIs (which could install a real event
-  // tap when the test runner happens to be trusted).
   init() {
     let runtime = Runtime()
     runtime.refreshAccessibility()
@@ -17,11 +14,11 @@ struct ProboApp: App {
 
   var body: some Scene {
     MenuBarExtra("Probo", systemImage: runtime.status.symbolName) {
-      ProboMenu(runtime: runtime)
+      MenuContent(runtime: runtime)
     }
 
     Settings {
-      ProboSettingsView(runtime: runtime)
+      SettingsView(runtime: runtime)
         .onAppear {
           runtime.refreshAccessibility()
         }
@@ -33,7 +30,7 @@ struct ProboApp: App {
   }
 }
 
-struct ProboMenu: View {
+private struct MenuContent: View {
   @Bindable var runtime: Runtime
   @Environment(\.openSettings) private var openSettings
 
@@ -43,13 +40,21 @@ struct ProboMenu: View {
 
     Divider()
 
-    if !runtime.accessibilityTrusted {
+    if runtime.status == .needsAccessibility {
       Button("Grant Accessibility Access...") {
         runtime.requestAccessibilityAccess()
       }
     }
+    if runtime.status == .tapFailed {
+      Button("Retry Event Tap") {
+        runtime.refreshAccessibility()
+      }
+    }
     Button("Settings...") {
-      openSettingsWindow()
+      // Accessory apps must become regular and active before the window exists, or AppKit orders it behind other apps.
+      NSApp.setActivationPolicy(.regular)
+      NSApp.activate(ignoringOtherApps: true)
+      openSettings()
     }
 
     Divider()
@@ -59,23 +64,15 @@ struct ProboMenu: View {
     }
     .keyboardShortcut("q")
   }
-
-  private func openSettingsWindow() {
-    // Status-item apps run as accessory apps. Promote and activate before the
-    // window exists so AppKit creates it in an active app and orders it front;
-    // activating after the fact leaves it behind other apps' windows.
-    NSApp.setActivationPolicy(.regular)
-    NSApp.activate(ignoringOtherApps: true)
-    openSettings()
-  }
 }
 
 extension RuntimeStatus {
   fileprivate var symbolName: String {
     switch self {
+    case .idle: "computermouse"
     case .needsAccessibility: "exclamationmark.triangle.fill"
     case .active: "computermouse.fill"
-    case .idle: "computermouse"
+    case .tapFailed: "exclamationmark.octagon.fill"
     }
   }
 }

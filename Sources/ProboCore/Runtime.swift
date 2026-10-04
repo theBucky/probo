@@ -3,17 +3,19 @@ import Observation
 import os
 
 package enum RuntimeStatus: Equatable {
+  case idle
   case needsAccessibility
   case active
-  case idle
+  // Trusted and enabled, yet the event tap could not be installed or has died.
+  case tapFailed
 
-  package init(isEnabled: Bool, accessibilityTrusted: Bool, inputRunning: Bool) {
+  init(isEnabled: Bool, accessibilityTrusted: Bool, inputRunning: Bool) {
     self =
       switch (isEnabled, accessibilityTrusted, inputRunning) {
       case (false, _, _): .idle
       case (true, false, _): .needsAccessibility
       case (true, true, true): .active
-      case (true, true, false): .idle
+      case (true, true, false): .tapFailed
       }
   }
 }
@@ -21,20 +23,18 @@ package enum RuntimeStatus: Equatable {
 @MainActor
 @Observable
 package final class Runtime {
-  private let settingsStore: SettingsStore
-  @ObservationIgnored private lazy var inputPipeline = InputPipeline { [weak self] isRunning in
-    self?.inputRunning = isRunning
-  }
-  private let idleSleepAssertion = IdleSleepAssertion()
+  private let store: ConfigurationStore
+  private let inputPipeline = InputPipeline()
   private let logger = Logger(subsystem: "com.probo.app", category: "Probo")
+  @ObservationIgnored private var idleSleepAssertion: IdleSleepAssertion?
   @ObservationIgnored private var trustChangeObserver: Task<Void, Never>?
+
   package private(set) var accessibilityTrusted = false
-  private var inputRunning = false
 
   package var configuration: AppConfiguration {
     didSet {
       guard configuration != oldValue else { return }
-      settingsStore.save(configuration)
+      store.save(configuration)
       applyConfiguration()
       if configuration.isEnabled && !oldValue.isEnabled && !accessibilityTrusted {
         requestAccessibilityAccess()
@@ -42,9 +42,7 @@ package final class Runtime {
     }
   }
 
-  // Projects SMAppService state through manual observation hooks so menu toggles
-  // can bind to it. External changes (System Settings) don't notify; each read
-  // still returns live service state.
+  // SMAppService has no change notification, so each read returns live state and the manual observation hooks only cover writes made here.
   package var startAtLoginEnabled: Bool {
     get {
       access(keyPath: \.startAtLoginEnabled)
@@ -65,14 +63,14 @@ package final class Runtime {
     RuntimeStatus(
       isEnabled: configuration.isEnabled,
       accessibilityTrusted: accessibilityTrusted,
-      inputRunning: inputRunning
+      inputRunning: inputPipeline.isRunning
     )
   }
 
-  package init(settingsStore: SettingsStore = SettingsStore()) {
-    self.settingsStore = settingsStore
-    configuration = settingsStore.load()
-    // Trust moves both ways at any time, so the observer lives as long as the runtime.
+  // Trust is never queried here, so constructing a Runtime touches no AX API and installs no tap; callers drive trust through `refreshAccessibility`.
+  package init(store: ConfigurationStore = ConfigurationStore()) {
+    self.store = store
+    configuration = store.load()
     trustChangeObserver = AccessibilityPermission.observeTrustChanges { [weak self] in
       self?.refreshAccessibility()
     }
@@ -96,7 +94,8 @@ package final class Runtime {
       configuration.input,
       isEnabled: configuration.isEnabled && accessibilityTrusted
     )
-    idleSleepAssertion.setEnabled(configuration.isEnabled && configuration.preventsIdleSleep)
+    let preventsIdleSleep = configuration.isEnabled && configuration.preventsIdleSleep
+    idleSleepAssertion = preventsIdleSleep ? idleSleepAssertion ?? IdleSleepAssertion() : nil
   }
 
   deinit {

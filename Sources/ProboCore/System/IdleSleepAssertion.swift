@@ -2,34 +2,13 @@ import Foundation
 import IOKit.pwr_mgt
 import os
 
+// Holds a prevent-idle-sleep assertion for its lifetime; display sleep, lid close, and manual sleep still fire.
 final class IdleSleepAssertion {
   private static let logger = Logger(subsystem: "com.probo.app", category: "Power")
-  private var assertionID: IOPMAssertionID?
 
-  deinit {
-    if let assertionID {
-      releaseSystemAssertion(assertionID)
-    }
-  }
+  private let assertionID: IOPMAssertionID
 
-  @MainActor
-  func setEnabled(_ enabled: Bool) {
-    if enabled {
-      guard assertionID == nil else { return }
-      guard let createdAssertionID = createSystemAssertion() else {
-        Self.logger.error("failed to create idle sleep assertion")
-        return
-      }
-      assertionID = createdAssertionID
-      return
-    }
-
-    guard let activeAssertionID = assertionID else { return }
-    releaseSystemAssertion(activeAssertionID)
-    assertionID = nil
-  }
-
-  private func createSystemAssertion() -> IOPMAssertionID? {
+  init?() {
     var assertionID: IOPMAssertionID = 0
     let result = IOPMAssertionCreateWithDescription(
       kIOPMAssertPreventUserIdleSystemSleep as CFString,
@@ -41,16 +20,18 @@ final class IdleSleepAssertion {
       nil,
       &assertionID
     )
-
-    guard result == kIOReturnSuccess else { return nil }
-    return assertionID
+    guard result == kIOReturnSuccess else {
+      Self.logger.error("failed to create idle sleep assertion: \(result, privacy: .public)")
+      return nil
+    }
+    self.assertionID = assertionID
   }
 
-  private func releaseSystemAssertion(_ assertionID: IOPMAssertionID) {
+  deinit {
     let result = IOPMAssertionRelease(assertionID)
     if result != kIOReturnSuccess {
       Self.logger.error(
-        "failed to release idle sleep assertion \(assertionID, privacy: .public): \(result, privacy: .public)"
+        "failed to release idle sleep assertion \(self.assertionID, privacy: .public): \(result, privacy: .public)"
       )
     }
   }

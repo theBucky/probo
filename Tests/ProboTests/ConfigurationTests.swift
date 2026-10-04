@@ -1,21 +1,22 @@
 import Foundation
+import Synchronization
 import Testing
 
 @testable import ProboCore
 
-@Suite("Settings store")
-struct SettingsStoreTests {
+@Suite("Configuration")
+struct ConfigurationTests {
   @Test("registered defaults load default configuration")
   func registeredDefaults() {
     let isolated = IsolatedDefaults()
 
-    #expect(SettingsStore(defaults: isolated.defaults).load() == AppConfiguration())
+    #expect(ConfigurationStore(defaults: isolated.defaults).load() == AppConfiguration())
   }
 
   @Test("saved configuration round trips by key")
   func savedConfiguration() {
     let isolated = IsolatedDefaults()
-    let store = SettingsStore(defaults: isolated.defaults)
+    let store = ConfigurationStore(defaults: isolated.defaults)
     let configuration = AppConfiguration(
       isEnabled: false,
       input: InputConfiguration(
@@ -38,6 +39,22 @@ struct SettingsStoreTests {
     let isolated = IsolatedDefaults()
     isolated.defaults.set(99, forKey: "wheelStep")
 
-    #expect(SettingsStore(defaults: isolated.defaults).load().input.wheelStep == .slow)
+    #expect(ConfigurationStore(defaults: isolated.defaults).load().input.wheelStep == .slow)
+  }
+
+  @Test("input configuration round trips through an atomic")
+  func atomicRoundTrip() {
+    let configuration = InputConfiguration(
+      wheelStep: .medium,
+      isLookUpEnabled: false,
+      isOptionPrecisionEnabled: true,
+      isTerminalOptimizationEnabled: false,
+      isTrackpadStyleScrollingEnabled: true
+    )
+    let atomic = Atomic<InputConfiguration>(InputConfiguration())
+
+    atomic.store(configuration, ordering: .relaxed)
+
+    #expect(atomic.load(ordering: .relaxed) == configuration)
   }
 }

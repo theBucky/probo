@@ -1,13 +1,10 @@
+import ProboCore
 import SwiftUI
 
-package struct ProboSettingsView: View {
-  @Bindable private var runtime: Runtime
+struct SettingsView: View {
+  @Bindable var runtime: Runtime
 
-  package init(runtime: Runtime) {
-    self.runtime = runtime
-  }
-
-  package var body: some View {
+  var body: some View {
     Form {
       Section("Scrolling") {
         Picker("Wheel Step", selection: $runtime.configuration.input.wheelStep) {
@@ -60,10 +57,7 @@ package struct ProboSettingsView: View {
     .scrollContentBackground(.hidden)
     .contentMargins(.top, 8, for: .scrollContent)
     .frame(width: 500)
-    // A grouped form is scroll-backed; sizing it to its ideal height makes the
-    // window fit the content. With everything visible, disable the leftover
-    // scroll machinery: with a mouse connected, macOS shows the scroller even
-    // when there is nothing to scroll, and .never hides it on any input device.
+    // A grouped form is scroll-backed; size it to its content and disable the leftover scroller, which macOS shows for a mouse even with nothing to scroll.
     .fixedSize(horizontal: false, vertical: true)
     .scrollDisabled(true)
     .scrollIndicators(.never)

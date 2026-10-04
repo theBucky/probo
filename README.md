@@ -44,13 +44,14 @@ Writes `build/Probo.app` and relaunches it. Set `PROBO_CODESIGN_IDENTITY=-` for 
 
 ## Architecture
 
-SwiftPM owns the build graph for the app, tests, profiling executable, and SourceKit-LSP. SwiftUI owns the app surface. The runtime persists app settings and applies them to the input pipeline and power adapter. The input pipeline owns terminal focus and the event tap; each callback classifies raw `CGEvent` fields into a valid wheel notch, resolves the pure scroll rule, then mutates or synthesizes output. Hot path is allocation-free.
+SwiftPM owns the build graph for the app, core library, tests, profiling executable, and SourceKit-LSP. Read the core top-down: the SwiftUI surface binds to `Runtime`; `Runtime` persists `AppConfiguration` and applies it to `InputPipeline` and the idle-sleep assertion whenever configuration or Accessibility trust changes; `InputPipeline` owns the event tap and publishes configuration and terminal focus to its callback thread through atomics; each scroll callback hands the `CGEvent` to `ScrollRewriter`, which classifies a wheel notch, asks `ScrollPolicy` for the line step, then mutates the event in place or posts an Option-stripped replacement. Hot path is allocation-free.
 
 | Module | Path | Role |
 | --- | --- | --- |
-| Package | `Package.swift` | SwiftPM products, targets, platforms, resources |
-| App | `Sources/Probo`, `Sources/ProboCore/App` | Entry point, settings, UI, runtime orchestration |
-| Input | `Sources/ProboCore/Input` | Input configuration and mouse-event pipeline |
+| Package | `Package.swift` | SwiftPM products, targets, platforms |
+| App | `Sources/Probo` | Entry point, menu bar, settings window, resources |
+| Runtime | `Sources/ProboCore/Runtime.swift`, `Configuration.swift` | Orchestration, configuration model, persistence |
+| Input | `Sources/ProboCore/Input` | Event tap lifecycle, scroll rewriting, pure scroll policy |
 | System | `Sources/ProboCore/System` | Accessibility, sleep, and login adapters |
 | Tools | `Sources/HotPathProfile` | Profiling executable and entitlements |
 | Tests | `Tests/ProboTests` | Swift Testing suites |
