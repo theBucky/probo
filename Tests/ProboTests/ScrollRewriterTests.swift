@@ -14,7 +14,7 @@ struct ScrollRewriterTests {
 
     let rewrite = rewriter.rewrite(event, configuration: configuration, isTerminalFrontmost: false)
 
-    #expect(rewrite.delivered === event)
+    #expect(rewrite.isDeliver)
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == -2)
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis2) == 0)
     #expect(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis1) == -32)
@@ -26,7 +26,7 @@ struct ScrollRewriterTests {
 
     let rewrite = rewriter.rewrite(event, configuration: configuration, isTerminalFrontmost: false)
 
-    #expect(rewrite.delivered === event)
+    #expect(rewrite.isDeliver)
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == 0)
     #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis2) == 2)
   }
@@ -45,7 +45,7 @@ struct ScrollRewriterTests {
     for event in [continuous, phased, momentum] {
       let rewrite = rewriter.rewrite(
         event, configuration: configuration, isTerminalFrontmost: false)
-      #expect(rewrite.delivered === event)
+      #expect(rewrite.isDeliver)
       #expect(event.getIntegerValueField(.scrollWheelEventDeltaAxis1) == 1)
     }
   }
@@ -86,8 +86,8 @@ struct ScrollRewriterTests {
 }
 
 extension ScrollRewrite {
-  fileprivate var delivered: CGEvent? {
-    if case .deliver(let event) = self { event } else { nil }
+  fileprivate var isDeliver: Bool {
+    if case .deliver = self { true } else { false }
   }
 
   fileprivate var isDrop: Bool {

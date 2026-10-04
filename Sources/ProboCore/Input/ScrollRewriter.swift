@@ -17,7 +17,7 @@ package final class ScrollRewriter {
     configuration: InputConfiguration,
     isTerminalFrontmost: Bool
   ) -> ScrollRewrite {
-    guard Self.isWheelNotchEvent(event) else { return .deliver(event) }
+    guard Self.isWheelNotchEvent(event) else { return .deliver }
     guard
       let notch = WheelNotch(
         verticalDelta: Int32(
@@ -36,7 +36,7 @@ package final class ScrollRewriter {
     )
     guard step.stripsOption else {
       Self.write(step, to: event)
-      return .deliver(event)
+      return .deliver
     }
 
     // Without synthesized events, dropping beats delivering an Option-bearing notch that terminals read as alt-scroll.
@@ -72,7 +72,7 @@ package final class ScrollRewriter {
 }
 
 package enum ScrollRewrite {
-  case deliver(CGEvent)
+  case deliver
   case drop
   case post(StrippedNotch)
 }

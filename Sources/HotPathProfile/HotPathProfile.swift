@@ -60,8 +60,8 @@ struct HotPathProfile {
         "rewrite in place", options: options.benchmark, timebase: timebase, blackhole: &blackhole,
         prepare: resetEvent
       ) {
-        deliveredDelta(
-          rewriter.rewrite(event, configuration: configuration, isTerminalFrontmost: false))
+        _ = rewriter.rewrite(event, configuration: configuration, isTerminalFrontmost: false)
+        return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
       }
     )
 
@@ -70,9 +70,9 @@ struct HotPathProfile {
         "load + rewrite", options: options.benchmark, timebase: timebase, blackhole: &blackhole,
         prepare: resetEvent
       ) {
-        deliveredDelta(
-          rewriter.rewrite(
-            event, configuration: published.load(ordering: .relaxed), isTerminalFrontmost: false))
+        _ = rewriter.rewrite(
+          event, configuration: published.load(ordering: .relaxed), isTerminalFrontmost: false)
+        return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
       }
     )
 
@@ -83,11 +83,6 @@ struct HotPathProfile {
     print("")
     print("blackhole: \(blackhole)")
   }
-}
-
-private func deliveredDelta(_ rewrite: ScrollRewrite) -> Int64 {
-  guard case .deliver(let event) = rewrite else { return 0 }
-  return event.getIntegerValueField(.scrollWheelEventDeltaAxis1)
 }
 
 private func makeInputEvent(source: CGEventSource?, verticalDelta: Int32) -> CGEvent? {

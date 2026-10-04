@@ -146,7 +146,7 @@ final class InputPipeline {
         configuration: configuration,
         isTerminalFrontmost: isTerminalFrontmost.load(ordering: .relaxed)
       ) {
-      case .deliver(let delivered): return Unmanaged.passUnretained(delivered)
+      case .deliver: return pass
       case .drop: return nil
       case .post(let stripped):
         stripped.post(via: proxy)
