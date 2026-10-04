@@ -16,7 +16,7 @@ struct ScrollPolicyTests {
     #expect(WheelNotch(verticalDelta: 0, horizontalDelta: 0) == nil)
   }
 
-  @Test("wheel notches emit configured line steps")
+  @Test("wheel notches emit configured line steps signed by direction and natural setting")
   func wheelNotches() {
     expect(
       .vertical, .positive,
@@ -24,14 +24,14 @@ struct ScrollPolicyTests {
       step: ScrollStep(axis: .vertical, lines: 2, stripsOption: false)
     )
     expect(
-      .vertical, .negative,
-      configuration: configuration(wheelStep: .slow, natural: true),
-      step: ScrollStep(axis: .vertical, lines: -2, stripsOption: false)
-    )
-    expect(
       .horizontal, .negative,
       configuration: configuration(wheelStep: .medium, natural: true),
       step: ScrollStep(axis: .horizontal, lines: -3, stripsOption: false)
+    )
+    expect(
+      .vertical, .positive,
+      configuration: configuration(wheelStep: .slow, natural: false),
+      step: ScrollStep(axis: .vertical, lines: -2, stripsOption: false)
     )
   }
 
@@ -67,15 +67,6 @@ struct ScrollPolicyTests {
       isTerminalFrontmost: true,
       configuration: configuration(wheelStep: .medium, natural: true),
       step: ScrollStep(axis: .vertical, lines: -3, stripsOption: false)
-    )
-  }
-
-  @Test("disabled natural direction reverses output")
-  func direction() {
-    expect(
-      .vertical, .positive,
-      configuration: configuration(wheelStep: .slow, natural: false),
-      step: ScrollStep(axis: .vertical, lines: -2, stripsOption: false)
     )
   }
 }
